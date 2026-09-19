@@ -19,6 +19,7 @@ export const navigationItems = [
     icon: <BankOutlined />,
     children: [
       { key: "/loans", label: "All Loans" },
+      { key: "/loans/approval", label: "Loan Approval" },
       { key: "/loans/overdue", label: "Due / Overdue" },
     ],
   },

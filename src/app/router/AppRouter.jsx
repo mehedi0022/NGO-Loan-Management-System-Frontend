@@ -5,14 +5,12 @@ import { DashboardPage } from "../../modules/dashboard/DashboardPage.jsx";
 import { CreateMemberPage } from "../../modules/members/CreateMemberPage.jsx";
 import { MemberProfilePage } from "../../modules/members/MemberProfilePage.jsx";
 import { MembersPage } from "../../modules/members/MembersPage.jsx";
+import { CreateLoanPage } from "../../modules/loans/CreateLoanPage.jsx";
+import { LoanApprovalPage } from "../../modules/loans/LoanApprovalPage.jsx";
+import { LoansPage } from "../../modules/loans/LoansPage.jsx";
 import { PlaceholderPage } from "../../modules/shared/PlaceholderPage.jsx";
 
 const pages = [
-  {
-    path: "loans",
-    title: "Loans",
-    description: "Loan applications and active facilities will appear here.",
-  },
   {
     path: "loans/overdue",
     title: "Due / Overdue",
@@ -63,6 +61,9 @@ export function AppRouter() {
         />
         <Route path="members/:memberId" element={<MemberProfilePage />} />
         <Route path="members" element={<MembersPage />} />
+        <Route path="loans/new" element={<CreateLoanPage />} />
+        <Route path="loans/approval" element={<LoanApprovalPage />} />
+        <Route path="loans" element={<LoansPage />} />
         {pages.map((page) => (
           <Route
             key={page.path}

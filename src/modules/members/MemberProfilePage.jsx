@@ -284,7 +284,14 @@ export function MemberProfilePage() {
           >
             Edit member
           </Button>
-          <Button type="primary">Add loan</Button>
+          <Button
+            type="primary"
+            onClick={() =>
+              navigate(`/loans/new?member=${memberId || profile.id}`)
+            }
+          >
+            Create new loan
+          </Button>
         </Space>
       </div>
 
