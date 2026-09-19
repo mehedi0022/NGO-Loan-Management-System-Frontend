@@ -16,7 +16,7 @@ import {
   Tag,
   Typography,
 } from "antd";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { PageContainer } from "../../components/page-container/PageContainer.jsx";
 
@@ -29,6 +29,7 @@ const collectionRows = [
     loan: "L-3034",
     installment: "#3 of 10",
     due: 3180,
+    dps: 500,
     outstanding: "৳12,720",
     days: 47,
     status: "Overdue",
@@ -41,6 +42,7 @@ const collectionRows = [
     loan: "L-3061",
     installment: "#2 of 10",
     due: 2110,
+    dps: 300,
     outstanding: "৳18,990",
     days: 12,
     status: "Overdue",
@@ -53,6 +55,7 @@ const collectionRows = [
     loan: "L-3052",
     installment: "#4 of 8",
     due: 1590,
+    dps: 500,
     outstanding: "৳7,950",
     days: 0,
     status: "Due Today",
@@ -70,6 +73,9 @@ export function CollectionPage() {
   const [confirmation, setConfirmation] = useState(null);
   const [form] = Form.useForm();
   const queryMember = searchParams.get("member");
+  const [individualMember, setIndividualMember] = useState(
+    queryMember || "M-0135",
+  );
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -89,8 +95,24 @@ export function CollectionPage() {
   const selectedRows = collectionRows.filter((row) =>
     selectedRowKeys.includes(row.key),
   );
-  const selectedTotal = selectedRows.reduce((total, row) => total + row.due, 0);
+  const selectedLoanTotal = selectedRows.reduce(
+    (total, row) => total + row.due,
+    0,
+  );
+  const selectedDpsTotal = selectedRows.reduce(
+    (total, row) => total + row.dps,
+    0,
+  );
+  const selectedTotal = selectedLoanTotal + selectedDpsTotal;
   const individualRow = filteredRows[0];
+
+  useEffect(() => {
+    if (individualRow)
+      form.setFieldsValue({
+        amount: individualRow.due,
+        dps: individualRow.dps,
+      });
+  }, [form, individualRow]);
 
   const openCollection = (rows) => {
     if (rows.length) setConfirmation({ rows });
@@ -121,9 +143,16 @@ export function CollectionPage() {
     { title: "Loan", dataIndex: "loan", key: "loan" },
     { title: "Installment", dataIndex: "installment", key: "installment" },
     {
-      title: "Due amount",
+      title: "Loan due",
       dataIndex: "due",
       key: "due",
+      align: "right",
+      render: (value) => `৳${value.toLocaleString("en-IN")}`,
+    },
+    {
+      title: "DPS / savings",
+      dataIndex: "dps",
+      key: "dps",
       align: "right",
       render: (value) => `৳${value.toLocaleString("en-IN")}`,
     },
@@ -162,25 +191,33 @@ export function CollectionPage() {
 
   return (
     <PageContainer>
-      <div className="collection-heading collection-page-heading">
+      <div className="mb-6 flex flex-col gap-1">
         <div>
           <Button
             type="text"
+            className="w-fit px-0!"
             icon={<ArrowLeftOutlined />}
             onClick={() => navigate("/loans/overdue")}
           >
             Back to Due &amp; Overdue
           </Button>
-          <Typography.Title level={2}>Collections</Typography.Title>
+          <Typography.Title className="mb-0! text-2xl!" level={2}>
+            Collections
+          </Typography.Title>
           <Typography.Text>
             Collect installments from all due loans or a single member.
           </Typography.Text>
         </div>
       </div>
 
-      <Card className="collection-filter-card">
-        <div className="collection-mode-row">
-          <Typography.Text strong>Collection mode</Typography.Text>
+      <Card className="mb-4 border-[#deded7] shadow-none">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <Typography.Text strong>Collection mode</Typography.Text>
+            <Typography.Text type="secondary" className="block text-xs">
+              Choose one or collect multiple due loans together.
+            </Typography.Text>
+          </div>
           <Radio.Group
             value={mode}
             onChange={(event) => setMode(event.target.value)}
@@ -193,15 +230,17 @@ export function CollectionPage() {
             </Radio.Button>
           </Radio.Group>
         </div>
-        <div className="collection-filter-row">
+        <div className="flex flex-col gap-3 md:flex-row">
           <Input
             allowClear
             prefix={<SearchOutlined />}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
+            className="md:max-w-md"
             placeholder="Search member, ID, phone or loan"
           />
           <Select
+            className="md:w-40"
             value={statusFilter}
             onChange={setStatusFilter}
             options={[
@@ -220,25 +259,32 @@ export function CollectionPage() {
 
       {mode === "all" ? (
         <Card
-          className="collection-table-card"
+          className="overflow-hidden border-[#deded7] shadow-none"
           title={
             <div className="collection-table-title">
               <span>Due collections</span>
-              <Typography.Text type="secondary">
+              <Typography.Text
+                type="secondary"
+                className="ml-2 text-xs font-normal"
+              >
                 {filteredRows.length} loans ready for collection
               </Typography.Text>
             </div>
           }
           extra={
             selectedRows.length > 0 && (
-              <Button
-                type="primary"
-                icon={<CheckOutlined />}
-                onClick={() => openCollection(selectedRows)}
-              >
-                Collect selected ({selectedRows.length}) · ৳
-                {selectedTotal.toLocaleString("en-IN")}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button type="link" onClick={() => setSelectedRowKeys([])}>
+                  Clear
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<CheckOutlined />}
+                  onClick={() => openCollection(selectedRows)}
+                >
+                  Collect selected · ৳{selectedTotal.toLocaleString("en-IN")}
+                </Button>
+              </div>
             )
           }
         >
@@ -251,14 +297,32 @@ export function CollectionPage() {
           />
         </Card>
       ) : (
-        <IndividualCollection
-          rows={filteredRows}
-          row={individualRow}
-          paymentType={paymentType}
-          setPaymentType={setPaymentType}
-          form={form}
-          onCollect={openCollection}
-        />
+        <div className="space-y-4">
+          <Card className="border-[#deded7] shadow-none">
+            <Typography.Text strong className="mb-2 block">
+              Choose member
+            </Typography.Text>
+            <Select
+              className="w-full"
+              value={individualMember}
+              onChange={setIndividualMember}
+              options={collectionRows.map((row) => ({
+                value: row.key,
+                label: `${row.member} · ${row.loan} · ৳${row.due.toLocaleString("en-IN")}`,
+              }))}
+            />
+          </Card>
+          <IndividualCollection
+            row={
+              collectionRows.find((row) => row.key === individualMember) ||
+              individualRow
+            }
+            paymentType={paymentType}
+            setPaymentType={setPaymentType}
+            form={form}
+            onCollect={openCollection}
+          />
+        </div>
       )}
 
       <Modal
@@ -279,7 +343,7 @@ export function CollectionPage() {
             <strong>
               ৳
               {confirmation.rows
-                .reduce((total, row) => total + row.due, 0)
+                .reduce((total, row) => total + row.due + row.dps, 0)
                 .toLocaleString("en-IN")}
             </strong>
             ?
@@ -299,52 +363,66 @@ function IndividualCollection({
 }) {
   if (!row)
     return (
-      <Card className="collection-empty-card">
+      <Card className="border-[#deded7] shadow-none">
         No due loan found for this filter.
       </Card>
     );
 
   return (
-    <div className="individual-collection-layout">
-      <Card className="collection-member-card">
-        <div className="collection-member-heading">
-          <div className="loan-member-cell">
-            <span className="member-avatar">{row.initials}</span>
-            <span>
-              <b>{row.member}</b>
-              <small>
-                {row.key} · Loan {row.loan}
-              </small>
-            </span>
+    <div className="grid items-start gap-4 lg:grid-cols-[1.25fr_.85fr]">
+      <Card className="border-[#deded7] shadow-none">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-full bg-[#dbeee7] text-xs font-bold text-[#176b57]">
+            {row.initials}
+          </div>
+          <div className="flex flex-col gap-1">
+            <b>{row.member}</b>
+            <small className="text-gray-500">
+              {row.key} · Loan {row.loan}
+            </small>
           </div>
         </div>
-        <div className="collection-facts">
-          <div>
-            <span>Current installment</span>
+        <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-gray-500">Current installment</span>
             <b>{row.installment}</b>
           </div>
-          <div>
-            <span>Outstanding</span>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-gray-500">Outstanding</span>
             <b>{row.outstanding}</b>
           </div>
-          <div>
-            <span>Status</span>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-gray-500">Status</span>
             <Tag
-              className={`loan-status-tag ${row.status === "Overdue" ? "overdue" : "pending"}`}
+              className={`w-fit ${row.status === "Overdue" ? "loan-status-tag overdue" : "loan-status-tag pending"}`}
             >
               {row.status}
             </Tag>
           </div>
-          <div className="collection-due">
-            <span>Amount due today</span>
-            <strong>৳{row.due.toLocaleString("en-IN")}</strong>
+          <div className="col-span-2 mt-1 grid grid-cols-2 gap-4 sm:col-span-3">
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-500">Loan due today</span>
+              <strong className="text-2xl text-[#176b57]">
+                ৳{row.due.toLocaleString("en-IN")}
+              </strong>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-500">DPS / savings</span>
+              <strong className="text-2xl text-[#176b57]">
+                ৳{row.dps.toLocaleString("en-IN")}
+              </strong>
+            </div>
           </div>
         </div>
       </Card>
-      <Card className="collection-payment-card" title="Payment">
-        <Form form={form} layout="vertical" initialValues={{ amount: row.due }}>
+      <Card className="border-[#deded7] shadow-none" title="Payment">
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{ amount: row.due, dps: row.dps }}
+        >
           <Form.Item label="Payment type">
-            <div className="payment-type-buttons">
+            <div className="flex flex-wrap gap-2">
               {["Full Payment", "Partial", "Advance"].map((type) => (
                 <Button
                   key={type}
@@ -357,13 +435,14 @@ function IndividualCollection({
               ))}
             </div>
           </Form.Item>
-          <Form.Item label="Amount" name="amount">
-            <InputNumber
-              className="full-width-control collection-amount-input"
-              min={1}
-              prefix="৳"
-            />
-          </Form.Item>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Form.Item label="Loan installment" name="amount">
+              <InputNumber className="w-full" min={0} prefix="৳" />
+            </Form.Item>
+            <Form.Item label="DPS / savings deposit" name="dps">
+              <InputNumber className="w-full" min={0} prefix="৳" />
+            </Form.Item>
+          </div>
           <Button
             block
             type="primary"

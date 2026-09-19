@@ -798,12 +798,6 @@ select {
   overflow: hidden;
 }
 
-.approval-table-card .ant-table-thead > tr > th,
-.approval-table-card .ant-table-tbody > tr > td {
-  padding: 12px;
-  font-size: 11px;
-}
-
 .approval-member {
   display: flex;
   flex-direction: column;

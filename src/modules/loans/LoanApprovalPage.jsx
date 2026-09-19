@@ -164,7 +164,10 @@ export function LoanApprovalPage() {
           <Typography.Title level={3}>৳55,000</Typography.Title>
         </Card>
       </div>
-      <Card className="loans-table-card approval-table-card">
+      <Card
+        className="loans-table-card approval-table-card"
+        styles={{ body: { padding: 0 } }}
+      >
         <Table
           columns={columns}
           dataSource={approvals}

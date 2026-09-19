@@ -122,7 +122,7 @@ export function DashboardPage() {
       <Typography.Title level={5} className="dashboard-section-title">
         Quick actions
       </Typography.Title>
-      <div className="quick-actions">
+      <div className="quick-actions flex flex-row gap-2 ">
         <Button type="primary" icon={<UserAddOutlined />}>
           Add Member
         </Button>

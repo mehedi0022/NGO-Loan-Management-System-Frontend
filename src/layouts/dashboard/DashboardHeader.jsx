@@ -1,5 +1,4 @@
 import {
-  BellOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   MoonOutlined,
@@ -52,11 +51,7 @@ export function DashboardHeader({ collapsed, onToggle }) {
             onClick={toggleTheme}
           />
         </Tooltip>
-        <Button
-          type="text"
-          aria-label="Notifications"
-          icon={<BellOutlined />}
-        />
+
         <Dropdown
           menu={{
             items: [
