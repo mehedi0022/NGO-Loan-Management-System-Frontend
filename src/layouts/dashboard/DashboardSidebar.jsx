@@ -19,6 +19,8 @@ export function DashboardSidebar({ collapsed, onCollapse }) {
       width={248}
       collapsed={collapsed}
       onCollapse={onCollapse}
+      onBreakpoint={(broken) => onCollapse(broken)}
+      trigger={null}
       className="app-sider"
     >
       <div className="brand-lockup">
@@ -35,7 +37,12 @@ export function DashboardSidebar({ collapsed, onCollapse }) {
         items={navigationItems}
         selectedKeys={[selectedKey]}
         defaultOpenKeys={openKeys}
-        onClick={({ key }) => key.startsWith("/") && navigate(key)}
+        onClick={({ key }) => {
+          if (!key.startsWith("/")) return;
+
+          navigate(key);
+          onCollapse(false);
+        }}
       />
     </Sider>
   );

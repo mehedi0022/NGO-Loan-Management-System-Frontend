@@ -204,17 +204,13 @@ export function LoanApprovalPage() {
                 <>
                   <Button
                     danger
-                    onClick={() =>
-                      requestStatusChange(selectedLoan, "Rejected")
-                    }
+                    onClick={() => updateStatus(selectedLoan.key, "Rejected")}
                   >
                     Reject
                   </Button>
                   <Button
                     type="primary"
-                    onClick={() =>
-                      requestStatusChange(selectedLoan, "Approved")
-                    }
+                    onClick={() => updateStatus(selectedLoan.key, "Approved")}
                   >
                     Approve loan
                   </Button>

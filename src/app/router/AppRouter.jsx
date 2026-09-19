@@ -8,19 +8,11 @@ import { MembersPage } from "../../modules/members/MembersPage.jsx";
 import { CreateLoanPage } from "../../modules/loans/CreateLoanPage.jsx";
 import { LoanApprovalPage } from "../../modules/loans/LoanApprovalPage.jsx";
 import { LoansPage } from "../../modules/loans/LoansPage.jsx";
+import { CollectionPage } from "../../modules/collections/CollectionPage.jsx";
+import { DueOverduePage } from "../../modules/loans/DueOverduePage.jsx";
 import { PlaceholderPage } from "../../modules/shared/PlaceholderPage.jsx";
 
 const pages = [
-  {
-    path: "loans/overdue",
-    title: "Due / Overdue",
-    description: "Upcoming and overdue repayments will appear here.",
-  },
-  {
-    path: "collections",
-    title: "Collections",
-    description: "Collection activity and repayment tracking will appear here.",
-  },
   {
     path: "savings",
     title: "Savings",
@@ -64,6 +56,8 @@ export function AppRouter() {
         <Route path="loans/new" element={<CreateLoanPage />} />
         <Route path="loans/approval" element={<LoanApprovalPage />} />
         <Route path="loans" element={<LoansPage />} />
+        <Route path="loans/overdue" element={<DueOverduePage />} />
+        <Route path="collections" element={<CollectionPage />} />
         {pages.map((page) => (
           <Route
             key={page.path}
