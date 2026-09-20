@@ -7,7 +7,7 @@ import {
 import { Button, Dropdown, Input, Select, Table, Tag, Typography } from "antd";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageContainer } from "../../components/page-container/PageContainer.jsx";
+import { PageContainer } from "../../../components/page-container/PageContainer.jsx";
 
 const members = [
   {

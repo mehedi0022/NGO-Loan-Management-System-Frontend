@@ -22,7 +22,7 @@ import {
 } from "antd";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { PageContainer } from "../../components/page-container/PageContainer.jsx";
+import { PageContainer } from "../../../components/page-container/PageContainer.jsx";
 
 const profile = {
   name: "Rahima Begum",

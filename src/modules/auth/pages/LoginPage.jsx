@@ -17,10 +17,45 @@ import {
   Tooltip,
   Typography,
 } from "antd";
-import { useAppTheme } from "../../app/providers/ThemeContext.js";
+import { useAppTheme } from "../../../app/providers/ThemeContext.js";
+
+import { message } from "antd";
+import { useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+
+import { useLoginMutation } from "../authApi.js";
+import { setUser } from "../authSlice.js";
 
 export function LoginPage() {
   const { isDark, toggleTheme } = useAppTheme();
+
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const [login, { isLoading }] = useLoginMutation();
+
+  const handleSubmit = async (values) => {
+    try {
+      const response = await login({
+        email: values.email.trim(),
+        password: values.password,
+        rememberMe: Boolean(values.rememberMe),
+      }).unwrap();
+
+      dispatch(setUser(response.data.user));
+
+      message.success("Login successful");
+
+      navigate("/dashboard", {
+        replace: true,
+      });
+    } catch (error) {
+      message.error(
+        error?.data?.message ||
+          "Unable to sign in. Please check your credentials.",
+      );
+    }
+  };
 
   return (
     <main className="login-page">
@@ -105,10 +140,14 @@ export function LoginPage() {
 
           <Form
             layout="vertical"
-            requiredMark={false}
+            requiredMark={true}
             size="large"
             validateTrigger="onBlur"
             autoComplete="off"
+            initialValues={{
+              rememberMe: false,
+            }}
+            onFinish={handleSubmit}
           >
             <Form.Item
               label="Email address"
@@ -146,7 +185,9 @@ export function LoginPage() {
             </Form.Item>
 
             <div className="login-form-options">
-              <Checkbox>Remember me</Checkbox>
+              <Form.Item name="rememberMe" valuePropName="checked" noStyle>
+                <Checkbox>Remember me</Checkbox>
+              </Form.Item>
               <Button type="link" className="login-forgot-button">
                 Forgot password?
               </Button>
@@ -157,6 +198,8 @@ export function LoginPage() {
                 block
                 type="primary"
                 htmlType="submit"
+                loading={isLoading}
+                disabled={isLoading}
                 icon={<ArrowRightOutlined />}
                 iconPosition="end"
               >
