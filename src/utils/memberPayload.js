@@ -123,3 +123,21 @@ export const buildCreateMemberPayload = (
 
   return payload;
 };
+
+export const buildUpdateMemberPayload = (
+  values,
+  { hasFatherAddress = false, hasGuarantor = false, photoUrl } = {},
+) => {
+  const payload = buildCreateMemberPayload(values, {
+    hasFatherAddress,
+    hasGuarantor,
+    photoUrl,
+  });
+
+  return {
+    ...payload,
+
+    // Explicitly tell backend to remove guarantor
+    guarantors: hasGuarantor ? payload.guarantors : [],
+  };
+};

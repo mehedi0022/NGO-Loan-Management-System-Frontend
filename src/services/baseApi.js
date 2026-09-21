@@ -56,7 +56,7 @@ export const baseApi = createApi({
   tagTypes: [
     "Auth",
     "Dashboard",
-    "Members",
+    "Member",
     "Loans",
     "Collections",
     "Savings",

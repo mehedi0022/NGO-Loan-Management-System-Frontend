@@ -4,9 +4,12 @@ import { LoginPage } from "../../modules/auth/pages/LoginPage.jsx";
 import { DashboardPage } from "../../modules/dashboard/DashboardPage.jsx";
 import { CreateMemberPage } from "../../modules/members/pages/CreateMemberPage.jsx";
 import { MemberProfilePage } from "../../modules/members/pages/MemberProfilePage.jsx";
+import { EditMemberPage } from "../../modules/members/pages/EditMemberPage.jsx";
 import { MembersPage } from "../../modules/members/pages/MembersPage.jsx";
 import { CreateLoanPage } from "../../modules/loans/CreateLoanPage.jsx";
 import { LoanApprovalPage } from "../../modules/loans/LoanApprovalPage.jsx";
+import { LoanDetailsPage } from "../../modules/loans/LoanDetailsPage.jsx";
+import { EditLoanPage } from "../../modules/loans/EditLoanPage.jsx";
 import { LoansPage } from "../../modules/loans/LoansPage.jsx";
 import { CollectionPage } from "../../modules/collections/CollectionPage.jsx";
 import { DueOverduePage } from "../../modules/loans/DueOverduePage.jsx";
@@ -56,14 +59,11 @@ export function AppRouter() {
         <Route element={<DashboardLayout />}>
           <Route index element={<DashboardPage />} />
 
-          <Route path="members/new" element={<CreateMemberPage />} />
+          <Route path="/members/new" element={<CreateMemberPage />} />
 
-          <Route
-            path="members/:memberId/edit"
-            element={<CreateMemberPage isEdit />}
-          />
+          <Route path="/members/:id" element={<MemberProfilePage />} />
 
-          <Route path="members/:memberId" element={<MemberProfilePage />} />
+          <Route path="/members/:id/edit" element={<EditMemberPage />} />
 
           <Route path="members" element={<MembersPage />} />
 
@@ -71,9 +71,13 @@ export function AppRouter() {
 
           <Route path="loans/approval" element={<LoanApprovalPage />} />
 
-          <Route path="loans" element={<LoansPage />} />
-
           <Route path="loans/overdue" element={<DueOverduePage />} />
+
+          <Route path="loans/:id/edit" element={<EditLoanPage />} />
+
+          <Route path="loans/:id" element={<LoanDetailsPage />} />
+
+          <Route path="loans" element={<LoansPage />} />
 
           <Route path="collections" element={<CollectionPage />} />
 

@@ -3,404 +3,457 @@ import {
   CheckCircleFilled,
   EditOutlined,
   PhoneOutlined,
-  PlusOutlined,
-  UploadOutlined,
 } from "@ant-design/icons";
 import {
+  Alert,
   Avatar,
   Button,
   Card,
   Col,
-  Modal,
+  Empty,
+  Result,
   Row,
+  Skeleton,
   Space,
-  Table,
   Tag,
   Tabs,
   Typography,
-  Upload,
 } from "antd";
-import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { PageContainer } from "../../../components/page-container/PageContainer.jsx";
 
-const profile = {
-  name: "Rahima Begum",
-  id: "M-0091",
-  initials: "RB",
-  phone: "01711-223344",
-  fatherName: "Abdul Majid",
-  motherName: "Ayesha Begum",
-  guardianName: "Abdul Majid",
-  nidNumber: "1987654321",
-  status: "Active",
-  loan: "L-3021",
-  loanDue: "৳13,122",
-  savings: "৳4,200",
-  address: "Rahim Para, Palli Bikash Union, Sadar, Dhaka",
-  joined: "12 Mar 2023",
+import { PageContainer } from "../../../components/page-container/PageContainer.jsx";
+import { AddressDetails } from "../components/AddressDetails.jsx";
+import { DetailItem } from "../components/DetailItem.jsx";
+import { GuarantorDetails } from "../components/GuarantorDetails.jsx";
+import { useGetMemberByIdQuery } from "../membersApi.js";
+
+const getInitials = (name = "") => {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) => word.charAt(0))
+    .join("")
+    .toUpperCase();
 };
 
-const installmentRows = Array.from({ length: 12 }, (_, index) => {
-  const month = [
-    "10 Feb 2026",
-    "10 Mar 2026",
-    "10 Apr 2026",
-    "10 May 2026",
-    "10 Jun 2026",
-    "10 Jul 2026",
-    "10 Aug 2026",
-    "10 Sep 2026",
-    "10 Oct 2026",
-    "10 Nov 2026",
-    "10 Dec 2026",
-    "10 Jan 2027",
-  ][index];
-  const paid = index < 6 ? "৳2,188" : "৳0";
-  return {
-    key: index + 1,
-    number: index + 1,
-    dueDate: month,
-    amount: "৳2,188",
-    paid,
-    remaining: index < 6 ? "৳0" : "৳2,188",
-    status: index < 6 ? "Paid" : index === 6 ? "Due" : "Upcoming",
-  };
-});
+const formatDate = (date) => {
+  if (!date) {
+    return "—";
+  }
 
-const loanRows = [
-  {
-    key: "L-3021",
-    loanId: "L-3021",
-    amount: "৳26,250",
-    outstanding: "৳13,122",
-    progress: "6/12",
-    status: "Active",
-  },
-];
-const transactionRows = [
-  {
-    key: "1",
-    type: "Collection",
-    amount: "৳2,188",
-    date: "10 Sep 2026",
-    reference: "Installment #6 · L-3021",
-  },
-  {
-    key: "2",
-    type: "Savings Deposit",
-    amount: "৳300",
-    date: "03 Sep 2026",
-    reference: "Savings account",
-  },
-];
+  const parsedDate = new Date(date);
 
-const statusTag = (value) => (
-  <Tag className={`member-status-tag ${value.toLowerCase()}`}>
-    <CheckCircleFilled /> {value}
-  </Tag>
-);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "—";
+  }
 
-function DetailItem({ label, value, icon }) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(parsedDate);
+};
+
+const formatStatus = (status) => {
+  if (!status) {
+    return "—";
+  }
+
+  return status
+    .toLowerCase()
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const MemberStatusTag = ({ status }) => {
+  if (!status) {
+    return "—";
+  }
+
   return (
-    <div className="member-profile-detail">
-      <div className="member-profile-detail-label">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <strong>{value || "—"}</strong>
-    </div>
+    <Tag className={`member-status-tag ${status.toLowerCase()}`}>
+      <CheckCircleFilled /> {formatStatus(status)}
+    </Tag>
   );
-}
+};
 
 export function MemberProfilePage() {
   const navigate = useNavigate();
-  const { memberId } = useParams();
-  const [imagePreview, setImagePreview] = useState("");
-  const [loanModalOpen, setLoanModalOpen] = useState(false);
+  const { id } = useParams();
 
-  const loanColumns = [
-    { title: "Loan ID", dataIndex: "loanId", key: "loanId" },
-    { title: "Amount", dataIndex: "amount", key: "amount", align: "right" },
-    {
-      title: "Outstanding",
-      dataIndex: "outstanding",
-      key: "outstanding",
-      align: "right",
-    },
-    { title: "Progress", dataIndex: "progress", key: "progress" },
-    { title: "Status", dataIndex: "status", key: "status", render: statusTag },
-  ];
+  const {
+    data: response,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useGetMemberByIdQuery(id, {
+    skip: !id,
+  });
 
-  const installmentColumns = [
-    { title: "#", dataIndex: "number", key: "number" },
-    { title: "Due date", dataIndex: "dueDate", key: "dueDate" },
-    { title: "Amount", dataIndex: "amount", key: "amount", align: "right" },
-    { title: "Paid", dataIndex: "paid", key: "paid", align: "right" },
-    {
-      title: "Remaining",
-      dataIndex: "remaining",
-      key: "remaining",
-      align: "right",
-    },
-    { title: "Status", dataIndex: "status", key: "status", render: statusTag },
-  ];
+  const member = response?.data;
 
-  const transactionColumns = [
-    { title: "Type", dataIndex: "type", key: "type" },
-    { title: "Amount", dataIndex: "amount", key: "amount", align: "right" },
-    { title: "Date", dataIndex: "date", key: "date" },
-    { title: "Reference", dataIndex: "reference", key: "reference" },
-  ];
+  console.log(member);
+
+  const presentAddress = member?.addresses?.find(
+    (address) => address.type === "PRESENT",
+  );
+
+  const fatherAddress = member?.addresses?.find(
+    (address) => address.type === "FATHER_HOME",
+  );
+
+  const guarantor = member?.guarantors?.[0];
+
+  if (isLoading) {
+    return (
+      <PageContainer>
+        <Card>
+          <Skeleton
+            active
+            avatar={{
+              size: 92,
+            }}
+            paragraph={{
+              rows: 8,
+            }}
+          />
+        </Card>
+      </PageContainer>
+    );
+  }
+
+  if (isError) {
+    return (
+      <PageContainer>
+        <Result
+          status="error"
+          title="Failed to load member"
+          subTitle={
+            error?.data?.message ||
+            "Something went wrong while loading the member."
+          }
+          extra={[
+            <Button key="retry" type="primary" onClick={refetch}>
+              Try Again
+            </Button>,
+
+            <Button key="back" onClick={() => navigate("/members")}>
+              Back to Members
+            </Button>,
+          ]}
+        />
+      </PageContainer>
+    );
+  }
+
+  if (!member) {
+    return (
+      <PageContainer>
+        <Result
+          status="404"
+          title="Member not found"
+          subTitle="The member you are looking for does not exist."
+          extra={
+            <Button type="primary" onClick={() => navigate("/members")}>
+              Back to Members
+            </Button>
+          }
+        />
+      </PageContainer>
+    );
+  }
 
   const tabItems = [
     {
       key: "overview",
       label: "Overview",
+
       children: (
         <Row gutter={[16, 16]}>
+          {/* Basic Information */}
           <Col xs={24} lg={14}>
-            <Card title="Basic information" className="member-profile-card">
+            <Card title="Basic Information" className="member-profile-card">
               <div className="member-profile-info-list">
-                <DetailItem label="Member ID" value={memberId || profile.id} />
-                <DetailItem label="Phone" value={profile.phone} />
-                <DetailItem label="Address" value={profile.address} />
-                <DetailItem label="NID" value={profile.nidNumber} />
-                <DetailItem label="Father name" value={profile.fatherName} />
-                <DetailItem label="Joined" value={profile.joined} />
+                <DetailItem label="Member ID" value={member.memberId} />
+
+                <DetailItem label="Mobile Number" value={member.mobileNumber} />
+
+                <DetailItem label="NID" value={member.nidNumber} />
+
+                <DetailItem label="Email" value={member.email} />
+
+                <DetailItem label="Occupation" value={member.occupation} />
+
+                <DetailItem label="Father Name" value={member.fatherName} />
+
+                <DetailItem label="Mother Name" value={member.motherName} />
+
+                <DetailItem label="Guardian Name" value={member.guardianName} />
+
+                <DetailItem
+                  label="Join Date"
+                  value={formatDate(member.joinDate)}
+                />
+
+                <DetailItem
+                  label="Status"
+                  value={<MemberStatusTag status={member.status} />}
+                />
               </div>
             </Card>
           </Col>
+
+          {/* Present Address */}
           <Col xs={24} lg={10}>
-            <Card
-              title="Current loan"
-              className="member-profile-card current-loan-card"
-            >
-              <div className="member-profile-info-list">
-                <DetailItem label="Loan ID" value={profile.loan} />
-                <DetailItem label="Status" value={statusTag("Active")} />
-                <DetailItem label="Outstanding" value={profile.loanDue} />
-                <DetailItem label="Progress" value="6/12 installments" />
-              </div>
-              <Button block onClick={() => setLoanModalOpen(true)}>
-                View loan
-              </Button>
+            <Card title="Present Address" className="member-profile-card">
+              <AddressDetails address={presentAddress} />
             </Card>
           </Col>
+
+          {/* Father Address */}
+          {fatherAddress && (
+            <Col xs={24} lg={12}>
+              <Card title="Father Address" className="member-profile-card">
+                <AddressDetails address={fatherAddress} />
+              </Card>
+            </Col>
+          )}
+
+          {/* Guarantor */}
+          {guarantor && (
+            <Col xs={24} lg={12}>
+              <Card
+                title="Guarantor Information"
+                className="member-profile-card"
+              >
+                <GuarantorDetails guarantor={guarantor} />
+              </Card>
+            </Col>
+          )}
+
+          {/* Notes */}
+          {member.notes && (
+            <Col xs={24}>
+              <Card title="Notes" className="member-profile-card">
+                <Typography.Paragraph
+                  style={{
+                    marginBottom: 0,
+                  }}
+                >
+                  {member.notes}
+                </Typography.Paragraph>
+              </Card>
+            </Col>
+          )}
         </Row>
       ),
     },
+
     {
       key: "loans",
       label: "Loans",
+
       children: (
-        <Table columns={loanColumns} dataSource={loanRows} pagination={false} />
+        <Card className="member-profile-card">
+          <Empty description="No loan information available yet">
+            <Button
+              type="primary"
+              onClick={() => navigate(`/loans/new?member=${member.id}`)}
+            >
+              Create New Loan
+            </Button>
+          </Empty>
+        </Card>
       ),
     },
+
     {
       key: "installments",
       label: "Installments",
+
       children: (
-        <Table
-          columns={installmentColumns}
-          dataSource={installmentRows}
-          pagination={false}
-          scroll={{ x: 760 }}
-        />
+        <Card className="member-profile-card">
+          <Empty description="No installment information available yet" />
+        </Card>
       ),
     },
+
     {
       key: "savings",
       label: "Savings",
+
       children: (
-        <>
-          <Row gutter={[16, 16]} className="member-profile-tab-stats">
-            <Col xs={24} md={8}>
-              <Card>
-                <Typography.Text type="secondary">
-                  Current balance
-                </Typography.Text>
-                <Typography.Title level={3}>৳4,200</Typography.Title>
-              </Card>
-            </Col>
-            <Col xs={24} md={8}>
-              <Card>
-                <Typography.Text type="secondary">
-                  Total deposited
-                </Typography.Text>
-                <Typography.Title level={3}>৳6,800</Typography.Title>
-              </Card>
-            </Col>
-            <Col xs={24} md={8}>
-              <Card>
-                <Typography.Text type="secondary">
-                  Total withdrawn
-                </Typography.Text>
-                <Typography.Title level={3}>৳2,600</Typography.Title>
-              </Card>
-            </Col>
-          </Row>
-          <Space className="member-profile-tab-actions">
-            <Button type="primary" icon={<PlusOutlined />}>
-              Add savings
-            </Button>
-            <Button>Withdraw savings</Button>
-          </Space>
-          <Table
-            columns={transactionColumns}
-            dataSource={[transactionRows[1]]}
-            pagination={false}
-          />
-        </>
+        <Card className="member-profile-card">
+          <Empty description="No savings information available yet" />
+        </Card>
       ),
     },
+
     {
       key: "transactions",
       label: "Transactions",
+
       children: (
-        <Table
-          columns={transactionColumns}
-          dataSource={transactionRows}
-          pagination={false}
-        />
+        <Card className="member-profile-card">
+          <Empty description="No transaction information available yet" />
+        </Card>
       ),
     },
   ];
 
   return (
     <PageContainer>
+      {/* Page Header */}
       <div className="member-profile-heading">
         <Button
           type="text"
           icon={<ArrowLeftOutlined />}
           onClick={() => navigate("/members")}
         >
-          Back to members
+          Back to Members
         </Button>
-        <Space>
+
+        <Space wrap>
           <Button
             icon={<EditOutlined />}
-            onClick={() => navigate(`/members/${memberId || profile.id}/edit`)}
+            onClick={() => navigate(`/members/${member.id}/edit`)}
           >
-            Edit member
+            Edit Member
           </Button>
+
           <Button
             type="primary"
-            onClick={() =>
-              navigate(`/loans/new?member=${memberId || profile.id}`)
-            }
+            onClick={() => navigate(`/loans/new?member=${member.id}`)}
           >
-            Create new loan
+            Create New Loan
           </Button>
         </Space>
       </div>
 
+      {/* Refetch indicator */}
+      {isFetching && (
+        <Alert
+          type="info"
+          showIcon
+          message="Refreshing member information..."
+          style={{
+            marginBottom: 16,
+          }}
+        />
+      )}
+
+      {/* Member Hero */}
       <Card className="member-profile-hero">
         <div className="member-profile-identity">
           <Avatar
             size={92}
             className="member-profile-avatar"
-            src={imagePreview || undefined}
+            src={member.photoUrl || undefined}
           >
-            {profile.initials}
+            {getInitials(member.fullName)}
           </Avatar>
+
           <div>
-            <Typography.Title level={2}>{profile.name}</Typography.Title>
+            <Typography.Title
+              level={2}
+              style={{
+                marginBottom: 4,
+              }}
+            >
+              {member.fullName}
+            </Typography.Title>
+
             <Typography.Text type="secondary">
-              Member ID: {memberId || profile.id}
+              Member ID: {member.memberId || "—"}
             </Typography.Text>
+
             <div className="member-profile-status">
-              <Tag className="member-status-tag active">{profile.status}</Tag>
+              <MemberStatusTag status={member.status} />
             </div>
           </div>
         </div>
+
         <div className="member-profile-contact">
-          <Typography.Text type="secondary">Mobile number</Typography.Text>
-          <div className="member-profile-contact-row">
-            <Typography.Text strong>
-              <PhoneOutlined /> {profile.phone}
-            </Typography.Text>
-            <Upload
-              accept="image/png,image/jpeg"
-              maxCount={1}
-              showUploadList={false}
-              beforeUpload={(file) => {
-                const reader = new FileReader();
-                reader.onload = () => setImagePreview(reader.result);
-                reader.readAsDataURL(file);
-                return false;
-              }}
-            >
-              <Button size="small" icon={<UploadOutlined />}>
-                Change photo
-              </Button>
-            </Upload>
-          </div>
+          <Typography.Text type="secondary">Mobile Number</Typography.Text>
+
+          <Typography.Text strong>
+            <PhoneOutlined /> {member.mobileNumber || "—"}
+          </Typography.Text>
         </div>
       </Card>
 
+      {/* Member Summary */}
       <Row gutter={[16, 16]} className="member-profile-summary">
-        <Col xs={24} md={8}>
+        <Col xs={24} sm={12} lg={8}>
           <Card>
-            <Typography.Text type="secondary">Active loan</Typography.Text>
-            <Typography.Title level={3}>{profile.loan}</Typography.Title>
-            <Typography.Text>Due {profile.loanDue}</Typography.Text>
+            <Typography.Text type="secondary">Member Status</Typography.Text>
+
+            <div
+              style={{
+                marginTop: 10,
+              }}
+            >
+              <MemberStatusTag status={member.status} />
+            </div>
+
+            <Typography.Text
+              type="secondary"
+              style={{
+                display: "block",
+                marginTop: 8,
+              }}
+            >
+              Current account status
+            </Typography.Text>
           </Card>
         </Col>
-        <Col xs={24} md={8}>
+
+        <Col xs={24} sm={12} lg={8}>
           <Card>
-            <Typography.Text type="secondary">Savings balance</Typography.Text>
-            <Typography.Title level={3}>{profile.savings}</Typography.Title>
-            <Typography.Text>Current balance</Typography.Text>
+            <Typography.Text type="secondary">Joined</Typography.Text>
+
+            <Typography.Title
+              level={4}
+              style={{
+                marginTop: 8,
+                marginBottom: 4,
+              }}
+            >
+              {formatDate(member.joinDate)}
+            </Typography.Title>
+
+            <Typography.Text type="secondary">Member since</Typography.Text>
           </Card>
         </Col>
-        <Col xs={24} md={8}>
+
+        <Col xs={24} sm={12} lg={8}>
           <Card>
-            <Typography.Text type="secondary">Member status</Typography.Text>
-            <Typography.Title level={3}>Good standing</Typography.Title>
-            <Typography.Text>Account is active</Typography.Text>
+            <Typography.Text type="secondary">Guarantor</Typography.Text>
+
+            <Typography.Title
+              level={4}
+              style={{
+                marginTop: 8,
+                marginBottom: 4,
+              }}
+            >
+              {guarantor ? guarantor.fullName : "Not Added"}
+            </Typography.Title>
+
+            <Typography.Text type="secondary">
+              {guarantor?.relationship || "No guarantor information"}
+            </Typography.Text>
           </Card>
         </Col>
       </Row>
-      <div className="member-profile-tabs">
-        <Tabs items={tabItems} />
-      </div>
 
-      <Modal
-        open={loanModalOpen}
-        title={`Loan summary · ${profile.loan}`}
-        width={880}
-        footer={null}
-        onCancel={() => setLoanModalOpen(false)}
-      >
-        <Row gutter={[16, 16]} className="loan-modal-summary">
-          <Col xs={24} sm={6}>
-            <Typography.Text type="secondary">Loan amount</Typography.Text>
-            <Typography.Title level={4}>৳26,250</Typography.Title>
-          </Col>
-          <Col xs={24} sm={6}>
-            <Typography.Text type="secondary">Total payable</Typography.Text>
-            <Typography.Title level={4}>৳26,250</Typography.Title>
-          </Col>
-          <Col xs={24} sm={6}>
-            <Typography.Text type="secondary">Paid</Typography.Text>
-            <Typography.Title level={4}>৳13,128</Typography.Title>
-          </Col>
-          <Col xs={24} sm={6}>
-            <Typography.Text type="secondary">Outstanding</Typography.Text>
-            <Typography.Title level={4}>{profile.loanDue}</Typography.Title>
-          </Col>
-        </Row>
-        <Typography.Title level={5} className="loan-modal-section-title">
-          Installment schedule
-        </Typography.Title>
-        <Table
-          columns={installmentColumns}
-          dataSource={installmentRows}
-          pagination={false}
-          scroll={{ x: 760 }}
-        />
-      </Modal>
+      {/* Tabs */}
+      <div className="member-profile-tabs">
+        <Tabs defaultActiveKey="overview" items={tabItems} />
+      </div>
     </PageContainer>
   );
 }

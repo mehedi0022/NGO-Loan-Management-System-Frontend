@@ -138,7 +138,16 @@ export function AddressFields({ name }) {
       </Col>
 
       <Col xs={24} md={12} lg={6}>
-        <Form.Item label="Union" name={[...basePath, "unionId"]}>
+        <Form.Item
+          label="Union"
+          name={[...basePath, "unionId"]}
+          rules={[
+            {
+              required: true,
+              message: "Select union",
+            },
+          ]}
+        >
           <Select
             showSearch
             allowClear

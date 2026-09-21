@@ -1,122 +1,202 @@
-import { PlusOutlined } from "@ant-design/icons";
-import { Button, Table, Tag, Typography } from "antd";
-import { useMemo, useState } from "react";
+import {
+  EyeOutlined,
+  MoreOutlined,
+  PlusOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
+import {
+  Alert,
+  Button,
+  Dropdown,
+  Input,
+  Select,
+  Table,
+  Typography,
+} from "antd";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageContainer } from "../../components/page-container/PageContainer.jsx";
 
-const loans = [
-  {
-    key: "L-3021",
-    memberId: "M-0091",
-    initials: "RB",
-    member: "Rahima Begum",
-    amount: "৳25,000",
-    total: "৳26,250",
-    paid: "৳13,128",
-    outstanding: "৳13,122",
-    progress: "6/12",
-    status: "Active",
-  },
-  {
-    key: "L-3034",
-    memberId: "M-0104",
-    initials: "AK",
-    member: "Abdul Karim",
-    amount: "৳15,000",
-    total: "৳15,900",
-    paid: "৳3,180",
-    outstanding: "৳12,720",
-    progress: "2/10",
-    status: "Overdue",
-  },
-  {
-    key: "L-3040",
-    memberId: "M-0117",
-    initials: "NA",
-    member: "Nasrin Akter",
-    amount: "৳30,000",
-    total: "৳31,500",
-    paid: "৳31,500",
-    outstanding: "৳0",
-    progress: "12/12",
-    status: "Completed",
-  },
-  {
-    key: "L-3052",
-    memberId: "M-0122",
-    initials: "JU",
-    member: "Jasim Uddin",
-    amount: "৳12,000",
-    total: "৳12,720",
-    paid: "৳4,770",
-    outstanding: "৳7,950",
-    progress: "3/8",
-    status: "Active",
-  },
-  {
-    key: "L-3061",
-    memberId: "M-0135",
-    initials: "SK",
-    member: "Salma Khatun",
-    amount: "৳20,000",
-    total: "৳21,100",
-    paid: "৳2,110",
-    outstanding: "৳18,990",
-    progress: "1/10",
-    status: "Overdue",
-  },
+import { PageContainer } from "../../components/page-container/PageContainer.jsx";
+import { StatusTag } from "../../components/status-tag/StatusTag.jsx";
+import { useDebounce } from "../../hooks/useDebounce.js";
+import {
+  formatCharge,
+  formatCurrency,
+  formatDate,
+  formatEnum,
+} from "./loanFormatters.js";
+import { useGetLoansQuery } from "./loansApi.js";
+
+const statusOptions = [
+  { value: "all", label: "All statuses" },
+  { value: "PENDING", label: "Pending" },
+  { value: "APPROVED", label: "Approved" },
+  { value: "ACTIVE", label: "Active" },
+  { value: "COMPLETED", label: "Completed" },
+  { value: "REJECTED", label: "Rejected" },
+  { value: "CANCELLED", label: "Cancelled" },
 ];
 
-const filters = ["All", "Active", "Overdue", "Completed", "Cancelled"];
+const frequencyOptions = [
+  { value: "all", label: "All frequencies" },
+  { value: "WEEKLY", label: "Weekly" },
+  { value: "MONTHLY", label: "Monthly" },
+];
 
 export function LoansPage() {
   const navigate = useNavigate();
-  const [activeFilter, setActiveFilter] = useState("All");
-  const filteredLoans = useMemo(
-    () =>
-      activeFilter === "All"
-        ? loans
-        : loans.filter((loan) => loan.status === activeFilter),
-    [activeFilter],
-  );
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
+  const [status, setStatus] = useState("all");
+  const [frequency, setFrequency] = useState("all");
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
+  const [sorting, setSorting] = useState({
+    sortBy: "createdAt",
+    sortOrder: "desc",
+  });
+
+  const {
+    data: response,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useGetLoansQuery({
+    page: pagination.current,
+    limit: pagination.pageSize,
+    search: debouncedSearch.trim() || undefined,
+    status: status === "all" ? undefined : status,
+    frequency: frequency === "all" ? undefined : frequency,
+    sortBy: sorting.sortBy,
+    sortOrder: sorting.sortOrder,
+  });
+
+  const loans = response?.data ?? [];
+  const meta = response?.meta;
+  const resetToFirstPage = () =>
+    setPagination((previous) => ({ ...previous, current: 1 }));
+
+  const handleTableChange = (tablePagination, _filters, sorter) => {
+    setPagination({
+      current: tablePagination.current,
+      pageSize: tablePagination.pageSize,
+    });
+    setSorting(
+      sorter?.field && sorter?.order
+        ? {
+            sortBy: sorter.field,
+            sortOrder: sorter.order === "ascend" ? "asc" : "desc",
+          }
+        : { sortBy: "createdAt", sortOrder: "desc" },
+    );
+  };
+
+  const sortable = (field) => ({
+    sorter: true,
+    sortOrder:
+      sorting.sortBy === field
+        ? sorting.sortOrder === "asc"
+          ? "ascend"
+          : "descend"
+        : null,
+  });
 
   const columns = [
-    { title: "Loan ID", dataIndex: "key", key: "key" },
+    {
+      title: "Loan ID",
+      dataIndex: "loanId",
+      key: "loanId",
+      ...sortable("loanId"),
+      render: (value) => value || "Pending ID",
+    },
     {
       title: "Member",
       dataIndex: "member",
       key: "member",
-      render: (value, loan) => (
+      render: (member) => (
         <div className="loan-member-cell">
-          <span className="member-avatar">{loan.initials}</span>
           <span>
-            <b>{value}</b>
-            <small>{loan.memberId}</small>
+            <b>{member?.fullName || "—"}</b>
+            <small>{member?.memberId || "Pending ID"}</small>
           </span>
         </div>
       ),
     },
-    { title: "Amount", dataIndex: "amount", key: "amount", align: "right" },
     {
-      title: "Total payable",
-      dataIndex: "total",
-      key: "total",
+      title: "Principal",
+      dataIndex: "principalAmount",
+      key: "principalAmount",
       align: "right",
+      ...sortable("principalAmount"),
+      render: formatCurrency,
     },
-    { title: "Paid", dataIndex: "paid", key: "paid", align: "right" },
+    { title: "Charge", key: "charge", render: (_, loan) => formatCharge(loan) },
     {
-      title: "Outstanding",
-      dataIndex: "outstanding",
-      key: "outstanding",
+      title: "Total Payable",
+      dataIndex: "totalPayable",
+      key: "totalPayable",
       align: "right",
+      ...sortable("totalPayable"),
+      render: formatCurrency,
     },
-    { title: "Progress", dataIndex: "progress", key: "progress" },
+    {
+      title: "Installments",
+      key: "installments",
+      render: (_, loan) =>
+        loan.regularInstallmentCount === 0 ? (
+          <span>Single: {formatCurrency(loan.lastInstallmentAmount)}</span>
+        ) : (
+          <span>
+            {formatCurrency(loan.installmentAmount)} ×{" "}
+            {loan.regularInstallmentCount}
+            <small>Last: {formatCurrency(loan.lastInstallmentAmount)}</small>
+          </span>
+        ),
+    },
+    {
+      title: "Frequency",
+      dataIndex: "frequency",
+      key: "frequency",
+      render: formatEnum,
+    },
+    {
+      title: "Application Date",
+      dataIndex: "applicationDate",
+      key: "applicationDate",
+      ...sortable("applicationDate"),
+      render: formatDate,
+    },
     {
       title: "Status",
       dataIndex: "status",
       key: "status",
-      render: (value) => (
-        <Tag className={`loan-status-tag ${value.toLowerCase()}`}>{value}</Tag>
+      render: (value) => <StatusTag status={value} label={formatEnum(value)} />,
+    },
+    {
+      title: "Actions",
+      key: "actions",
+      width: 52,
+      render: (_, loan) => (
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key: "view",
+                label: "View loan",
+                icon: <EyeOutlined />,
+                onClick: () => navigate(`/loans/${loan.id}`),
+              },
+            ],
+          }}
+          trigger={["click"]}
+        >
+          <Button
+            type="text"
+            icon={<MoreOutlined />}
+            aria-label="Loan actions"
+          />
+        </Dropdown>
       ),
     },
   ];
@@ -126,7 +206,9 @@ export function LoansPage() {
       <div className="loans-page-heading">
         <div>
           <Typography.Title level={2}>All Loans</Typography.Title>
-          <Typography.Text>{loans.length} loans on record</Typography.Text>
+          <Typography.Text type="secondary">
+            {meta?.total ?? 0} loans on record
+          </Typography.Text>
         </div>
         <Button
           type="primary"
@@ -136,23 +218,67 @@ export function LoansPage() {
           Create Loan
         </Button>
       </div>
-      <div className="loan-filter-tabs">
-        {filters.map((filter) => (
-          <Button
-            key={filter}
-            type={activeFilter === filter ? "primary" : "default"}
-            onClick={() => setActiveFilter(filter)}
-          >
-            {filter}
-          </Button>
-        ))}
+      <div className="loans-toolbar">
+        <Input
+          allowClear
+          value={search}
+          prefix={<SearchOutlined />}
+          placeholder="Search by loan ID"
+          onChange={(event) => {
+            setSearch(event.target.value);
+            resetToFirstPage();
+          }}
+        />
+        <Select
+          value={status}
+          options={statusOptions}
+          onChange={(value) => {
+            setStatus(value);
+            resetToFirstPage();
+          }}
+        />
+        <Select
+          value={frequency}
+          options={frequencyOptions}
+          onChange={(value) => {
+            setFrequency(value);
+            resetToFirstPage();
+          }}
+        />
       </div>
+      {isError && (
+        <Alert
+          type="error"
+          showIcon
+          message="Failed to load loans"
+          description={
+            error?.data?.message || "Something went wrong while loading loans."
+          }
+          action={
+            <Button size="small" onClick={refetch}>
+              Retry
+            </Button>
+          }
+          style={{ marginBottom: 16 }}
+        />
+      )}
       <div className="loans-table-card">
         <Table
+          rowKey="id"
           columns={columns}
-          dataSource={filteredLoans}
-          pagination={false}
-          scroll={{ x: 1000 }}
+          dataSource={loans}
+          loading={isLoading || isFetching}
+          scroll={{ x: 1200 }}
+          pagination={{
+            current: meta?.page ?? pagination.current,
+            pageSize: meta?.limit ?? pagination.pageSize,
+            total: meta?.total ?? 0,
+            showSizeChanger: true,
+            pageSizeOptions: [10, 20, 50, 100],
+            showTotal: (total, range) =>
+              `${range[0]}-${range[1]} of ${total} loans`,
+          }}
+          onChange={handleTableChange}
         />
       </div>
     </PageContainer>

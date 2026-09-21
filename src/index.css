@@ -222,18 +222,21 @@ select {
   font-size: 12px;
 }
 
-.members-toolbar {
+.members-toolbar,
+.loans-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 14px;
 }
 
-.members-toolbar .ant-input-affix-wrapper {
+.members-toolbar .ant-input-affix-wrapper,
+.loans-toolbar .ant-input-affix-wrapper {
   width: 220px;
 }
 
-.members-toolbar .ant-select {
+.members-toolbar .ant-select,
+.loans-toolbar .ant-select {
   width: 145px;
 }
 

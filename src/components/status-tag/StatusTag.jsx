@@ -3,10 +3,13 @@ import { Tag } from "antd";
 const statusColors = {
   active: "success",
   approved: "success",
+  completed: "success",
   paid: "success",
+  upcoming: "processing",
   pending: "warning",
   overdue: "error",
   rejected: "error",
+  cancelled: "default",
   inactive: "default",
 };
 
