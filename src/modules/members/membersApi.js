@@ -66,6 +66,37 @@ export const membersApi = baseApi.injectEndpoints({
         },
       ],
     }),
+
+    getMemberLoanPayments: builder.query({
+      query: ({ memberId, page = 1, limit = 20, sortOrder = "desc" }) => ({
+        url: `/members/${memberId}/loan-payments`,
+        method: "GET",
+        params: { page, limit, sortOrder },
+      }),
+      providesTags: (_result, _error, { memberId }) => [
+        { type: "Collections", id: `MEMBER-PAYMENTS-${memberId}` },
+      ],
+    }),
+
+    getMemberSavingsTransactions: builder.query({
+      query: ({ memberId, page = 1, limit = 20, sortOrder = "desc" }) => ({
+        url: `/members/${memberId}/savings-transactions`,
+        method: "GET",
+        params: { page, limit, sortOrder },
+      }),
+      providesTags: (_result, _error, { memberId }) => [
+        { type: "Savings", id: `MEMBER-TRANSACTIONS-${memberId}` },
+      ],
+    }),
+
+    uploadMemberPhoto: builder.mutation({
+      query: ({ id, file }) => {
+        const body = new FormData();
+        body.append("photo", file);
+        return { url: `/members/${id}/photo`, method: "POST", body };
+      },
+      invalidatesTags: (_result, _error, { id }) => ["Member", { type: "Member", id }],
+    }),
   }),
 });
 
@@ -73,5 +104,8 @@ export const {
   useCreateMemberMutation,
   useGetAllMembersQuery,
   useGetMemberByIdQuery,
+  useGetMemberLoanPaymentsQuery,
+  useGetMemberSavingsTransactionsQuery,
   useUpdateMemberMutation,
+  useUploadMemberPhotoMutation,
 } = membersApi;

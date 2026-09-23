@@ -10,7 +10,7 @@ import { PageContainer } from "../../../components/page-container/PageContainer.
 import { buildCreateMemberPayload } from "../../../utils/memberPayload.js";
 
 import { MemberForm } from "../components/MemberForm.jsx";
-import { useCreateMemberMutation } from "../membersApi.js";
+import { useCreateMemberMutation, useUploadMemberPhotoMutation } from "../membersApi.js";
 
 export function CreateMemberPage() {
   const navigate = useNavigate();
@@ -19,8 +19,10 @@ export function CreateMemberPage() {
   const [hasFatherAddress, setHasFatherAddress] = useState(false);
 
   const [hasGuarantor, setHasGuarantor] = useState(false);
+  const [photoFile, setPhotoFile] = useState(null);
 
   const [createMember, { isLoading: isCreating }] = useCreateMemberMutation();
+  const [uploadMemberPhoto, { isLoading: isUploadingPhoto }] = useUploadMemberPhotoMutation();
 
   const handleSubmit = async (values) => {
     try {
@@ -29,7 +31,17 @@ export function CreateMemberPage() {
         hasGuarantor,
       });
 
-      await createMember(payload).unwrap();
+      const created = await createMember(payload).unwrap();
+
+      if (photoFile) {
+        try {
+          await uploadMemberPhoto({ id: created.data.id, file: photoFile }).unwrap();
+        } catch (uploadError) {
+          message.warning(uploadError?.data?.message || "Member created, but profile photo could not be uploaded");
+          navigate(`/members/${created.data.id}`);
+          return;
+        }
+      }
 
       message.success("Member created successfully");
 
@@ -65,7 +77,8 @@ export function CreateMemberPage() {
         hasGuarantor={hasGuarantor}
         setHasGuarantor={setHasGuarantor}
         onSubmit={handleSubmit}
-        loading={isCreating}
+        loading={isCreating || isUploadingPhoto}
+        onImageChange={setPhotoFile}
         onCancel={() => navigate("/members")}
         initialValues={{
     joinDate: dayjs(),

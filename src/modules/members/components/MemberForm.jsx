@@ -18,6 +18,7 @@ import {
 
 import { useState } from "react";
 import { AddressFields } from "./AddressFields.jsx";
+import { resolveUploadUrl } from "../../../utils/uploadUrl.js";
 
 const { TextArea } = Input;
 
@@ -101,8 +102,11 @@ export function MemberForm({
   imageUrl,
   onCancel,
   initialValues,
+  onImageChange,
 }) {
-  const [imagePreview, setImagePreview] = useState(imageUrl || "");
+  const [imagePreview, setImagePreview] = useState(
+    resolveUploadUrl(imageUrl) || "",
+  );
 
   const isEdit = mode === "edit";
 
@@ -128,7 +132,7 @@ export function MemberForm({
               <Avatar
                 className="profile-image-preview"
                 size={96}
-                src={imagePreview || imageUrl || undefined}
+                src={imagePreview || resolveUploadUrl(imageUrl) || undefined}
               >
                 M
               </Avatar>
@@ -137,18 +141,24 @@ export function MemberForm({
                 <Typography.Text strong>Member profile photo</Typography.Text>
 
                 <Typography.Paragraph type="secondary">
-                  Use a clear JPG or PNG image. Maximum size 2 MB.
+                  Use a clear JPG, PNG, or WebP image. Maximum size 5 MB.
                 </Typography.Paragraph>
 
                 <Upload
-                  accept="image/png,image/jpeg"
+                  accept="image/png,image/jpeg,image/webp"
                   maxCount={1}
                   showUploadList={false}
                   beforeUpload={(file) => {
-                    const isValidSize = file.size / 1024 / 1024 <= 2;
+                    const supportedTypes = ["image/jpeg", "image/png", "image/webp"];
+                    const isValidSize = file.size / 1024 / 1024 <= 5;
+
+                    if (!supportedTypes.includes(file.type)) {
+                      message.error("Use a JPG, PNG, or WebP image");
+                      return Upload.LIST_IGNORE;
+                    }
 
                     if (!isValidSize) {
-                      message.error("Image must be 2 MB or smaller");
+                      message.error("Image must be 5 MB or smaller");
 
                       return Upload.LIST_IGNORE;
                     }
@@ -158,6 +168,7 @@ export function MemberForm({
                     reader.onload = () => setImagePreview(reader.result);
 
                     reader.readAsDataURL(file);
+                    onImageChange?.(file);
 
                     return false;
                   }}

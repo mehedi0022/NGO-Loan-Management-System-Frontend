@@ -1,6 +1,5 @@
 import {
   ArrowLeftOutlined,
-  CheckCircleFilled,
   EditOutlined,
   PhoneOutlined,
 } from "@ant-design/icons";
@@ -10,22 +9,41 @@ import {
   Button,
   Card,
   Col,
-  Empty,
   Result,
   Row,
   Skeleton,
   Space,
-  Tag,
   Tabs,
   Typography,
 } from "antd";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { PageContainer } from "../../../components/page-container/PageContainer.jsx";
+import { StatusTag } from "../../../components/status-tag/StatusTag.jsx";
 import { AddressDetails } from "../components/AddressDetails.jsx";
 import { DetailItem } from "../components/DetailItem.jsx";
 import { GuarantorDetails } from "../components/GuarantorDetails.jsx";
-import { useGetMemberByIdQuery } from "../membersApi.js";
+import { MemberFinancialSummary } from "../components/MemberFinancialSummary.jsx";
+import { MemberLoansTable } from "../components/MemberLoansTable.jsx";
+import { CollectionHistoryTable } from "../components/CollectionHistoryTable.jsx";
+import { SavingsSummaryCard } from "../components/SavingsSummaryCard.jsx";
+import { SavingsTransactionHistoryTable } from "../components/SavingsTransactionHistoryTable.jsx";
+import {
+  useGetMemberByIdQuery,
+  useGetMemberLoanPaymentsQuery,
+  useGetMemberSavingsTransactionsQuery,
+} from "../membersApi.js";
+import { useGetLoansQuery } from "../../loans/loansApi.js";
+import { LoanPaymentHistoryTable } from "../../collections/components/LoanPaymentHistoryTable.jsx";
+import { useGetCollectionsQuery } from "../../collections/collectionsApi.js";
+import { QuickSavingsCollectionModal } from "../../savings/components/QuickSavingsCollectionModal.jsx";
+import { SavingsWithdrawalModal } from "../../savings/components/SavingsWithdrawalModal.jsx";
+import { resolveUploadUrl } from "../../../utils/uploadUrl.js";
+import {
+  formatDate,
+  formatEnum,
+} from "../../loans/loanFormatters.js";
 
 const getInitials = (name = "") => {
   return name
@@ -37,50 +55,16 @@ const getInitials = (name = "") => {
     .toUpperCase();
 };
 
-const formatDate = (date) => {
-  if (!date) {
-    return "—";
-  }
-
-  const parsedDate = new Date(date);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return "—";
-  }
-
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(parsedDate);
-};
-
-const formatStatus = (status) => {
-  if (!status) {
-    return "—";
-  }
-
-  return status
-    .toLowerCase()
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-};
-
-const MemberStatusTag = ({ status }) => {
-  if (!status) {
-    return "—";
-  }
-
-  return (
-    <Tag className={`member-status-tag ${status.toLowerCase()}`}>
-      <CheckCircleFilled /> {formatStatus(status)}
-    </Tag>
-  );
-};
-
 export function MemberProfilePage() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [activeTab, setActiveTab] = useState("overview");
+  const [savingsCollectionOpen, setSavingsCollectionOpen] = useState(false);
+  const [savingsWithdrawalOpen, setSavingsWithdrawalOpen] = useState(false);
+  const [loanPagination, setLoanPagination] = useState({ current: 1, pageSize: 10 });
+  const [paymentPagination, setPaymentPagination] = useState({ current: 1, pageSize: 20 });
+  const [savingsPagination, setSavingsPagination] = useState({ current: 1, pageSize: 20 });
+  const [collectionPagination, setCollectionPagination] = useState({ current: 1, pageSize: 20 });
 
   const {
     data: response,
@@ -94,8 +78,70 @@ export function MemberProfilePage() {
   });
 
   const member = response?.data;
-
-  console.log(member);
+  const {
+    data: loansResponse,
+    isLoading: loansLoading,
+    isFetching: loansFetching,
+    isError: loansError,
+    error: loansRequestError,
+    refetch: refetchLoans,
+  } = useGetLoansQuery(
+    {
+      page: loanPagination.current,
+      limit: loanPagination.pageSize,
+      memberId: Number(id),
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    },
+    { skip: !id || activeTab !== "loans" },
+  );
+  const {
+    data: paymentsResponse,
+    isLoading: paymentsLoading,
+    isFetching: paymentsFetching,
+    isError: paymentsError,
+    error: paymentsRequestError,
+    refetch: refetchPayments,
+  } = useGetMemberLoanPaymentsQuery(
+    {
+      memberId: Number(id),
+      page: paymentPagination.current,
+      limit: paymentPagination.pageSize,
+      sortOrder: "desc",
+    },
+    { skip: !id || activeTab !== "loan-payments" },
+  );
+  const {
+    data: savingsTransactionsResponse,
+    isLoading: savingsTransactionsLoading,
+    isFetching: savingsTransactionsFetching,
+    isError: savingsTransactionsError,
+    error: savingsTransactionsRequestError,
+    refetch: refetchSavingsTransactions,
+  } = useGetMemberSavingsTransactionsQuery(
+    {
+      memberId: Number(id),
+      page: savingsPagination.current,
+      limit: savingsPagination.pageSize,
+      sortOrder: "desc",
+    },
+    { skip: !id || activeTab !== "savings" || !member?.savingsAccount },
+  );
+  const {
+    data: collectionsResponse,
+    isLoading: collectionsLoading,
+    isFetching: collectionsFetching,
+    isError: collectionsError,
+    error: collectionsRequestError,
+    refetch: refetchCollections,
+  } = useGetCollectionsQuery(
+    {
+      memberId: Number(id),
+      page: collectionPagination.current,
+      limit: collectionPagination.pageSize,
+    },
+    { skip: !id || activeTab !== "collections" },
+  );
 
   const presentAddress = member?.addresses?.find(
     (address) => address.type === "PRESENT",
@@ -106,6 +152,25 @@ export function MemberProfilePage() {
   );
 
   const guarantor = member?.guarantors?.[0];
+  const loans = loansResponse?.data ?? [];
+  const payments = paymentsResponse?.data ?? [];
+  const savingsTransactions = savingsTransactionsResponse?.data ?? [];
+  const collections = collectionsResponse?.data?.data ?? [];
+  const memberLoans = member?.loans ?? [];
+  const detailedLoansById = new Map(memberLoans.map((loan) => [loan.id, loan]));
+  const loansWithInstallments = loans.map((loan) => ({
+    ...loan,
+    installments: detailedLoansById.get(loan.id)?.installments ?? [],
+  }));
+  const loanSummary = memberLoans.reduce(
+    (summary, loan) => ({
+      total: summary.total + 1,
+      active: summary.active + Number(loan.status === "ACTIVE"),
+      completed: summary.completed + Number(loan.status === "COMPLETED"),
+      awaiting: summary.awaiting + Number(loan.status === "PENDING" || loan.status === "APPROVED"),
+    }),
+    { total: 0, active: 0, completed: 0, awaiting: 0 },
+  );
 
   if (isLoading) {
     return (
@@ -175,7 +240,7 @@ export function MemberProfilePage() {
         <Row gutter={[16, 16]}>
           {/* Basic Information */}
           <Col xs={24} lg={14}>
-            <Card title="Basic Information" className="member-profile-card">
+            <Card title="Personal Information" className="member-profile-card">
               <div className="member-profile-info-list">
                 <DetailItem label="Member ID" value={member.memberId} />
 
@@ -200,7 +265,12 @@ export function MemberProfilePage() {
 
                 <DetailItem
                   label="Status"
-                  value={<MemberStatusTag status={member.status} />}
+                  value={
+                    <StatusTag
+                      status={member.status}
+                      label={formatEnum(member.status)}
+                    />
+                  }
                 />
               </div>
             </Card>
@@ -216,7 +286,7 @@ export function MemberProfilePage() {
           {/* Father Address */}
           {fatherAddress && (
             <Col xs={24} lg={12}>
-              <Card title="Father Address" className="member-profile-card">
+              <Card title="Father / Permanent Address" className="member-profile-card">
                 <AddressDetails address={fatherAddress} />
               </Card>
             </Col>
@@ -257,26 +327,78 @@ export function MemberProfilePage() {
       label: "Loans",
 
       children: (
-        <Card className="member-profile-card">
-          <Empty description="No loan information available yet">
-            <Button
-              type="primary"
-              onClick={() => navigate(`/loans/new?member=${member.id}`)}
-            >
-              Create New Loan
-            </Button>
-          </Empty>
-        </Card>
+        <>
+          {memberLoans.length > 0 && (
+            <Row gutter={[16, 16]} className="member-profile-tab-stats">
+              <Col xs={12} sm={6}><Card><Typography.Text type="secondary">Total Loans</Typography.Text><Typography.Title level={3}>{loanSummary.total}</Typography.Title></Card></Col>
+              <Col xs={12} sm={6}><Card><Typography.Text type="secondary">Active</Typography.Text><Typography.Title level={3}>{loanSummary.active}</Typography.Title></Card></Col>
+              <Col xs={12} sm={6}><Card><Typography.Text type="secondary">Completed</Typography.Text><Typography.Title level={3}>{loanSummary.completed}</Typography.Title></Card></Col>
+              <Col xs={12} sm={6}><Card><Typography.Text type="secondary">Pending / Approved</Typography.Text><Typography.Title level={3}>{loanSummary.awaiting}</Typography.Title></Card></Col>
+            </Row>
+          )}
+          <Card className="member-profile-card member-profile-table-card">
+            {loansError ? (
+              <Alert
+                type="error"
+                showIcon
+                message={loansRequestError?.data?.message || "Unable to load member loans"}
+                action={<Button onClick={refetchLoans}>Retry</Button>}
+              />
+            ) : (
+              <MemberLoansTable
+                loans={loansWithInstallments}
+                loading={loansLoading || loansFetching}
+                pagination={{
+                  ...loanPagination,
+                  total: loansResponse?.meta?.total ?? 0,
+                }}
+                onPaginationChange={(pagination) =>
+                  setLoanPagination({
+                    current: pagination.current,
+                    pageSize: pagination.pageSize,
+                  })
+                }
+                onViewLoan={(loan) => navigate(`/loans/${loan.id}`)}
+                onCreateLoan={() => navigate(`/loans/new?memberId=${member.id}`)}
+              />
+            )}
+          </Card>
+        </>
       ),
     },
 
     {
-      key: "installments",
-      label: "Installments",
-
+      key: "loan-payments",
+      label: "Loan Payments",
       children: (
-        <Card className="member-profile-card">
-          <Empty description="No installment information available yet" />
+        <Card className="member-profile-card member-profile-table-card">
+          {paymentsError ? (
+            <Alert
+              type="error"
+              showIcon
+              message={
+                paymentsRequestError?.data?.message ||
+                "Unable to load loan payment history"
+              }
+              action={<Button onClick={refetchPayments}>Retry</Button>}
+            />
+          ) : (
+            <LoanPaymentHistoryTable
+              payments={payments}
+              loading={paymentsLoading || paymentsFetching}
+              showLoan
+              pagination={{
+                ...paymentPagination,
+                total: paymentsResponse?.meta?.total ?? 0,
+              }}
+              onPaginationChange={(pagination) =>
+                setPaymentPagination({
+                  current: pagination.current,
+                  pageSize: pagination.pageSize,
+                })
+              }
+            />
+          )}
         </Card>
       ),
     },
@@ -286,19 +408,87 @@ export function MemberProfilePage() {
       label: "Savings",
 
       children: (
-        <Card className="member-profile-card">
-          <Empty description="No savings information available yet" />
-        </Card>
+        <Space direction="vertical" size={16} className="w-full">
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button type="primary" onClick={() => setSavingsCollectionOpen(true)}>
+              Collect Savings
+            </Button>
+            <Button
+              danger
+              disabled={!member.savingsAccount || member.savingsAccount.status !== "ACTIVE"}
+              onClick={() => setSavingsWithdrawalOpen(true)}
+            >
+              Withdraw Savings
+            </Button>
+          </div>
+          <SavingsSummaryCard account={member.savingsAccount} />
+          {member.savingsAccount && (
+            <Card
+              title="Savings Transactions"
+              className="member-profile-card member-profile-table-card"
+            >
+              {savingsTransactionsError ? (
+                <Alert
+                  type="error"
+                  showIcon
+                  message={
+                    savingsTransactionsRequestError?.data?.message ||
+                    "Unable to load savings transactions"
+                  }
+                  action={<Button onClick={refetchSavingsTransactions}>Retry</Button>}
+                />
+              ) : (
+                <SavingsTransactionHistoryTable
+                  transactions={savingsTransactions}
+                  loading={savingsTransactionsLoading || savingsTransactionsFetching}
+                  pagination={{
+                    ...savingsPagination,
+                    total: savingsTransactionsResponse?.meta?.total ?? 0,
+                  }}
+                  onPaginationChange={(pagination) =>
+                    setSavingsPagination({
+                      current: pagination.current,
+                      pageSize: pagination.pageSize,
+                    })
+                  }
+                />
+              )}
+            </Card>
+          )}
+        </Space>
       ),
     },
-
     {
-      key: "transactions",
-      label: "Transactions",
-
+      key: "collections",
+      label: "Collections",
       children: (
-        <Card className="member-profile-card">
-          <Empty description="No transaction information available yet" />
+        <Card className="member-profile-card member-profile-table-card">
+          {collectionsError ? (
+            <Alert
+              type="error"
+              showIcon
+              message={
+                collectionsRequestError?.data?.message ||
+                "Unable to load collection history"
+              }
+              action={<Button onClick={refetchCollections}>Retry</Button>}
+            />
+          ) : (
+            <CollectionHistoryTable
+              collections={collections}
+              loading={collectionsLoading || collectionsFetching}
+              pagination={{
+                ...collectionPagination,
+                total: collectionsResponse?.data?.pagination?.total ?? 0,
+              }}
+              onPaginationChange={(pagination) =>
+                setCollectionPagination({
+                  current: pagination.current,
+                  pageSize: pagination.pageSize,
+                })
+              }
+            />
+          )}
         </Card>
       ),
     },
@@ -326,7 +516,7 @@ export function MemberProfilePage() {
 
           <Button
             type="primary"
-            onClick={() => navigate(`/loans/new?member=${member.id}`)}
+            onClick={() => navigate(`/loans/new?memberId=${member.id}`)}
           >
             Create New Loan
           </Button>
@@ -345,115 +535,92 @@ export function MemberProfilePage() {
         />
       )}
 
-      {/* Member Hero */}
-      <Card className="member-profile-hero">
-        <div className="member-profile-identity">
-          <Avatar
-            size={92}
-            className="member-profile-avatar"
-            src={member.photoUrl || undefined}
-          >
-            {getInitials(member.fullName)}
-          </Avatar>
-
-          <div>
-            <Typography.Title
-              level={2}
-              style={{
-                marginBottom: 4,
-              }}
+      <div className="member-profile-overview-grid">
+        <Card className="member-profile-hero">
+          <div className="member-profile-identity">
+            <Avatar
+              size={92}
+              className="member-profile-avatar"
+              src={resolveUploadUrl(member.photoUrl) || undefined}
             >
-              {member.fullName}
-            </Typography.Title>
+              {getInitials(member.fullName)}
+            </Avatar>
 
-            <Typography.Text type="secondary">
-              Member ID: {member.memberId || "—"}
-            </Typography.Text>
-
-            <div className="member-profile-status">
-              <MemberStatusTag status={member.status} />
+            <div>
+              <Typography.Title level={2} style={{ marginBottom: 4 }}>
+                {member.fullName}
+              </Typography.Title>
+              <Typography.Text type="secondary">
+                Member ID: {member.memberId || "—"}
+              </Typography.Text>
+              <div className="member-profile-status">
+                <StatusTag
+                  status={member.status}
+                  label={formatEnum(member.status)}
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="member-profile-contact">
-          <Typography.Text type="secondary">Mobile Number</Typography.Text>
-
-          <Typography.Text strong>
-            <PhoneOutlined /> {member.mobileNumber || "—"}
+          <Typography.Text type="secondary" className="member-profile-caption">
+            Member profile and account status
           </Typography.Text>
-        </div>
-      </Card>
+        </Card>
 
-      {/* Member Summary */}
-      <Row gutter={[16, 16]} className="member-profile-summary">
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
-            <Typography.Text type="secondary">Member Status</Typography.Text>
-
-            <div
-              style={{
-                marginTop: 10,
-              }}
-            >
-              <MemberStatusTag status={member.status} />
-            </div>
-
-            <Typography.Text
-              type="secondary"
-              style={{
-                display: "block",
-                marginTop: 8,
-              }}
-            >
-              Current account status
+        <Card className="member-profile-fact-card">
+          <div className="member-profile-fact">
+            <Typography.Text type="secondary">Phone</Typography.Text>
+            <Typography.Text strong>
+              <PhoneOutlined /> {member.mobileNumber || "—"}
             </Typography.Text>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
+          </div>
+        </Card>
+        <Card className="member-profile-fact-card">
+          <div className="member-profile-fact">
+            <Typography.Text type="secondary">NID</Typography.Text>
+            <Typography.Text strong>
+              {member.nidNumber || "Not provided"}
+            </Typography.Text>
+          </div>
+        </Card>
+        <Card className="member-profile-fact-card">
+          <div className="member-profile-fact">
             <Typography.Text type="secondary">Joined</Typography.Text>
-
-            <Typography.Title
-              level={4}
-              style={{
-                marginTop: 8,
-                marginBottom: 4,
-              }}
-            >
-              {formatDate(member.joinDate)}
-            </Typography.Title>
-
-            <Typography.Text type="secondary">Member since</Typography.Text>
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
+            <Typography.Text strong>{formatDate(member.joinDate)}</Typography.Text>
+          </div>
+        </Card>
+        <Card className="member-profile-fact-card">
+          <div className="member-profile-fact">
             <Typography.Text type="secondary">Guarantor</Typography.Text>
-
-            <Typography.Title
-              level={4}
-              style={{
-                marginTop: 8,
-                marginBottom: 4,
-              }}
-            >
-              {guarantor ? guarantor.fullName : "Not Added"}
-            </Typography.Title>
-
-            <Typography.Text type="secondary">
-              {guarantor?.relationship || "No guarantor information"}
+            <Typography.Text strong>
+              {guarantor?.fullName || "Not added"}
             </Typography.Text>
-          </Card>
-        </Col>
-      </Row>
+          </div>
+        </Card>
+      </div>
+
+      <MemberFinancialSummary
+        loans={memberLoans}
+        savingsAccount={member.savingsAccount}
+        loading={isFetching}
+      />
 
       {/* Tabs */}
       <div className="member-profile-tabs">
-        <Tabs defaultActiveKey="overview" items={tabItems} />
+        <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
       </div>
+
+      <QuickSavingsCollectionModal
+        open={savingsCollectionOpen}
+        member={member}
+        onClose={() => setSavingsCollectionOpen(false)}
+      />
+      <SavingsWithdrawalModal
+        open={savingsWithdrawalOpen}
+        member={member}
+        account={member.savingsAccount}
+        onClose={() => setSavingsWithdrawalOpen(false)}
+      />
     </PageContainer>
   );
 }

@@ -11,7 +11,8 @@ import { LoanApprovalPage } from "../../modules/loans/LoanApprovalPage.jsx";
 import { LoanDetailsPage } from "../../modules/loans/LoanDetailsPage.jsx";
 import { EditLoanPage } from "../../modules/loans/EditLoanPage.jsx";
 import { LoansPage } from "../../modules/loans/LoansPage.jsx";
-import { CollectionPage } from "../../modules/collections/CollectionPage.jsx";
+import { CollectionPage } from "../../modules/collections/pages/CollectionPage.jsx";
+import { SavingsPage } from "../../modules/savings/pages/SavingsPage.jsx";
 import { DueOverduePage } from "../../modules/loans/DueOverduePage.jsx";
 import { PlaceholderPage } from "../../modules/shared/PlaceholderPage.jsx";
 
@@ -19,11 +20,6 @@ import { ProtectedRoute } from "../../modules/auth/components/ProtectedRoute.jsx
 import { PublicOnlyRoute } from "../../modules/auth/components/PublicOnlyRoute.jsx";
 
 const pages = [
-  {
-    path: "savings",
-    title: "Savings",
-    description: "Savings accounts and balances will appear here.",
-  },
   {
     path: "income-expense",
     title: "Income & Expense",
@@ -58,28 +54,18 @@ export function AppRouter() {
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
           <Route index element={<DashboardPage />} />
-
           <Route path="/members/new" element={<CreateMemberPage />} />
-
           <Route path="/members/:id" element={<MemberProfilePage />} />
-
           <Route path="/members/:id/edit" element={<EditMemberPage />} />
-
           <Route path="members" element={<MembersPage />} />
-
           <Route path="loans/new" element={<CreateLoanPage />} />
-
           <Route path="loans/approval" element={<LoanApprovalPage />} />
-
           <Route path="loans/overdue" element={<DueOverduePage />} />
-
           <Route path="loans/:id/edit" element={<EditLoanPage />} />
-
           <Route path="loans/:id" element={<LoanDetailsPage />} />
-
           <Route path="loans" element={<LoansPage />} />
-
           <Route path="collections" element={<CollectionPage />} />
+          <Route path="savings" element={<SavingsPage />} />
 
           {pages.map((page) => (
             <Route

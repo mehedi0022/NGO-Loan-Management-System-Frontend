@@ -12,6 +12,7 @@ import { MemberForm } from "../components/MemberForm.jsx";
 import {
   useGetMemberByIdQuery,
   useUpdateMemberMutation,
+  useUploadMemberPhotoMutation,
 } from "../membersApi.js";
 
 import { buildMemberFormValues } from "../../../utils/memberForm.js";
@@ -27,6 +28,7 @@ export function EditMemberPage() {
   const [hasFatherAddress, setHasFatherAddress] = useState(false);
 
   const [hasGuarantor, setHasGuarantor] = useState(false);
+  const [photoFile, setPhotoFile] = useState(null);
 
   const {
     data: response,
@@ -37,6 +39,7 @@ export function EditMemberPage() {
   } = useGetMemberByIdQuery(id);
 
   const [updateMember, { isLoading: isUpdating }] = useUpdateMemberMutation();
+  const [uploadMemberPhoto, { isLoading: isUploadingPhoto }] = useUploadMemberPhotoMutation();
 
   const member = response?.data;
 
@@ -63,13 +66,22 @@ export function EditMemberPage() {
       const payload = buildUpdateMemberPayload(values, {
         hasFatherAddress,
         hasGuarantor,
-        photoUrl: member?.photoUrl,
       });
 
       await updateMember({
         id: Number(id),
         payload,
       }).unwrap();
+
+      if (photoFile) {
+        try {
+          await uploadMemberPhoto({ id: Number(id), file: photoFile }).unwrap();
+        } catch (uploadError) {
+          message.warning(uploadError?.data?.message || "Member updated, but profile photo could not be uploaded");
+          navigate(`/members/${id}`);
+          return;
+        }
+      }
 
       message.success("Member updated successfully");
 
@@ -149,7 +161,8 @@ export function EditMemberPage() {
         hasGuarantor={hasGuarantor}
         setHasGuarantor={setHasGuarantor}
         onSubmit={handleSubmit}
-        loading={isUpdating}
+        loading={isUpdating || isUploadingPhoto}
+        onImageChange={setPhotoFile}
         onCancel={() => navigate(`/members/${id}`)}
       />
     </PageContainer>

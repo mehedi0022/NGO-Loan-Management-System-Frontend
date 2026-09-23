@@ -12,7 +12,7 @@ export function CreateLoanPage() {
   const [searchParams] = useSearchParams();
   const [form] = Form.useForm();
   const [formError, setFormError] = useState("");
-  const memberIdFromQuery = Number(searchParams.get("member"));
+  const memberIdFromQuery = Number(searchParams.get("memberId") ?? searchParams.get("member"));
   const validMemberId = Number.isSafeInteger(memberIdFromQuery) && memberIdFromQuery > 0;
 
   const { data: membersResponse, isLoading: membersLoading } = useGetAllMembersQuery({
