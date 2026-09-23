@@ -41,7 +41,7 @@ export const collectionsApi = baseApi.injectEndpoints({
         body: payload,
       }),
 
-      invalidatesTags: ["Collections", "Loans", "Savings", "Member"],
+      invalidatesTags: ["Collections", "Loans", "Savings", "Member", "Dashboard"],
     }),
 
     /**
@@ -57,7 +57,7 @@ export const collectionsApi = baseApi.injectEndpoints({
         body: payload,
       }),
 
-      invalidatesTags: ["Collections", "Loans", "Savings", "Member"],
+      invalidatesTags: ["Collections", "Loans", "Savings", "Member", "Dashboard"],
     }),
 
     /**

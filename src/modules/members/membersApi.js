@@ -8,7 +8,7 @@ export const membersApi = baseApi.injectEndpoints({
         method: "POST",
         body: payload,
       }),
-      invalidatesTags: ["Member"],
+      invalidatesTags: ["Member", "Dashboard"],
     }),
 
     getAllMembers: builder.query({
@@ -60,6 +60,7 @@ export const membersApi = baseApi.injectEndpoints({
 
       invalidatesTags: (_result, _error, { id }) => [
         "Member",
+        "Dashboard",
         {
           type: "Member",
           id,

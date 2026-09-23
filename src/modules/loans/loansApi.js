@@ -8,21 +8,21 @@ export const loansApi = baseApi.injectEndpoints({
         method: "POST",
         body: payload,
       }),
-      invalidatesTags: ["Loans"],
+      invalidatesTags: ["Loans", "Dashboard"],
     }),
     updateLoan: builder.mutation({
       query: ({ id, payload }) => ({ url: `/loans/${id}`, method: "PATCH", body: payload }),
-      invalidatesTags: (_result, _error, { id }) => ["Loans", { type: "Loans", id }],
+      invalidatesTags: (_result, _error, { id }) => ["Loans", "Dashboard", { type: "Loans", id }],
     }),
-    approveLoan: builder.mutation({ query: (id) => ({ url: `/loans/${id}/approve`, method: "PATCH" }), invalidatesTags: (_result, _error, id) => ["Loans", { type: "Loans", id }] }),
-    rejectLoan: builder.mutation({ query: ({ id, rejectionReason }) => ({ url: `/loans/${id}/reject`, method: "PATCH", body: { rejectionReason } }), invalidatesTags: (_result, _error, { id }) => ["Loans", { type: "Loans", id }] }),
+    approveLoan: builder.mutation({ query: (id) => ({ url: `/loans/${id}/approve`, method: "PATCH" }), invalidatesTags: (_result, _error, id) => ["Loans", "Dashboard", { type: "Loans", id }] }),
+    rejectLoan: builder.mutation({ query: ({ id, rejectionReason }) => ({ url: `/loans/${id}/reject`, method: "PATCH", body: { rejectionReason } }), invalidatesTags: (_result, _error, { id }) => ["Loans", "Dashboard", { type: "Loans", id }] }),
     disburseLoan: builder.mutation({
       query: ({ id, payload }) => ({
         url: `/loans/${id}/disburse`,
         method: "POST",
         body: payload,
       }),
-      invalidatesTags: (_result, _error, { id }) => ["Loans", { type: "Loans", id }],
+      invalidatesTags: (_result, _error, { id }) => ["Loans", "Dashboard", { type: "Loans", id }],
     }),
     getLoans: builder.query({
       query: ({

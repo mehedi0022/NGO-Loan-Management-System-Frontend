@@ -134,6 +134,8 @@ export function CollectionPage() {
       generalSavingsAmount: values.generalSavingsAmount ?? 0,
 
       specialSavingsAmount: values.specialSavingsAmount ?? 0,
+
+      paymentMethod: values.paymentMethod ?? paymentMethod,
     };
   };
 
@@ -143,6 +145,16 @@ export function CollectionPage() {
       [installmentId]: {
         ...current[installmentId],
         [field]: toAmount(value),
+      },
+    }));
+  };
+
+  const updateRowPaymentMethod = (installmentId, value) => {
+    setCollectionValues((current) => ({
+      ...current,
+      [installmentId]: {
+        ...current[installmentId],
+        paymentMethod: value,
       },
     }));
   };
@@ -339,6 +351,8 @@ export function CollectionPage() {
         generalSavingsAmount: toAmount(values.generalSavingsAmount),
 
         specialSavingsAmount: toAmount(values.specialSavingsAmount),
+
+        paymentMethod: values.paymentMethod,
       };
     });
 
@@ -518,6 +532,25 @@ export function CollectionPage() {
     },
 
     {
+      title: "Payment Method",
+      key: "paymentMethod",
+      width: 175,
+
+      render: (_, item) => {
+        const values = getRowValues(item);
+
+        return (
+          <Select
+            className="w-full"
+            value={values.paymentMethod}
+            options={paymentMethods}
+            onChange={(value) => updateRowPaymentMethod(item.id, value)}
+          />
+        );
+      },
+    },
+
+    {
       title: "Total",
       key: "total",
       width: 130,
@@ -612,7 +645,7 @@ export function CollectionPage() {
 
           <div>
             <Typography.Text strong className="mb-2 block">
-              Payment Method
+              Default Payment Method
             </Typography.Text>
 
             <Select
@@ -745,7 +778,7 @@ export function CollectionPage() {
             pageSize: 10,
             showSizeChanger: true,
           }}
-          scroll={{ x: 1700 }}
+          scroll={{ x: 1875 }}
           locale={{
             emptyText: (
               <Empty description="No payable installments found for this date" />
@@ -771,9 +804,9 @@ export function CollectionPage() {
           </div>
 
           <div>
-            <Typography.Text type="secondary">Payment Method</Typography.Text>
+            <Typography.Text type="secondary">Payment Methods</Typography.Text>
 
-            <div className="font-semibold">{formatEnum(paymentMethod)}</div>
+            <div className="font-semibold">Selected per member</div>
           </div>
 
           <div>
@@ -792,6 +825,24 @@ export function CollectionPage() {
         </div>
 
         <div className="space-y-2">
+          {selectedInstallments.map((item) => {
+            const member = getMember(item);
+            const values = getRowValues(item);
+
+            return (
+              <div key={item.id} className="flex justify-between gap-3">
+                <Typography.Text ellipsis>
+                  {member?.fullName || member?.memberId || `Installment #${item.installmentNo}`}
+                </Typography.Text>
+                <Typography.Text strong>
+                  {formatEnum(values.paymentMethod)}
+                </Typography.Text>
+              </div>
+            );
+          })}
+
+          <div className="my-3 border-t border-gray-100" />
+
           <div className="flex justify-between">
             <Typography.Text>Loan Collection</Typography.Text>
 

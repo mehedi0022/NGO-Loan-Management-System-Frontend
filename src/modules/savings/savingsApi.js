@@ -18,6 +18,7 @@ export const savingsApi = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, { memberId }) => [
         "Savings",
         "Member",
+        "Dashboard",
         { type: "Savings", id: `MEMBER-${memberId}` },
         { type: "Savings", id: `MEMBER-TRANSACTIONS-${memberId}` },
         { type: "Member", id: memberId },
