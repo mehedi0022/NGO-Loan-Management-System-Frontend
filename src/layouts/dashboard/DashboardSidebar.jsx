@@ -24,10 +24,16 @@ export function DashboardSidebar({ collapsed, onCollapse }) {
       className="app-sider"
     >
       <div className="brand-lockup">
-        <div className="brand-mark">প</div>
+        <div className="brand-mark">
+          {" "}
+          <img src="./favicon.png" alt="" />{" "}
+        </div>
         <div>
-          <Typography.Text className="brand-name">
+          <Typography.Text className="text-sm">
             পূর্বাশা আর্থিক উন্নয়ন সংস্থা
+          </Typography.Text>
+          <Typography.Text className="brand-caption">
+            ক্ষুদ্রঋণ ও সঞ্চয় ব্যবস্থাপনা সিস্টেম
           </Typography.Text>
         </div>
       </div>
