@@ -59,31 +59,37 @@ export function LoginPage() {
 
   return (
     <main className="login-page">
-      <section className="login-intro" aria-label="Nuru Finance">
+      <section
+        className="login-intro"
+        aria-label="পূর্বাশা আর্থিক উন্নয়ন সংস্থা"
+      >
         <div className="login-brand">
-          <div className="login-brand-mark">N</div>
+          <div className="login-brand-mark">
+            {" "}
+            <img src="./favicon.png" alt="" />{" "}
+          </div>
           <div>
             <Typography.Text className="login-brand-name">
-              Nuru Finance
+              পূর্বাশা আর্থিক উন্নয়ন সংস্থা
             </Typography.Text>
             <Typography.Text className="login-brand-caption">
-              Loan management
+              ক্ষুদ্রঋণ ও সঞ্চয় ব্যবস্থাপনা সিস্টেম
             </Typography.Text>
           </div>
         </div>
 
         <div className="login-intro-copy">
           <Typography.Text className="login-eyebrow">
-            OPERATIONS WORKSPACE
+            এনজিও অপারেশন ওয়ার্কস্পেস
           </Typography.Text>
-          <Typography.Title level={1}>
-            Lending clarity,
+          <Typography.Title level={2} className="login-intro-title">
+            মানুষের উন্নয়নে
             <br />
-            every day.
+            সঞ্চয় ও ক্ষুদ্রঋণের ডিজিটাল সমাধান
           </Typography.Title>
           <Typography.Paragraph>
-            A focused workspace for the people who keep your lending operations
-            moving.
+            সদস্য, ঋণ, কিস্তি, সঞ্চয় ও দৈনিক আদায় কার্যক্রম এক প্ল্যাটফর্মে
+            নিরাপদ ও সহজভাবে পরিচালনা করুন।
           </Typography.Paragraph>
         </div>
 
@@ -127,10 +133,7 @@ export function LoginPage() {
         <Card bordered={false} className="login-card">
           <div className="login-card-heading">
             <Typography.Text className="login-mobile-label">
-              NURU FINANCE
-            </Typography.Text>
-            <Typography.Text className="login-card-kicker">
-              WORKSPACE ACCESS
+              পূর্বাশা আর্থিক উন্নয়ন সংস্থা
             </Typography.Text>
             <Typography.Title level={2}>Welcome back</Typography.Title>
             <Typography.Paragraph>
