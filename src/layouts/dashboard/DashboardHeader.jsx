@@ -1,5 +1,6 @@
 import {
   LogoutOutlined,
+  KeyOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   MoonOutlined,
@@ -21,12 +22,17 @@ import {
 } from "antd";
 
 import dayjs from "dayjs";
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
 import { useAppTheme } from "../../app/providers/ThemeContext.js";
-import { useLogoutMutation } from "../../modules/auth/authApi.js";
+import {
+  useChangePasswordMutation,
+  useLogoutMutation,
+} from "../../modules/auth/authApi.js";
 import { clearAuth } from "../../modules/auth/authSlice.js";
+import { ChangePasswordModal } from "../../modules/auth/components/ChangePasswordModal.jsx";
 import { baseApi } from "../../services/baseApi.js";
 
 const { Header } = Layout;
@@ -38,8 +44,11 @@ export function DashboardHeader({ collapsed, onToggle }) {
   const navigate = useNavigate();
 
   const user = useSelector((state) => state.auth.user);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   const [logout, { isLoading: isLoggingOut }] = useLogoutMutation();
+  const [changePassword, { isLoading: isChangingPassword }] =
+    useChangePasswordMutation();
 
   const handleLogout = async () => {
     try {
@@ -64,6 +73,11 @@ export function DashboardHeader({ collapsed, onToggle }) {
       return;
     }
 
+    if (key === "change-password") {
+      setChangePasswordOpen(true);
+      return;
+    }
+
     if (key === "logout") {
       handleLogout();
     }
@@ -76,6 +90,11 @@ export function DashboardHeader({ collapsed, onToggle }) {
       label: "Profile",
     },
     {
+      key: "change-password",
+      icon: <KeyOutlined />,
+      label: "Change Password",
+    },
+    {
       type: "divider",
     },
     {
@@ -86,6 +105,19 @@ export function DashboardHeader({ collapsed, onToggle }) {
       disabled: isLoggingOut,
     },
   ];
+
+  const handleChangePassword = async (values) => {
+    try {
+      await changePassword(values).unwrap();
+      setChangePasswordOpen(false);
+      message.success("Password changed successfully. Please sign in again.");
+      dispatch(clearAuth());
+      dispatch(baseApi.util.resetApiState());
+      navigate("/login", { replace: true });
+    } catch (error) {
+      message.error(error?.data?.message || "Unable to change password");
+    }
+  };
 
   return (
     <Header className="app-header">
@@ -132,6 +164,13 @@ export function DashboardHeader({ collapsed, onToggle }) {
           </Button>
         </Dropdown>
       </Space>
+
+      <ChangePasswordModal
+        open={changePasswordOpen}
+        loading={isChangingPassword}
+        onCancel={() => setChangePasswordOpen(false)}
+        onSubmit={handleChangePassword}
+      />
     </Header>
   );
 }

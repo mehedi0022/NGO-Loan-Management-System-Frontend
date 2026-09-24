@@ -13,7 +13,12 @@ const authSlice = createSlice({
 
   reducers: {
     setUser: (state, action) => {
-      state.user = action.payload;
+      state.user = {
+        ...action.payload,
+        permissions: Array.isArray(action.payload?.permissions)
+          ? action.payload.permissions
+          : [],
+      };
       state.isAuthenticated = true;
     },
 

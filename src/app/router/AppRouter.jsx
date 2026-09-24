@@ -18,6 +18,9 @@ import { PlaceholderPage } from "../../modules/shared/PlaceholderPage.jsx";
 
 import { ProtectedRoute } from "../../modules/auth/components/ProtectedRoute.jsx";
 import { PublicOnlyRoute } from "../../modules/auth/components/PublicOnlyRoute.jsx";
+import { PermissionRoute } from "../../modules/auth/components/PermissionRoute.jsx";
+import { permissions } from "../../modules/auth/permissions.js";
+import { UsersPage } from "../../modules/users/pages/UsersPage.jsx";
 
 const pages = [
   {
@@ -29,11 +32,6 @@ const pages = [
     path: "reports",
     title: "Reports",
     description: "Operational and financial reports will appear here.",
-  },
-  {
-    path: "users",
-    title: "Users & Roles",
-    description: "User access and role management will appear here.",
   },
   {
     path: "settings",
@@ -66,6 +64,14 @@ export function AppRouter() {
           <Route path="loans" element={<LoansPage />} />
           <Route path="collections" element={<CollectionPage />} />
           <Route path="savings" element={<SavingsPage />} />
+          <Route
+            path="users"
+            element={
+              <PermissionRoute permission={permissions.usersReadAny}>
+                <UsersPage />
+              </PermissionRoute>
+            }
+          />
 
           {pages.map((page) => (
             <Route

@@ -1,12 +1,30 @@
 import { Layout, Menu, Typography } from "antd";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useMemo } from "react";
+import { useSelector } from "react-redux";
 import { navigationItems } from "../../constants/navigation.jsx";
+import { can } from "../../modules/auth/permissions.js";
 
 const { Sider } = Layout;
+
+const filterNavigationItems = (items, user) =>
+  items.flatMap((item) => {
+    if (item.permission && !can(user, item.permission)) return [];
+
+    if (!item.children) return [item];
+
+    const children = filterNavigationItems(item.children, user);
+    return children.length ? [{ ...item, children }] : [];
+  });
 
 export function DashboardSidebar({ collapsed, onCollapse }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const user = useSelector((state) => state.auth.user);
+  const visibleNavigationItems = useMemo(
+    () => filterNavigationItems(navigationItems, user),
+    [user],
+  );
   const selectedKey = location.pathname === "/" ? "/" : location.pathname;
   const openKeys = location.pathname.startsWith("/loans")
     ? ["loans-group"]
@@ -40,7 +58,7 @@ export function DashboardSidebar({ collapsed, onCollapse }) {
       <Menu
         mode="inline"
         theme="dark"
-        items={navigationItems}
+        items={visibleNavigationItems}
         selectedKeys={[selectedKey]}
         defaultOpenKeys={openKeys}
         onClick={({ key }) => {
