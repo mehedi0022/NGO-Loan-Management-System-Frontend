@@ -1,6 +1,7 @@
 import {
   CalendarOutlined,
   CheckOutlined,
+  PrinterOutlined,
   SearchOutlined,
   UserOutlined,
 } from "@ant-design/icons";
@@ -24,6 +25,7 @@ import {
 } from "antd";
 import dayjs from "dayjs";
 import { useMemo, useState } from "react";
+import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
 import { PageContainer } from "../../../components/page-container/PageContainer.jsx";
@@ -36,6 +38,7 @@ import {
 } from "../../loans/loanFormatters.js";
 import { CollectionModal } from "../components/CollectionModal.jsx";
 import { QuickSavingsCollectionModal } from "../../savings/components/QuickSavingsCollectionModal.jsx";
+import { PrintableCollectionSheetModal } from "../components/PrintableCollectionSheetModal.jsx";
 import {
   useCreateBatchCollectionsMutation,
   useCreateCollectionMutation,
@@ -80,6 +83,9 @@ export function CollectionPage() {
   const [batchOpen, setBatchOpen] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState(null);
   const [savingsCollectionOpen, setSavingsCollectionOpen] = useState(false);
+  const [printModalOpen, setPrintModalOpen] = useState(false);
+
+  const currentUser = useSelector((state) => state.auth.user);
 
   const dueDateValue = dueDate.format("YYYY-MM-DD");
 
@@ -110,6 +116,13 @@ export function CollectionPage() {
     ],
     [somitiesData],
   );
+
+  const selectedSomiti = useMemo(() => {
+    if (!selectedSomitiId || selectedSomitiId === "ALL") return null;
+    return (somitiesData?.data ?? []).find(
+      (s) => String(s.id) === String(selectedSomitiId),
+    );
+  }, [selectedSomitiId, somitiesData]);
 
   const [createCollection, { isLoading: creatingCollection }] =
     useCreateCollectionMutation();
@@ -615,9 +628,18 @@ export function CollectionPage() {
             Collect loan installments and member savings from one place.
           </Typography.Text>
         </div>
-        <Button type="primary" onClick={() => setSavingsCollectionOpen(true)}>
-          Collect Savings
-        </Button>
+        <Space wrap>
+          <Button
+            icon={<PrinterOutlined />}
+            onClick={() => setPrintModalOpen(true)}
+            disabled={installments.length === 0}
+          >
+            Print Field Sheet (কালেকশন শিট প্রিন্ট)
+          </Button>
+          <Button type="primary" onClick={() => setSavingsCollectionOpen(true)}>
+            Collect Savings
+          </Button>
+        </Space>
       </div>
 
       <Card className="mb-4 border-[#deded7] shadow-none">
@@ -931,6 +953,14 @@ export function CollectionPage() {
       <QuickSavingsCollectionModal
         open={savingsCollectionOpen}
         onClose={() => setSavingsCollectionOpen(false)}
+      />
+      <PrintableCollectionSheetModal
+        open={printModalOpen}
+        onClose={() => setPrintModalOpen(false)}
+        installments={filteredInstallments}
+        dueDate={dueDate}
+        selectedSomiti={selectedSomiti}
+        currentUser={currentUser}
       />
     </PageContainer>
   );
