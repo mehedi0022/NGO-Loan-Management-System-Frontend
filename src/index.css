@@ -55,9 +55,9 @@ select {
 .brand-lockup {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   height: 80px;
-  padding: 18px 20px;
+  padding: 18px 16px;
 }
 
 .brand-mark {
@@ -70,6 +70,55 @@ select {
   background: #f3c969;
   font-size: 20px;
   font-weight: 700;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.brand-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-close-btn {
+  color: #fff !important;
+  font-size: 16px;
+  width: 32px;
+  height: 32px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.sidebar-close-btn:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: sidebarBackdropFade 0.2s ease-in-out;
+}
+
+@keyframes sidebarBackdropFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .brand-name,
@@ -2061,45 +2110,35 @@ select {
     left: 0;
     z-index: 1001;
     height: 100vh;
+    transition: all 0.2s ease;
   }
 
   .app-sider.ant-layout-sider-collapsed {
     position: fixed !important;
     width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none;
+    visibility: hidden;
   }
 
   .app-sider:not(.ant-layout-sider-collapsed) {
     box-shadow: 8px 0 28px rgba(18, 75, 61, 0.2);
+    visibility: visible;
+    pointer-events: auto;
   }
 
   .app-header {
     position: relative;
-    z-index: 1000;
+    z-index: 999;
   }
 }
 
 @media (max-width: 767px) {
-  .app-sider {
-    position: fixed !important;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 1001;
-    height: 100vh;
-  }
-
-  .app-sider.ant-layout-sider-collapsed {
-    position: fixed !important;
-    width: 0 !important;
-  }
-
-  .app-sider:not(.ant-layout-sider-collapsed) {
-    box-shadow: 8px 0 28px rgba(18, 75, 61, 0.2);
-  }
-
   .app-header {
     position: relative;
-    z-index: 1000;
+    z-index: 999;
     padding: 0 16px;
   }
 

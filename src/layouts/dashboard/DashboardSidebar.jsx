@@ -1,4 +1,5 @@
-import { Layout, Menu, Typography } from "antd";
+import { Button, Layout, Menu, Typography } from "antd";
+import { CloseOutlined } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMemo } from "react";
 import { useSelector } from "react-redux";
@@ -17,7 +18,12 @@ const filterNavigationItems = (items, user) =>
     return children.length ? [{ ...item, children }] : [];
   });
 
-export function DashboardSidebar({ collapsed, onCollapse }) {
+export function DashboardSidebar({
+  collapsed,
+  onCollapse,
+  isMobile,
+  onBreakpointChange,
+}) {
   const location = useLocation();
   const navigate = useNavigate();
   const user = useSelector((state) => state.auth.user);
@@ -37,23 +43,34 @@ export function DashboardSidebar({ collapsed, onCollapse }) {
       width={248}
       collapsed={collapsed}
       onCollapse={onCollapse}
-      onBreakpoint={(broken) => onCollapse(broken)}
+      onBreakpoint={(broken) => {
+        onBreakpointChange?.(broken);
+        onCollapse(broken);
+      }}
       trigger={null}
       className="app-sider"
     >
       <div className="brand-lockup">
         <div className="brand-mark">
-          {" "}
-          <img src="./favicon.png" alt="" />{" "}
+          <img src="/favicon.png" alt="Logo" />
         </div>
-        <div>
-          <Typography.Text className="text-sm">
+        <div className="brand-info">
+          <Typography.Text className="brand-name">
             পূর্বাশা আর্থিক উন্নয়ন সংস্থা
           </Typography.Text>
           <Typography.Text className="brand-caption">
             ক্ষুদ্রঋণ ও সঞ্চয় ব্যবস্থাপনা সিস্টেম
           </Typography.Text>
         </div>
+        {isMobile && (
+          <Button
+            type="text"
+            className="sidebar-close-btn"
+            aria-label="Close navigation"
+            icon={<CloseOutlined />}
+            onClick={() => onCollapse(true)}
+          />
+        )}
       </div>
       <Menu
         mode="inline"
@@ -65,7 +82,9 @@ export function DashboardSidebar({ collapsed, onCollapse }) {
           if (!key.startsWith("/")) return;
 
           navigate(key);
-          onCollapse(false);
+          if (isMobile) {
+            onCollapse(true);
+          }
         }}
       />
     </Sider>
