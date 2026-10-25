@@ -8,7 +8,7 @@ export const membersApi = baseApi.injectEndpoints({
         method: "POST",
         body: payload,
       }),
-      invalidatesTags: ["Member", "Dashboard"],
+      invalidatesTags: ["Member", "Dashboard", "Somiti"],
     }),
 
     getAllMembers: builder.query({
@@ -18,6 +18,7 @@ export const membersApi = baseApi.injectEndpoints({
         search,
         status,
         district,
+        somitiId,
         sortBy = "createdAt",
         sortOrder = "desc",
       } = {}) => ({
@@ -29,6 +30,7 @@ export const membersApi = baseApi.injectEndpoints({
           ...(search && { search }),
           ...(status && { status }),
           ...(district && { district }),
+          ...(somitiId && { somitiId }),
           sortBy,
           sortOrder,
         },
@@ -61,6 +63,7 @@ export const membersApi = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, { id }) => [
         "Member",
         "Dashboard",
+        "Somiti",
         {
           type: "Member",
           id,

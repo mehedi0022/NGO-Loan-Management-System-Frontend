@@ -1,4 +1,5 @@
 import {
+  ApartmentOutlined,
   BarChartOutlined,
   BankOutlined,
   BookOutlined,
@@ -13,6 +14,7 @@ import { permissions } from "../modules/auth/permissions.js";
 
 export const navigationItems = [
   { key: "/", label: "Dashboard", icon: <HomeOutlined />, permission: permissions.dashboardRead },
+  { key: "/somities", label: "Somities", icon: <ApartmentOutlined />, permission: permissions.somitiesReadAny },
   { key: "/members", label: "Members", icon: <TeamOutlined />, permission: permissions.membersReadAny },
   {
     key: "loans-group",

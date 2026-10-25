@@ -41,6 +41,7 @@ import {
   useCreateCollectionMutation,
   useGetDueInstallmentsQuery,
 } from "../collectionsApi.js";
+import { useGetActiveSomitiesQuery } from "../../somities/somitiesApi.js";
 
 const paymentMethods = [
   { value: "CASH", label: "Cash" },
@@ -71,6 +72,7 @@ export function CollectionPage() {
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [allowAdvance, setAllowAdvance] = useState(false);
   const [search, setSearch] = useState("");
+  const [selectedSomitiId, setSelectedSomitiId] = useState("ALL");
 
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [collectionValues, setCollectionValues] = useState({});
@@ -88,7 +90,26 @@ export function CollectionPage() {
     isError,
     error,
     refetch,
-  } = useGetDueInstallmentsQuery(dueDateValue);
+  } = useGetDueInstallmentsQuery({
+    dueDate: dueDateValue,
+    somitiId: selectedSomitiId === "ALL" ? undefined : Number(selectedSomitiId),
+  });
+
+  const { data: somitiesData, isLoading: somitiesLoading } =
+    useGetActiveSomitiesQuery();
+
+  const somitiOptions = useMemo(
+    () => [
+      { value: "ALL", label: "All Somities (সকল সমিতি)" },
+      ...(somitiesData?.data ?? []).map((s) => ({
+        value: String(s.id),
+        label: `${s.name} (${s.somitiId || s.code || "No Code"})${
+          s.meetingDay ? ` - ${s.meetingDay}` : ""
+        }`,
+      })),
+    ],
+    [somitiesData],
+  );
 
   const [createCollection, { isLoading: creatingCollection }] =
     useCreateCollectionMutation();
@@ -401,6 +422,7 @@ export function CollectionPage() {
 
               <Typography.Text type="secondary" className="block text-xs">
                 {member?.memberId || "—"}
+                {member?.somiti?.name ? ` · 🏷️ ${member.somiti.name}` : ""}
                 {member?.mobileNumber ? ` · ${member.mobileNumber}` : ""}
               </Typography.Text>
             </div>
@@ -599,7 +621,7 @@ export function CollectionPage() {
       </div>
 
       <Card className="mb-4 border-[#deded7] shadow-none">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[200px_200px_1fr_190px]">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[170px_170px_220px_1fr_170px]">
           <div>
             <Typography.Text strong className="mb-2 block">
               Due Date
@@ -626,6 +648,24 @@ export function CollectionPage() {
               onChange={handleCollectionDateChange}
               format="DD MMM YYYY"
               className="w-full"
+            />
+          </div>
+
+          <div>
+            <Typography.Text strong className="mb-2 block">
+              Somiti / সমিতি
+            </Typography.Text>
+
+            <Select
+              className="w-full"
+              value={selectedSomitiId}
+              onChange={setSelectedSomitiId}
+              options={somitiOptions}
+              loading={somitiesLoading}
+              showSearch
+              filterOption={(input, option) =>
+                (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+              }
             />
           </div>
 

@@ -69,6 +69,8 @@ export const buildMemberFormValues = (member) => {
 
     joinDate: member.joinDate ? dayjs(member.joinDate) : null,
 
+    somitiId: member.somitiId || member.somiti?.id || undefined,
+
     notes: member.notes || "",
 
     presentAddress: toAddressFormValue(presentAddress),

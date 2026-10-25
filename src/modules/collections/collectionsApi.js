@@ -8,18 +8,33 @@ export const collectionsApi = baseApi.injectEndpoints({
      * Get due installments for the daily collection sheet.
      */
     getDueInstallments: builder.query({
-      query: (dueDate) => ({
-        url: "/collections/installments",
-        params: { dueDate },
-      }),
+      query: (arg) => {
+        const params =
+          typeof arg === "string"
+            ? { dueDate: arg }
+            : {
+                dueDate: arg?.dueDate,
+                ...(arg?.somitiId && { somitiId: arg.somitiId }),
+              };
 
-      providesTags: (_result, _error, dueDate) => [
-        "Collections",
-        {
-          type: "Collections",
-          id: `DUE-${dueDate}`,
-        },
-      ],
+        return {
+          url: "/collections/installments",
+          params,
+        };
+      },
+
+      providesTags: (_result, _error, arg) => {
+        const dueDate = typeof arg === "string" ? arg : arg?.dueDate;
+        const somitiId = typeof arg === "object" ? arg?.somitiId : null;
+
+        return [
+          "Collections",
+          {
+            type: "Collections",
+            id: somitiId ? `DUE-${dueDate}-SOMITI-${somitiId}` : `DUE-${dueDate}`,
+          },
+        ];
+      },
     }),
 
     /**
@@ -107,10 +122,8 @@ export const collectionsApi = baseApi.injectEndpoints({
 
 export const {
   useGetDueInstallmentsQuery,
-
   useCreateCollectionMutation,
   useCreateBatchCollectionsMutation,
-
   useGetCollectionsQuery,
   useGetCollectionByIdQuery,
 } = collectionsApi;

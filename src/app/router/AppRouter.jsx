@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { DashboardLayout } from "../../layouts/dashboard/DashboardLayout.jsx";
 import { LoginPage } from "../../modules/auth/pages/LoginPage.jsx";
 import { DashboardPage } from "../../modules/dashboard/DashboardPage.jsx";
+import { SomitiesPage } from "../../modules/somities/pages/SomitiesPage.jsx";
 import { CreateMemberPage } from "../../modules/members/pages/CreateMemberPage.jsx";
 import { MemberProfilePage } from "../../modules/members/pages/MemberProfilePage.jsx";
 import { EditMemberPage } from "../../modules/members/pages/EditMemberPage.jsx";
@@ -52,6 +53,14 @@ export function AppRouter() {
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
           <Route index element={<DashboardPage />} />
+          <Route
+            path="somities"
+            element={
+              <PermissionRoute permission={permissions.somitiesReadAny}>
+                <SomitiesPage />
+              </PermissionRoute>
+            }
+          />
           <Route path="/members/new" element={<CreateMemberPage />} />
           <Route path="/members/:id" element={<MemberProfilePage />} />
           <Route path="/members/:id/edit" element={<EditMemberPage />} />

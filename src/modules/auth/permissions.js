@@ -8,6 +8,11 @@ export const permissions = Object.freeze({
   usersChangeStatus: "users:change-status:any",
   usersResetPassword: "users:reset-password:any",
 
+  somitiesReadAny: "somities:read:any",
+  somitiesCreate: "somities:create",
+  somitiesUpdateAny: "somities:update:any",
+  somitiesDeleteAny: "somities:delete:any",
+
   membersReadAny: "members:read:any",
   membersCreate: "members:create",
   membersUpdateAny: "members:update:any",

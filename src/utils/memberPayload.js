@@ -114,6 +114,8 @@ export const buildCreateMemberPayload = (
 
     photoUrl: cleanOptionalString(photoUrl),
 
+    somitiId: values.somitiId ? Number(values.somitiId) : null,
+
     addresses,
   };
 

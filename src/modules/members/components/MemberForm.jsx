@@ -19,6 +19,7 @@ import {
 import { useState } from "react";
 import { AddressFields } from "./AddressFields.jsx";
 import { resolveUploadUrl } from "../../../utils/uploadUrl.js";
+import { useGetActiveSomitiesQuery } from "../../somities/somitiesApi.js";
 
 const { TextArea } = Input;
 
@@ -109,6 +110,14 @@ export function MemberForm({
   );
 
   const isEdit = mode === "edit";
+  const { data: somitiesResponse, isLoading: somitiesLoading } =
+    useGetActiveSomitiesQuery();
+  const somitiOptions = (somitiesResponse?.data ?? []).map((s) => ({
+    value: s.id,
+    label: `${s.name} (${s.somitiId || s.code || "No Code"})${
+      s.meetingDay ? ` - ${s.meetingDay}` : ""
+    }`,
+  }));
 
   return (
     <Form
@@ -149,7 +158,11 @@ export function MemberForm({
                   maxCount={1}
                   showUploadList={false}
                   beforeUpload={(file) => {
-                    const supportedTypes = ["image/jpeg", "image/png", "image/webp"];
+                    const supportedTypes = [
+                      "image/jpeg",
+                      "image/png",
+                      "image/webp",
+                    ];
                     const isValidSize = file.size / 1024 / 1024 <= 5;
 
                     if (!supportedTypes.includes(file.type)) {
@@ -297,6 +310,23 @@ export function MemberForm({
                     placeholder="Select occupation"
                     optionFilterProp="label"
                     options={occupationOptions}
+                  />
+                </Form.Item>
+              </Col>
+
+              <Col xs={24} md={12} lg={8}>
+                <Form.Item label="Somiti / সমিতি" name="somitiId">
+                  <Select
+                    showSearch
+                    allowClear
+                    placeholder="Select somiti (optional)"
+                    loading={somitiesLoading}
+                    options={somitiOptions}
+                    filterOption={(input, option) =>
+                      (option?.label ?? "")
+                        .toLowerCase()
+                        .includes(input.toLowerCase())
+                    }
                   />
                 </Form.Item>
               </Col>

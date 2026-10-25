@@ -52,10 +52,11 @@ const roleOptions = [
   { value: "SUPER_ADMIN", label: "Super Admin" },
   { value: "ADMIN", label: "Admin" },
   { value: "MANAGER", label: "Manager" },
+  { value: "FIELD_OFFICER", label: "Field Officer" },
 ];
 const assignableRoleOptions = roleOptions.filter((option) => option.value !== "ALL");
 const managerRoleOptions = roleOptions.filter(
-  (option) => option.value === "MANAGER",
+  (option) => option.value === "MANAGER" || option.value === "FIELD_OFFICER",
 );
 
 const statusOptions = [
@@ -136,9 +137,9 @@ export function UsersPage() {
     ? assignableRoleOptions
     : managerRoleOptions;
   const canEditTarget = (target) =>
-    canUpdateUser && (canChangeRoles || target.role === "MANAGER");
+    canUpdateUser && (canChangeRoles || target.role === "MANAGER" || target.role === "FIELD_OFFICER");
   const canManageTarget = (target) =>
-    canChangeRoles || target.role === "MANAGER";
+    canChangeRoles || target.role === "MANAGER" || target.role === "FIELD_OFFICER";
   const closeForm = () => {
     setFormOpen(false);
     setEditingUser(null);

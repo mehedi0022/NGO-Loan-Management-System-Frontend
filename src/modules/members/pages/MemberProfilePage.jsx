@@ -14,6 +14,7 @@ import {
   Skeleton,
   Space,
   Tabs,
+  Tag,
   Typography,
 } from "antd";
 import { useState } from "react";
@@ -40,10 +41,7 @@ import { useGetCollectionsQuery } from "../../collections/collectionsApi.js";
 import { QuickSavingsCollectionModal } from "../../savings/components/QuickSavingsCollectionModal.jsx";
 import { SavingsWithdrawalModal } from "../../savings/components/SavingsWithdrawalModal.jsx";
 import { resolveUploadUrl } from "../../../utils/uploadUrl.js";
-import {
-  formatDate,
-  formatEnum,
-} from "../../loans/loanFormatters.js";
+import { formatDate, formatEnum } from "../../loans/loanFormatters.js";
 
 const getInitials = (name = "") => {
   return name
@@ -61,10 +59,22 @@ export function MemberProfilePage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [savingsCollectionOpen, setSavingsCollectionOpen] = useState(false);
   const [savingsWithdrawalOpen, setSavingsWithdrawalOpen] = useState(false);
-  const [loanPagination, setLoanPagination] = useState({ current: 1, pageSize: 10 });
-  const [paymentPagination, setPaymentPagination] = useState({ current: 1, pageSize: 20 });
-  const [savingsPagination, setSavingsPagination] = useState({ current: 1, pageSize: 20 });
-  const [collectionPagination, setCollectionPagination] = useState({ current: 1, pageSize: 20 });
+  const [loanPagination, setLoanPagination] = useState({
+    current: 1,
+    pageSize: 10,
+  });
+  const [paymentPagination, setPaymentPagination] = useState({
+    current: 1,
+    pageSize: 20,
+  });
+  const [savingsPagination, setSavingsPagination] = useState({
+    current: 1,
+    pageSize: 20,
+  });
+  const [collectionPagination, setCollectionPagination] = useState({
+    current: 1,
+    pageSize: 20,
+  });
 
   const {
     data: response,
@@ -167,7 +177,9 @@ export function MemberProfilePage() {
       total: summary.total + 1,
       active: summary.active + Number(loan.status === "ACTIVE"),
       completed: summary.completed + Number(loan.status === "COMPLETED"),
-      awaiting: summary.awaiting + Number(loan.status === "PENDING" || loan.status === "APPROVED"),
+      awaiting:
+        summary.awaiting +
+        Number(loan.status === "PENDING" || loan.status === "APPROVED"),
     }),
     { total: 0, active: 0, completed: 0, awaiting: 0 },
   );
@@ -244,6 +256,25 @@ export function MemberProfilePage() {
               <div className="member-profile-info-list">
                 <DetailItem label="Member ID" value={member.memberId} />
 
+                <DetailItem
+                  label="Somiti (সমিতি)"
+                  value={
+                    member.somiti ? (
+                      <Space wrap>
+                        <Tag color="cyan">{member.somiti.name}</Tag>
+                        {member.somiti.somitiId && (
+                          <Tag color="geekblue">{member.somiti.somitiId}</Tag>
+                        )}
+                        {member.somiti.meetingDay && (
+                          <Tag color="blue">{member.somiti.meetingDay}</Tag>
+                        )}
+                      </Space>
+                    ) : (
+                      "Not Assigned"
+                    )
+                  }
+                />
+
                 <DetailItem label="Mobile Number" value={member.mobileNumber} />
 
                 <DetailItem label="NID" value={member.nidNumber} />
@@ -286,7 +317,10 @@ export function MemberProfilePage() {
           {/* Father Address */}
           {fatherAddress && (
             <Col xs={24} lg={12}>
-              <Card title="Father / Permanent Address" className="member-profile-card">
+              <Card
+                title="Father / Permanent Address"
+                className="member-profile-card"
+              >
                 <AddressDetails address={fatherAddress} />
               </Card>
             </Col>
@@ -330,10 +364,42 @@ export function MemberProfilePage() {
         <>
           {memberLoans.length > 0 && (
             <Row gutter={[16, 16]} className="member-profile-tab-stats">
-              <Col xs={12} sm={6}><Card><Typography.Text type="secondary">Total Loans</Typography.Text><Typography.Title level={3}>{loanSummary.total}</Typography.Title></Card></Col>
-              <Col xs={12} sm={6}><Card><Typography.Text type="secondary">Active</Typography.Text><Typography.Title level={3}>{loanSummary.active}</Typography.Title></Card></Col>
-              <Col xs={12} sm={6}><Card><Typography.Text type="secondary">Completed</Typography.Text><Typography.Title level={3}>{loanSummary.completed}</Typography.Title></Card></Col>
-              <Col xs={12} sm={6}><Card><Typography.Text type="secondary">Pending / Approved</Typography.Text><Typography.Title level={3}>{loanSummary.awaiting}</Typography.Title></Card></Col>
+              <Col xs={12} sm={6}>
+                <Card>
+                  <Typography.Text type="secondary">
+                    Total Loans
+                  </Typography.Text>
+                  <Typography.Title level={3}>
+                    {loanSummary.total}
+                  </Typography.Title>
+                </Card>
+              </Col>
+              <Col xs={12} sm={6}>
+                <Card>
+                  <Typography.Text type="secondary">Active</Typography.Text>
+                  <Typography.Title level={3}>
+                    {loanSummary.active}
+                  </Typography.Title>
+                </Card>
+              </Col>
+              <Col xs={12} sm={6}>
+                <Card>
+                  <Typography.Text type="secondary">Completed</Typography.Text>
+                  <Typography.Title level={3}>
+                    {loanSummary.completed}
+                  </Typography.Title>
+                </Card>
+              </Col>
+              <Col xs={12} sm={6}>
+                <Card>
+                  <Typography.Text type="secondary">
+                    Pending / Approved
+                  </Typography.Text>
+                  <Typography.Title level={3}>
+                    {loanSummary.awaiting}
+                  </Typography.Title>
+                </Card>
+              </Col>
             </Row>
           )}
           <Card className="member-profile-card member-profile-table-card">
@@ -341,7 +407,10 @@ export function MemberProfilePage() {
               <Alert
                 type="error"
                 showIcon
-                message={loansRequestError?.data?.message || "Unable to load member loans"}
+                message={
+                  loansRequestError?.data?.message ||
+                  "Unable to load member loans"
+                }
                 action={<Button onClick={refetchLoans}>Retry</Button>}
               />
             ) : (
@@ -359,7 +428,9 @@ export function MemberProfilePage() {
                   })
                 }
                 onViewLoan={(loan) => navigate(`/loans/${loan.id}`)}
-                onCreateLoan={() => navigate(`/loans/new?memberId=${member.id}`)}
+                onCreateLoan={() =>
+                  navigate(`/loans/new?memberId=${member.id}`)
+                }
               />
             )}
           </Card>
@@ -410,12 +481,18 @@ export function MemberProfilePage() {
       children: (
         <Space direction="vertical" size={16} className="w-full">
           <div className="flex flex-wrap justify-end gap-2">
-            <Button type="primary" onClick={() => setSavingsCollectionOpen(true)}>
+            <Button
+              type="primary"
+              onClick={() => setSavingsCollectionOpen(true)}
+            >
               Collect Savings
             </Button>
             <Button
               danger
-              disabled={!member.savingsAccount || member.savingsAccount.status !== "ACTIVE"}
+              disabled={
+                !member.savingsAccount ||
+                member.savingsAccount.status !== "ACTIVE"
+              }
               onClick={() => setSavingsWithdrawalOpen(true)}
             >
               Withdraw Savings
@@ -435,12 +512,16 @@ export function MemberProfilePage() {
                     savingsTransactionsRequestError?.data?.message ||
                     "Unable to load savings transactions"
                   }
-                  action={<Button onClick={refetchSavingsTransactions}>Retry</Button>}
+                  action={
+                    <Button onClick={refetchSavingsTransactions}>Retry</Button>
+                  }
                 />
               ) : (
                 <SavingsTransactionHistoryTable
                   transactions={savingsTransactions}
-                  loading={savingsTransactionsLoading || savingsTransactionsFetching}
+                  loading={
+                    savingsTransactionsLoading || savingsTransactionsFetching
+                  }
                   pagination={{
                     ...savingsPagination,
                     total: savingsTransactionsResponse?.meta?.total ?? 0,
@@ -586,7 +667,9 @@ export function MemberProfilePage() {
         <Card className="member-profile-fact-card">
           <div className="member-profile-fact">
             <Typography.Text type="secondary">Joined</Typography.Text>
-            <Typography.Text strong>{formatDate(member.joinDate)}</Typography.Text>
+            <Typography.Text strong>
+              {formatDate(member.joinDate)}
+            </Typography.Text>
           </div>
         </Card>
         <Card className="member-profile-fact-card">
