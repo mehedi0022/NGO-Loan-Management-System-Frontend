@@ -279,8 +279,31 @@ export function PrintableReportModal({
                     value={formatCurrency(summary.totalSpecialSavingsAmount ?? 0)}
                   />
                   <SummaryBox
+                    label="DPS Installments"
+                    value={formatCurrency(summary.totalDpsAmount ?? 0)}
+                  />
+                  <SummaryBox
                     label="Grand Total Collected"
                     value={formatCurrency(summary.totalCollectedAmount ?? 0)}
+                    highlight
+                  />
+                </>
+              )}
+              {reportType === "dps-summary" && (
+                <>
+                  <SummaryBox label="Total Accounts" value={summary.totalAccounts ?? 0} />
+                  <SummaryBox label="Active Accounts" value={summary.activeAccounts ?? 0} />
+                  <SummaryBox
+                    label="Monthly Demand"
+                    value={formatCurrency(summary.totalMonthlyDemand ?? 0)}
+                  />
+                  <SummaryBox
+                    label="Total Deposited"
+                    value={formatCurrency(summary.totalPaidAmount ?? 0)}
+                  />
+                  <SummaryBox
+                    label="Maturity Liability"
+                    value={formatCurrency(summary.totalMaturityLiability ?? 0)}
                     highlight
                   />
                 </>
@@ -359,6 +382,7 @@ export function PrintableReportModal({
                   <th style={{ textAlign: "right" }}>Loan Recv (Tk)</th>
                   <th style={{ textAlign: "right" }}>Gen Sav (Tk)</th>
                   <th style={{ textAlign: "right" }}>Spc Sav (Tk)</th>
+                  <th style={{ textAlign: "right" }}>DPS (Tk)</th>
                   <th style={{ textAlign: "right" }}>Total (Tk)</th>
                   <th>Collected By</th>
                 </tr>
@@ -366,7 +390,7 @@ export function PrintableReportModal({
               <tbody>
                 {data.length === 0 ? (
                   <tr>
-                    <td colSpan={11} style={{ textAlign: "center", padding: 16 }}>
+                    <td colSpan={12} style={{ textAlign: "center", padding: 16 }}>
                       No collection records found.
                     </td>
                   </tr>
@@ -392,6 +416,9 @@ export function PrintableReportModal({
                       </td>
                       <td style={{ textAlign: "right" }}>
                         {formatCurrency(row.specialSavingsAmount)}
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        {formatCurrency(row.dpsAmount || 0)}
                       </td>
                       <td style={{ textAlign: "right", fontWeight: 700 }}>
                         {formatCurrency(row.totalAmount)}
@@ -423,6 +450,11 @@ export function PrintableReportModal({
                       )}
                     </td>
                     <td style={{ textAlign: "right" }}>
+                      {formatCurrency(
+                        data.reduce((acc, r) => acc + (r.dpsAmount || 0), 0),
+                      )}
+                    </td>
+                    <td style={{ textAlign: "right", fontWeight: 700 }}>
                       {formatCurrency(
                         data.reduce((acc, r) => acc + (r.totalAmount || 0), 0),
                       )}
@@ -675,6 +707,92 @@ export function PrintableReportModal({
                       )}
                     </td>
                     <td></td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          )}
+
+          {reportType === "dps-summary" && (
+            <table className="report-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 35, textAlign: "center" }}>#</th>
+                  <th>DPS #</th>
+                  <th>Member Name (ID)</th>
+                  <th>Somiti</th>
+                  <th style={{ textAlign: "right" }}>Monthly (Tk)</th>
+                  <th style={{ textAlign: "center" }}>Tenure</th>
+                  <th style={{ textAlign: "center" }}>Progress</th>
+                  <th style={{ textAlign: "right" }}>Total Paid (Tk)</th>
+                  <th style={{ textAlign: "right" }}>Maturity Value (Tk)</th>
+                  <th>Maturity Date</th>
+                  <th style={{ textAlign: "center" }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} style={{ textAlign: "center", padding: 16 }}>
+                      No DPS accounts found.
+                    </td>
+                  </tr>
+                ) : (
+                  data.map((row, idx) => (
+                    <tr key={row.id}>
+                      <td style={{ textAlign: "center" }}>{idx + 1}</td>
+                      <td style={{ fontWeight: 600, color: "#0284c7" }}>{row.dpsNumber}</td>
+                      <td>
+                        <strong>{row.member?.fullName || "—"}</strong>
+                        <div style={{ fontSize: 9, color: "#64748b" }}>
+                          {row.member?.memberId || `ID: ${row.member?.id}`}
+                        </div>
+                      </td>
+                      <td>{row.somiti?.name || "—"}</td>
+                      <td style={{ textAlign: "right", fontWeight: 600 }}>
+                        {formatCurrency(row.installmentAmount)}
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        {row.durationMonths} Mo
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        {row.paidInstallments || 0} / {row.durationMonths}
+                      </td>
+                      <td style={{ textAlign: "right", fontWeight: 700, color: "#047857" }}>
+                        {formatCurrency(row.totalPaidAmount)}
+                      </td>
+                      <td style={{ textAlign: "right", fontWeight: 700, color: "#0284c7" }}>
+                        {formatCurrency(row.maturityAmount)}
+                      </td>
+                      <td>{formatDate(row.maturityDate)}</td>
+                      <td style={{ textAlign: "center" }}>{row.status}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+              {data.length > 0 && (
+                <tfoot>
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: "right" }}>
+                      Total ({data.length} accounts):
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      {formatCurrency(
+                        data.reduce((acc, r) => acc + (r.installmentAmount || 0), 0),
+                      )}
+                    </td>
+                    <td colSpan={2}></td>
+                    <td style={{ textAlign: "right", color: "#047857" }}>
+                      {formatCurrency(
+                        data.reduce((acc, r) => acc + (r.totalPaidAmount || 0), 0),
+                      )}
+                    </td>
+                    <td style={{ textAlign: "right", color: "#0284c7" }}>
+                      {formatCurrency(
+                        data.reduce((acc, r) => acc + (r.maturityAmount || 0), 0),
+                      )}
+                    </td>
+                    <td colSpan={2}></td>
                   </tr>
                 </tfoot>
               )}

@@ -240,6 +240,45 @@ export function PrintableMemberPassbookModal({
     }),
   );
 
+  // 4. DPS Account & Installment Schedule preparation
+  const dpsAccountsList = member.dpsAccounts || [];
+  const activeDpsAccount =
+    dpsAccountsList.find((d) => d.status === "ACTIVE") ||
+    dpsAccountsList[0];
+
+  const dpsDurationMonths = Number(activeDpsAccount?.durationMonths || 60);
+  const dpsInstallmentAmount = Number(activeDpsAccount?.installmentAmount || 1000);
+  const rawDpsInstallments = activeDpsAccount?.installments?.length
+    ? activeDpsAccount.installments
+    : Array.from({ length: dpsDurationMonths }, (_, i) => ({
+        id: `dps-blank-${i + 1}`,
+        installmentNo: i + 1,
+        dueDate: null,
+        amount: dpsInstallmentAmount,
+        paidAmount: 0,
+        status: "PENDING",
+      }));
+
+  let cumulativeDpsPaid = 0;
+  const dpsRows = rawDpsInstallments.map((inst, index) => {
+    const paidAmt = Number(inst.paidAmount) || 0;
+    const isPaid = inst.status === "PAID" || (paidAmt > 0 && paidAmt >= Number(inst.amount || dpsInstallmentAmount));
+    const isPartial = inst.status === "PARTIAL";
+    cumulativeDpsPaid += paidAmt;
+
+    return {
+      ...inst,
+      installmentNo: inst.installmentNo || index + 1,
+      dueDate: inst.dueDate,
+      paidAt: inst.paidAt,
+      paidAmt,
+      schedAmt: Number(inst.amount) || dpsInstallmentAmount,
+      cumulativePaid: cumulativeDpsPaid,
+      isPaid,
+      isPartial,
+    };
+  });
+
   return (
     <Modal
       open={open}
@@ -272,8 +311,9 @@ export function PrintableMemberPassbookModal({
               size="small"
             >
               <Radio.Button value="all">Full Passbook</Radio.Button>
-              <Radio.Button value="savings">Savings Ledger</Radio.Button>
               <Radio.Button value="loan">Loan Card</Radio.Button>
+              <Radio.Button value="savings">Savings Ledger</Radio.Button>
+              <Radio.Button value="dps">DPS Ledger</Radio.Button>
             </Radio.Group>
             <Radio.Group
               value={passbookMode}
@@ -913,6 +953,203 @@ export function PrintableMemberPassbookModal({
                     ))}
                 </tbody>
               </table>
+            </>
+          )}
+
+          {/* ============================================================== */}
+          {/* SECTION C: MEMBER DPS ACCOUNT LEDGER (DEPOSIT PENSION SCHEME) */}
+          {/* ============================================================== */}
+          {(activeSection === "all" || activeSection === "dps") && (
+            <>
+              {activeSection === "all" && <div className="page-break" />}
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginTop: activeSection === "dps" ? 10 : 16,
+                  marginBottom: 6,
+                  flexWrap: "wrap",
+                  gap: 8,
+                }}
+              >
+                <div>
+                  <span style={{ fontWeight: 800, fontSize: 12, color: "#0f172a" }}>
+                    C. Member DPS Account Ledger (Deposit Pension Scheme)
+                  </span>
+                  <span style={{ fontSize: 10, color: "#64748b", marginLeft: 8 }}>
+                    {activeDpsAccount
+                      ? `Account: ${activeDpsAccount.dpsNumber || `DPS-${activeDpsAccount.id}`} · Monthly recurring deposit`
+                      : "(No active DPS account found for this member)"}
+                  </span>
+                </div>
+
+                {activeDpsAccount && (
+                  <div style={{ display: "flex", gap: 12, fontSize: 11, flexWrap: "wrap" }}>
+                    <span>
+                      Monthly Deposit: <strong>{formatCurrency(activeDpsAccount.installmentAmount)}</strong>
+                    </span>
+                    <span>
+                      Tenure: <strong>{activeDpsAccount.durationMonths} Mo ({Math.floor(activeDpsAccount.durationMonths / 12)} Yrs)</strong>
+                    </span>
+                    <span>
+                      Profit Rate: <strong>{activeDpsAccount.interestRate}% p.a.</strong>
+                    </span>
+                    <span>
+                      Total Deposited:{" "}
+                      <strong style={{ color: "#047857" }}>
+                        {formatCurrency(activeDpsAccount.totalPaidAmount)}
+                      </strong>
+                    </span>
+                    <span>
+                      Maturity Value:{" "}
+                      <strong style={{ color: "#0284c7" }}>
+                        {formatCurrency(activeDpsAccount.maturityAmount)}
+                      </strong>
+                    </span>
+                    <span>
+                      Maturity Date: <strong>{formatDate(activeDpsAccount.maturityDate)}</strong>
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {!activeDpsAccount ? (
+                <div
+                  style={{
+                    border: "1px dashed #cbd5e1",
+                    borderRadius: 6,
+                    padding: "24px 16px",
+                    textAlign: "center",
+                    color: "#64748b",
+                    marginBottom: 16,
+                  }}
+                >
+                  This member does not currently have an active DPS account.
+                </div>
+              ) : (
+                <table className="passbook-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 45 }}>Inst #</th>
+                      <th style={{ width: 90 }}>Due Date</th>
+                      <th style={{ width: 95 }}>Collection Date</th>
+                      <th style={{ width: 95 }}>Demand (Tk)</th>
+                      <th style={{ width: 95 }}>Deposit Paid (Tk)</th>
+                      <th style={{ width: 105 }}>Cumulative Paid (Tk)</th>
+                      <th style={{ width: 100 }}>Receipt / Trx #</th>
+                      <th style={{ width: 85 }}>Officer Sign</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dpsRows.map((inst, index) => {
+                      if (passbookMode === "field") {
+                        return (
+                          <tr key={inst.id || index}>
+                            <td style={{ textAlign: "center", fontWeight: 700 }}>
+                              #{inst.installmentNo}
+                            </td>
+                            <td style={{ textAlign: "center" }}>
+                              {inst.dueDate ? formatDate(inst.dueDate) : <span className="write-box" />}
+                            </td>
+                            <td style={{ textAlign: "center" }}>
+                              {inst.isPaid || inst.paidAmt > 0 ? (
+                                <span style={{ fontSize: 9.5 }}>
+                                  {formatDate(inst.paidAt || inst.dueDate)}
+                                </span>
+                              ) : (
+                                <span className="write-box" />
+                              )}
+                            </td>
+                            <td style={{ textAlign: "right", fontWeight: 600 }}>
+                              {formatCurrency(inst.schedAmt)}
+                            </td>
+                            <td>
+                              {inst.isPaid || inst.paidAmt > 0 ? (
+                                <span style={{ color: "#047857", fontWeight: 600 }}>
+                                  {formatCurrency(inst.paidAmt)}
+                                </span>
+                              ) : (
+                                <span className="write-box" />
+                              )}
+                            </td>
+                            <td style={{ textAlign: "right" }}>
+                              {inst.isPaid || inst.paidAmt > 0 ? (
+                                <span style={{ fontWeight: 700, color: "#047857" }}>
+                                  {formatCurrency(inst.cumulativePaid)}
+                                </span>
+                              ) : (
+                                <span className="write-box" />
+                              )}
+                            </td>
+                            <td style={{ textAlign: "center" }}>
+                              {inst.isPaid || inst.paidAmt > 0 ? (
+                                <span style={{ fontSize: 9.5, color: "#0369a1", fontWeight: 600 }}>
+                                  {inst.transactionId || (inst.id ? `DTX-${inst.id}` : "COL")}
+                                </span>
+                              ) : (
+                                <span className="write-box" />
+                              )}
+                            </td>
+                            <td style={{ textAlign: "center" }}>
+                              {inst.isPaid || inst.paidAmt > 0 ? (
+                                <span style={{ fontSize: 9, color: "#047857", fontWeight: 600 }}>
+                                  Signed
+                                </span>
+                              ) : (
+                                <span className="write-box" />
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      // Statement mode
+                      return (
+                        <tr key={inst.id || index}>
+                          <td style={{ textAlign: "center", fontWeight: 700 }}>
+                            #{inst.installmentNo}
+                          </td>
+                          <td style={{ textAlign: "center" }}>
+                            {inst.dueDate ? formatDate(inst.dueDate) : "—"}
+                          </td>
+                          <td style={{ textAlign: "center" }}>
+                            {inst.paidAt ? formatDate(inst.paidAt) : inst.paidAmt > 0 ? "Collected" : "—"}
+                          </td>
+                          <td style={{ textAlign: "right" }}>
+                            {formatCurrency(inst.schedAmt)}
+                          </td>
+                          <td
+                            style={{
+                              textAlign: "right",
+                              color: inst.paidAmt > 0 ? "#047857" : "#64748b",
+                              fontWeight: inst.paidAmt > 0 ? 600 : 400,
+                            }}
+                          >
+                            {inst.paidAmt > 0 ? formatCurrency(inst.paidAmt) : "—"}
+                          </td>
+                          <td style={{ textAlign: "right", fontWeight: 700, color: "#047857" }}>
+                            {inst.paidAmt > 0 ? formatCurrency(inst.cumulativePaid) : "—"}
+                          </td>
+                          <td style={{ textAlign: "center", fontSize: 9.5, color: "#0369a1", fontWeight: 600 }}>
+                            {inst.paidAmt > 0 ? inst.transactionId || `DTX-${inst.id}` : "—"}
+                          </td>
+                          <td style={{ textAlign: "center", fontSize: 9 }}>
+                            {inst.isPaid ? (
+                              <span style={{ color: "#047857", fontWeight: 600 }}>Signed</span>
+                            ) : inst.isPartial ? (
+                              <span style={{ color: "#d97706", fontWeight: 600 }}>Partial</span>
+                            ) : (
+                              <span style={{ color: "#94a3b8" }}>Pending</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
             </>
           )}
 

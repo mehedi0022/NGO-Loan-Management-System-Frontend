@@ -8,7 +8,7 @@ const toAmount = (value) => {
   return Number.isFinite(amount) ? amount : 0;
 };
 
-export function MemberFinancialSummary({ loans = [], savingsAccount, loading = false }) {
+export function MemberFinancialSummary({ loans = [], savingsAccount, dpsAccounts = [], loading = false }) {
   const disbursedLoans = loans.filter((loan) =>
     ["ACTIVE", "COMPLETED"].includes(loan.status),
   );
@@ -37,6 +37,11 @@ export function MemberFinancialSummary({ loans = [], savingsAccount, loading = f
     );
   const generalSavings = toAmount(savingsAccount?.generalSavingsBalance);
   const specialSavings = toAmount(savingsAccount?.specialSavingsBalance);
+  const totalDps = (dpsAccounts || []).reduce(
+    (total, dps) => total + toAmount(dps.totalPaidAmount),
+    0,
+  );
+
   const summaries = [
     { title: "Total Borrowed", value: totalBorrowed },
     { title: "Total Loan Paid", value: totalLoanPaid },
@@ -44,6 +49,7 @@ export function MemberFinancialSummary({ loans = [], savingsAccount, loading = f
     { title: "General Savings", value: generalSavings },
     { title: "Special Savings", value: specialSavings },
     { title: "Total Savings", value: generalSavings + specialSavings },
+    { title: "DPS Balance", value: totalDps },
   ];
 
   return (

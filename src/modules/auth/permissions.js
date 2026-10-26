@@ -32,6 +32,11 @@ export const permissions = Object.freeze({
   savingsDeposit: "savings:deposit",
   savingsWithdraw: "savings:withdraw",
 
+  dpsReadAny: "dps:read:any",
+  dpsCreate: "dps:create",
+  dpsDeposit: "dps:deposit",
+  dpsClose: "dps:close",
+
   reportsReadAny: "reports:read:any",
 
   incomeExpenseReadAny: "income-expense:read:any",

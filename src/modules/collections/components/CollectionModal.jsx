@@ -42,7 +42,10 @@ export function CollectionModal({
   const loanAmount = Form.useWatch("loanCollectionAmount", form) || 0;
   const generalSavings = Form.useWatch("generalSavingsAmount", form) || 0;
   const specialSavings = Form.useWatch("specialSavingsAmount", form) || 0;
+  const dpsAmount = Form.useWatch("dpsAmount", form) || 0;
   const collectionDate = Form.useWatch("collectionDate", form);
+  const activeDps = (member?.dpsAccounts || []).find((d) => d.status === "ACTIVE");
+
   const isUpcoming = Boolean(
     installment?.dueDate &&
       collectionDate &&
@@ -50,7 +53,10 @@ export function CollectionModal({
   );
 
   const total =
-    toAmount(loanAmount) + toAmount(generalSavings) + toAmount(specialSavings);
+    toAmount(loanAmount) +
+    toAmount(generalSavings) +
+    toAmount(specialSavings) +
+    toAmount(dpsAmount);
 
   useEffect(() => {
     if (!open || !installment) return;
@@ -59,6 +65,7 @@ export function CollectionModal({
       loanCollectionAmount: remaining,
       generalSavingsAmount: 0,
       specialSavingsAmount: 0,
+      dpsAmount: 0,
       collectionDate: dayjs(),
       paymentMethod: "CASH",
       allowAdvance: false,
@@ -77,6 +84,8 @@ export function CollectionModal({
       loanCollectionAmount: toAmount(values.loanCollectionAmount),
       generalSavingsAmount: toAmount(values.generalSavingsAmount),
       specialSavingsAmount: toAmount(values.specialSavingsAmount),
+      dpsAmount: toAmount(values.dpsAmount),
+      dpsAccountId: activeDps?.id || undefined,
 
       collectionDate: values.collectionDate.format("YYYY-MM-DD"),
       paymentMethod: values.paymentMethod,
@@ -159,7 +168,7 @@ export function CollectionModal({
       )}
 
       <Form form={form} layout="vertical" onFinish={submit}>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Form.Item
             name="loanCollectionAmount"
             label="Loan Collection"
@@ -211,6 +220,24 @@ export function CollectionModal({
               min={0}
               precision={2}
               prefix="৳"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="dpsAmount"
+            label={
+              activeDps
+                ? `DPS (Req: ৳${Number(activeDps.installmentAmount).toLocaleString()})`
+                : "DPS (No Active Account)"
+            }
+          >
+            <InputNumber
+              style={{ width: "100%" }}
+              min={0}
+              precision={2}
+              prefix="৳"
+              disabled={!activeDps}
+              placeholder={activeDps ? String(activeDps.installmentAmount) : "No active DPS"}
             />
           </Form.Item>
         </div>

@@ -14,6 +14,7 @@ import { EditLoanPage } from "../../modules/loans/EditLoanPage.jsx";
 import { LoansPage } from "../../modules/loans/LoansPage.jsx";
 import { CollectionPage } from "../../modules/collections/pages/CollectionPage.jsx";
 import { SavingsPage } from "../../modules/savings/pages/SavingsPage.jsx";
+import { DpsPage } from "../../modules/dps/pages/DpsPage.jsx";
 import { DueOverduePage } from "../../modules/loans/DueOverduePage.jsx";
 import { PlaceholderPage } from "../../modules/shared/PlaceholderPage.jsx";
 
@@ -58,6 +59,7 @@ export function AppRouter() {
           <Route path="loans" element={<LoansPage />} />
           <Route path="collections" element={<CollectionPage />} />
           <Route path="savings" element={<SavingsPage />} />
+          <Route path="dps" element={<DpsPage />} />
           <Route
             path="users"
             element={

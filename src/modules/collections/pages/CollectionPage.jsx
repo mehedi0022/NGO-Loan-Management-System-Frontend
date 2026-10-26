@@ -44,7 +44,10 @@ import {
   useCreateCollectionMutation,
   useGetDueInstallmentsQuery,
 } from "../collectionsApi.js";
-import { useGetActiveSomitiesQuery } from "../../somities/somitiesApi.js";
+import {
+  useGetActiveSomitiesQuery,
+  useGetSomitiMembersQuery,
+} from "../../somities/somitiesApi.js";
 
 const paymentMethods = [
   { value: "CASH", label: "Cash" },
@@ -104,6 +107,11 @@ export function CollectionPage() {
   const { data: somitiesData, isLoading: somitiesLoading } =
     useGetActiveSomitiesQuery();
 
+  const { data: somitiMembersData } = useGetSomitiMembersQuery(
+    Number(selectedSomitiId),
+    { skip: !selectedSomitiId || selectedSomitiId === "ALL" },
+  );
+
   const somitiOptions = useMemo(
     () => [
       { value: "ALL", label: "All Somities" },
@@ -160,6 +168,8 @@ export function CollectionPage() {
 
   const getRowValues = (installment) => {
     const values = collectionValues[installment.id] ?? {};
+    const member = getMember(installment);
+    const hasActiveDps = (member?.dpsAccounts || []).some((d) => d.status === "ACTIVE");
 
     return {
       loanCollectionAmount:
@@ -168,6 +178,8 @@ export function CollectionPage() {
       generalSavingsAmount: values.generalSavingsAmount ?? 0,
 
       specialSavingsAmount: values.specialSavingsAmount ?? 0,
+
+      dpsAmount: hasActiveDps ? (values.dpsAmount ?? 0) : 0,
 
       paymentMethod: values.paymentMethod ?? paymentMethod,
     };
@@ -199,7 +211,8 @@ export function CollectionPage() {
     return (
       toAmount(values.loanCollectionAmount) +
       toAmount(values.generalSavingsAmount) +
-      toAmount(values.specialSavingsAmount)
+      toAmount(values.specialSavingsAmount) +
+      toAmount(values.dpsAmount)
     );
   };
 
@@ -221,12 +234,15 @@ export function CollectionPage() {
 
           totals.special += toAmount(values.specialSavingsAmount);
 
+          totals.dps += toAmount(values.dpsAmount);
+
           return totals;
         },
         {
           loan: 0,
           general: 0,
           special: 0,
+          dps: 0,
         },
       ),
     // collectionValues intentionally affects totals
@@ -235,7 +251,10 @@ export function CollectionPage() {
   );
 
   const selectedTotal =
-    selectedTotals.loan + selectedTotals.general + selectedTotals.special;
+    selectedTotals.loan +
+    selectedTotals.general +
+    selectedTotals.special +
+    selectedTotals.dps;
   const isUpcoming = (installment) =>
     dayjs(installment.dueDate)
       .startOf("day")
@@ -300,10 +319,9 @@ export function CollectionPage() {
       const values = getRowValues(item);
 
       const loanAmount = toAmount(values.loanCollectionAmount);
-
       const generalAmount = toAmount(values.generalSavingsAmount);
-
       const specialAmount = toAmount(values.specialSavingsAmount);
+      const dpsAmount = toAmount(values.dpsAmount);
 
       const remaining = getRemainingAmount(item);
 
@@ -333,13 +351,13 @@ export function CollectionPage() {
         return false;
       }
 
-      if (generalAmount < 0 || specialAmount < 0) {
-        message.error("Savings amount cannot be negative");
+      if (generalAmount < 0 || specialAmount < 0 || dpsAmount < 0) {
+        message.error("Savings or DPS amount cannot be negative");
 
         return false;
       }
 
-      if (loanAmount + generalAmount + specialAmount <= 0) {
+      if (loanAmount + generalAmount + specialAmount + dpsAmount <= 0) {
         message.error(
           `Enter a collection amount for installment #${item.installmentNo}`,
         );
@@ -373,6 +391,7 @@ export function CollectionPage() {
     const items = selectedInstallments.map((item) => {
       const values = getRowValues(item);
       const member = getMember(item);
+      const activeDps = (member?.dpsAccounts || []).find((d) => d.status === "ACTIVE");
 
       return {
         memberId: member.id,
@@ -381,10 +400,10 @@ export function CollectionPage() {
         installmentId: item.id,
 
         loanCollectionAmount: toAmount(values.loanCollectionAmount),
-
         generalSavingsAmount: toAmount(values.generalSavingsAmount),
-
         specialSavingsAmount: toAmount(values.specialSavingsAmount),
+        dpsAmount: toAmount(values.dpsAmount),
+        dpsAccountId: activeDps?.id || undefined,
 
         paymentMethod: values.paymentMethod,
       };
@@ -562,6 +581,50 @@ export function CollectionPage() {
               updateRowValue(item.id, "specialSavingsAmount", value)
             }
           />
+        );
+      },
+    },
+
+    {
+      title: "DPS Deposit",
+      key: "dpsAmount",
+      width: 170,
+
+      render: (_, item) => {
+        const values = getRowValues(item);
+        const member = getMember(item);
+        const activeDps = (member?.dpsAccounts || []).find((d) => d.status === "ACTIVE");
+        const hasDps = Boolean(activeDps);
+
+        return (
+          <div>
+            <InputNumber
+              className="w-full"
+              min={0}
+              precision={2}
+              prefix="৳"
+              disabled={!hasDps}
+              placeholder={hasDps ? String(activeDps.installmentAmount) : "No DPS"}
+              value={hasDps ? values.dpsAmount : 0}
+              onChange={(value) => {
+                if (hasDps) {
+                  updateRowValue(item.id, "dpsAmount", value);
+                }
+              }}
+            />
+            {hasDps ? (
+              <div
+                style={{ fontSize: 10, color: "#0284c7", fontWeight: 600, marginTop: 2 }}
+                title={`Req: ৳${activeDps.installmentAmount}`}
+              >
+                {activeDps.dpsNumber || "DPS"}: ৳{Number(activeDps.installmentAmount).toLocaleString()}
+              </div>
+            ) : (
+              <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>
+                No active DPS
+              </div>
+            )}
+          </div>
         );
       },
     },
@@ -763,7 +826,7 @@ export function CollectionPage() {
 
       {selectedInstallments.length > 0 && (
         <Card size="small" className="mb-4 border-[#deded7] shadow-none">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <Statistic
               title="Loan"
               value={selectedTotals.loan}
@@ -779,6 +842,12 @@ export function CollectionPage() {
             <Statistic
               title="Special Savings"
               value={selectedTotals.special}
+              formatter={(value) => formatCurrency(value)}
+            />
+
+            <Statistic
+              title="DPS Deposit"
+              value={selectedTotals.dps}
               formatter={(value) => formatCurrency(value)}
             />
 
@@ -928,6 +997,14 @@ export function CollectionPage() {
               {formatCurrency(selectedTotals.special)}
             </Typography.Text>
           </div>
+
+          <div className="flex justify-between">
+            <Typography.Text>DPS Collection</Typography.Text>
+
+            <Typography.Text strong>
+              {formatCurrency(selectedTotals.dps)}
+            </Typography.Text>
+          </div>
         </div>
 
         <Alert
@@ -958,6 +1035,7 @@ export function CollectionPage() {
         open={printModalOpen}
         onClose={() => setPrintModalOpen(false)}
         installments={filteredInstallments}
+        somitiMembers={somitiMembersData?.data}
         dueDate={dueDate}
         selectedSomiti={selectedSomiti}
         currentUser={currentUser}

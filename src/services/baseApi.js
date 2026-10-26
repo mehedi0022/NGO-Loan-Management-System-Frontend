@@ -60,6 +60,7 @@ export const baseApi = createApi({
     "Loans",
     "Collections",
     "Savings",
+    "DPS",
     "Transactions",
     "Reports",
     "Users",

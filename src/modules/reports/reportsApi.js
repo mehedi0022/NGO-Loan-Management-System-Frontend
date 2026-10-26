@@ -67,6 +67,21 @@ export const reportsApi = baseApi.injectEndpoints({
       }),
       providesTags: ["Reports", "Savings"],
     }),
+
+    getDpsSummaryReport: builder.query({
+      query: (params = {}) => ({
+        url: "/reports/dps-summary",
+        method: "GET",
+        params: {
+          page: params.page ?? 1,
+          limit: params.limit ?? 20,
+          ...(params.somitiId && params.somitiId !== "ALL" && { somitiId: params.somitiId }),
+          ...(params.fieldOfficerId && params.fieldOfficerId !== "ALL" && { fieldOfficerId: params.fieldOfficerId }),
+          ...(params.status && params.status !== "ALL" && { status: params.status }),
+        },
+      }),
+      providesTags: ["Reports", "DPS"],
+    }),
   }),
 });
 
@@ -75,4 +90,5 @@ export const {
   useGetLoanPortfolioReportQuery,
   useGetOverdueReportQuery,
   useGetSavingsSummaryReportQuery,
+  useGetDpsSummaryReportQuery,
 } = reportsApi;

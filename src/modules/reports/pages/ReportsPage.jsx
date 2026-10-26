@@ -9,6 +9,7 @@ import {
   LineChartOutlined,
   PieChartOutlined,
   PrinterOutlined,
+  SafetyCertificateOutlined,
   UserOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
@@ -17,6 +18,7 @@ import {
   Card,
   Col,
   DatePicker,
+  Progress,
   Row,
   Select,
   Space,
@@ -41,6 +43,7 @@ import {
   useGetLoanPortfolioReportQuery,
   useGetOverdueReportQuery,
   useGetSavingsSummaryReportQuery,
+  useGetDpsSummaryReportQuery,
 } from "../reportsApi.js";
 
 const paymentMethodOptions = [
@@ -66,6 +69,13 @@ const savingsStatusOptions = [
   { value: "ALL", label: "All Statuses" },
   { value: "ACTIVE", label: "Active" },
   { value: "FROZEN", label: "Frozen" },
+  { value: "CLOSED", label: "Closed" },
+];
+
+const dpsStatusOptions = [
+  { value: "ALL", label: "All Statuses" },
+  { value: "ACTIVE", label: "Active" },
+  { value: "MATURED", label: "Matured" },
   { value: "CLOSED", label: "Closed" },
 ];
 
@@ -257,6 +267,35 @@ export function ReportsPage() {
     isFetching: savingsFetching,
   } = useGetSavingsSummaryReportQuery(savingsQueryParams);
 
+  // 5. DPS Summary State
+  const [dpsFilters, setDpsFilters] = useState({
+    somitiId: "ALL",
+    fieldOfficerId: "ALL",
+    status: "ALL",
+  });
+  const [dpsPagination, setDpsPagination] = useState({
+    page: 1,
+    limit: 10,
+  });
+
+  const dpsQueryParams = useMemo(() => {
+    const params = {
+      page: dpsPagination.page,
+      limit: dpsPagination.limit,
+    };
+    if (dpsFilters.somitiId !== "ALL") params.somitiId = dpsFilters.somitiId;
+    if (dpsFilters.fieldOfficerId !== "ALL")
+      params.fieldOfficerId = dpsFilters.fieldOfficerId;
+    if (dpsFilters.status !== "ALL") params.status = dpsFilters.status;
+    return params;
+  }, [dpsFilters, dpsPagination]);
+
+  const {
+    data: dpsResponse,
+    isLoading: dpsLoading,
+    isFetching: dpsFetching,
+  } = useGetDpsSummaryReportQuery(dpsQueryParams);
+
   // Active Report Dataset for Printing and Exporting
   const activeReportConfig = useMemo(() => {
     switch (activeTab) {
@@ -311,6 +350,18 @@ export function ReportsPage() {
           summary: savingsResponse?.summary ?? {},
         };
       }
+      case "dps-summary": {
+        const somitiName =
+          somitiOptions.find((s) => s.value === dpsFilters.somitiId)?.label ||
+          "All Somities";
+        return {
+          type: "dps-summary",
+          title: "DPS Summary Report",
+          subtitle: `Status: ${dpsFilters.status} | Somiti: ${somitiName}`,
+          data: dpsResponse?.data ?? [],
+          summary: dpsResponse?.summary ?? {},
+        };
+      }
       default:
         return { type: "", title: "", subtitle: "", data: [], summary: {} };
     }
@@ -320,11 +371,13 @@ export function ReportsPage() {
     portfolioFilters,
     overdueFilters,
     savingsFilters,
+    dpsFilters,
     somitiOptions,
     dailyResponse,
     portfolioResponse,
     overdueResponse,
     savingsResponse,
+    dpsResponse,
   ]);
 
   // Client-side CSV Exporter
@@ -346,6 +399,7 @@ export function ReportsPage() {
         "Loan Collection",
         "General Savings",
         "Special Savings",
+        "DPS Installment",
         "Total Amount",
         "Collected By",
       ];
@@ -359,8 +413,38 @@ export function ReportsPage() {
         r.loanCollectionAmount ?? 0,
         r.generalSavingsAmount ?? 0,
         r.specialSavingsAmount ?? 0,
+        r.dpsAmount ?? 0,
         r.totalAmount ?? 0,
         `"${r.collectedBy?.fullName || ""}"`,
+      ]);
+    } else if (type === "dps-summary") {
+      headers = [
+        "DPS Number",
+        "Member ID",
+        "Member Name",
+        "Somiti",
+        "Monthly Deposit",
+        "Duration (Months)",
+        "Interest Rate (%)",
+        "Paid Installments",
+        "Total Paid Amount",
+        "Maturity Amount",
+        "Maturity Date",
+        "Status",
+      ];
+      rows = data.map((r) => [
+        `"${r.dpsNumber || ""}"`,
+        `"${r.member?.memberId || ""}"`,
+        `"${r.member?.fullName || ""}"`,
+        `"${r.somiti?.name || ""}"`,
+        r.installmentAmount ?? 0,
+        r.durationMonths ?? 0,
+        r.interestRate ?? 0,
+        r.paidInstallments ?? 0,
+        r.totalPaidAmount ?? 0,
+        r.maturityAmount ?? 0,
+        `"${formatDate(r.maturityDate)}"`,
+        `"${r.status || ""}"`,
       ]);
     } else if (type === "loan-portfolio") {
       headers = [
@@ -591,6 +675,28 @@ export function ReportsPage() {
               />
             ),
           },
+          {
+            key: "dps-summary",
+            label: (
+              <span>
+                <SafetyCertificateOutlined /> DPS Summary
+              </span>
+            ),
+            children: (
+              <DpsSummaryTab
+                filters={dpsFilters}
+                setFilters={setDpsFilters}
+                pagination={dpsPagination}
+                setPagination={setDpsPagination}
+                response={dpsResponse}
+                isLoading={dpsLoading}
+                isFetching={dpsFetching}
+                somitiOptions={somitiOptions}
+                officerOptions={officerOptions}
+                isFieldOfficer={isFieldOfficer}
+              />
+            ),
+          },
         ]}
       />
 
@@ -700,6 +806,13 @@ function DailyCollectionsTab({
       render: (val) => formatCurrency(val),
     },
     {
+      title: "DPS (Tk)",
+      dataIndex: "dpsAmount",
+      key: "dpsAmount",
+      align: "right",
+      render: (val) => formatCurrency(val),
+    },
+    {
       title: "Total (Tk)",
       dataIndex: "totalAmount",
       key: "totalAmount",
@@ -731,7 +844,7 @@ function DailyCollectionsTab({
             />
           </Card>
         </Col>
-        <Col xs={12} sm={8} lg={5}>
+        <Col xs={12} sm={8} lg={4}>
           <Card size="small" bordered={false} className="shadow-sm">
             <Statistic
               title="Loan Return Recv"
@@ -742,7 +855,7 @@ function DailyCollectionsTab({
             />
           </Card>
         </Col>
-        <Col xs={12} sm={8} lg={5}>
+        <Col xs={12} sm={8} lg={4}>
           <Card size="small" bordered={false} className="shadow-sm">
             <Statistic
               title="General Savings"
@@ -753,7 +866,7 @@ function DailyCollectionsTab({
             />
           </Card>
         </Col>
-        <Col xs={12} sm={8} lg={5}>
+        <Col xs={12} sm={8} lg={4}>
           <Card size="small" bordered={false} className="shadow-sm">
             <Statistic
               title="Special Savings"
@@ -764,7 +877,18 @@ function DailyCollectionsTab({
             />
           </Card>
         </Col>
-        <Col xs={24} sm={8} lg={5}>
+        <Col xs={12} sm={8} lg={4}>
+          <Card size="small" bordered={false} className="shadow-sm">
+            <Statistic
+              title="DPS Collected"
+              value={summary.totalDpsAmount ?? 0}
+              precision={2}
+              formatter={(v) => formatCurrency(v)}
+              styles={{ content: { color: "#059669", fontSize: 18 } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8} lg={4}>
           <Card
             size="small"
             bordered={false}
@@ -1564,6 +1688,277 @@ function SavingsSummaryTab({
             onChange: (page, limit) => setPagination({ page, limit }),
             showTotal: (total, range) =>
               `${range[0]}-${range[1]} of ${total} savings accounts`,
+          }}
+          size="middle"
+        />
+      </Card>
+    </Space>
+  );
+}
+
+// ----------------------------------------------------------------------------------
+// 5. DPS Summary Tab Component
+// ----------------------------------------------------------------------------------
+function DpsSummaryTab({
+  filters,
+  setFilters,
+  pagination,
+  setPagination,
+  response,
+  isLoading,
+  isFetching,
+  somitiOptions,
+  officerOptions,
+  isFieldOfficer,
+}) {
+  const summary = response?.summary ?? {};
+  const records = response?.data ?? [];
+  const meta = response?.meta ?? {};
+
+  const handleReset = () => {
+    setFilters({
+      somitiId: "ALL",
+      fieldOfficerId: "ALL",
+      status: "ALL",
+    });
+    setPagination({ page: 1, limit: 10 });
+  };
+
+  const columns = [
+    {
+      title: "DPS Number",
+      dataIndex: "dpsNumber",
+      key: "dpsNumber",
+      width: 140,
+      render: (val) => <span style={{ fontWeight: 600 }}>{val}</span>,
+    },
+    {
+      title: "Member",
+      dataIndex: "member",
+      key: "member",
+      render: (member) => (
+        <div>
+          <div style={{ fontWeight: 600 }}>{member?.fullName || "—"}</div>
+          <div style={{ fontSize: 11, color: "#6b7280" }}>
+            {member?.memberId || `ID: ${member?.id}`}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: "Somiti",
+      dataIndex: "somiti",
+      key: "somiti",
+      render: (somiti) => somiti?.name || "—",
+    },
+    {
+      title: "Monthly (Tk)",
+      dataIndex: "installmentAmount",
+      key: "installmentAmount",
+      align: "right",
+      render: (val) => formatCurrency(val),
+    },
+    {
+      title: "Duration",
+      dataIndex: "durationMonths",
+      key: "durationMonths",
+      align: "center",
+      render: (months) => `${months} Mos`,
+    },
+    {
+      title: "Installments",
+      key: "progress",
+      render: (_, record) => {
+        const paid = record.paidInstallments ?? 0;
+        const total = record.durationMonths ?? 1;
+        const percent = Math.min(100, Math.round((paid / total) * 100));
+        return (
+          <div style={{ minWidth: 110 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 12,
+                marginBottom: 2,
+              }}
+            >
+              <span>
+                {paid} / {total}
+              </span>
+              <span style={{ color: "#6b7280" }}>{percent}%</span>
+            </div>
+            <Progress
+              percent={percent}
+              showInfo={false}
+              size="small"
+              strokeColor="#059669"
+            />
+          </div>
+        );
+      },
+    },
+    {
+      title: "Total Paid (Tk)",
+      dataIndex: "totalPaidAmount",
+      key: "totalPaidAmount",
+      align: "right",
+      render: (val) => (
+        <span style={{ fontWeight: 600, color: "#047857" }}>
+          {formatCurrency(val)}
+        </span>
+      ),
+    },
+    {
+      title: "Maturity (Tk)",
+      dataIndex: "maturityAmount",
+      key: "maturityAmount",
+      align: "right",
+      render: (val) => (
+        <span style={{ fontWeight: 700, color: "#1d4ed8" }}>
+          {formatCurrency(val)}
+        </span>
+      ),
+    },
+    {
+      title: "Maturity Date",
+      dataIndex: "maturityDate",
+      key: "maturityDate",
+      render: (val) => formatDate(val),
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      render: (status) => <StatusTag status={status} />,
+    },
+  ];
+
+  return (
+    <Space direction="vertical" size={16} style={{ width: "100%" }}>
+      {/* KPI Cards */}
+      <Row gutter={[16, 16]}>
+        <Col xs={12} sm={6} lg={4}>
+          <Card size="small" bordered={false} className="shadow-sm">
+            <Statistic
+              title="Total Accounts"
+              value={summary.totalAccounts ?? 0}
+              prefix={<SafetyCertificateOutlined style={{ color: "#059669" }} />}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6} lg={4}>
+          <Card size="small" bordered={false} className="shadow-sm">
+            <Statistic
+              title="Active Accounts"
+              value={summary.activeAccounts ?? 0}
+              styles={{ content: { color: "#047857" } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6} lg={5}>
+          <Card size="small" bordered={false} className="shadow-sm">
+            <Statistic
+              title="Monthly Demand"
+              value={summary.totalMonthlyDemand ?? 0}
+              precision={2}
+              formatter={(v) => formatCurrency(v)}
+              styles={{ content: { color: "#0891b2", fontSize: 18 } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6} lg={5}>
+          <Card size="small" bordered={false} className="shadow-sm">
+            <Statistic
+              title="Total Deposited"
+              value={summary.totalPaidAmount ?? 0}
+              precision={2}
+              formatter={(v) => formatCurrency(v)}
+              styles={{ content: { color: "#047857", fontSize: 18 } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card
+            size="small"
+            bordered={false}
+            className="shadow-sm"
+            style={{ background: "#eff6ff", border: "1px solid #bfdbfe" }}
+          >
+            <Statistic
+              title={<span style={{ color: "#1e40af" }}>Total Maturity Liability</span>}
+              value={summary.totalMaturityLiability ?? 0}
+              precision={2}
+              formatter={(v) => formatCurrency(v)}
+              styles={{ content: { color: "#1d4ed8", fontWeight: 700, fontSize: 18 } }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Filters Toolbar */}
+      <Card size="small" bordered={false} className="shadow-sm">
+        <Row gutter={[12, 12]} align="middle">
+          <Col xs={12} sm={6} md={6}>
+            <Select
+              value={filters.somitiId}
+              onChange={(val) => {
+                setFilters((prev) => ({ ...prev, somitiId: val }));
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={somitiOptions}
+              style={{ width: "100%" }}
+              placeholder="Filter by Somiti"
+            />
+          </Col>
+          {!isFieldOfficer && (
+            <Col xs={12} sm={6} md={6}>
+              <Select
+                value={filters.fieldOfficerId}
+                onChange={(val) => {
+                  setFilters((prev) => ({ ...prev, fieldOfficerId: val }));
+                  setPagination((prev) => ({ ...prev, page: 1 }));
+                }}
+                options={officerOptions}
+                style={{ width: "100%" }}
+                placeholder="Filter by Officer"
+              />
+            </Col>
+          )}
+          <Col xs={12} sm={6} md={6}>
+            <Select
+              value={filters.status}
+              onChange={(val) => {
+                setFilters((prev) => ({ ...prev, status: val }));
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+              options={dpsStatusOptions}
+              style={{ width: "100%" }}
+            />
+          </Col>
+          <Col xs={12} sm={6} md={6}>
+            <Button icon={<ClearOutlined />} onClick={handleReset} block>
+              Reset
+            </Button>
+          </Col>
+        </Row>
+      </Card>
+
+      {/* Table */}
+      <Card size="small" bordered={false} className="shadow-sm">
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={records}
+          loading={isLoading || isFetching}
+          pagination={{
+            current: meta.page ?? 1,
+            pageSize: meta.limit ?? 10,
+            total: meta.total ?? 0,
+            showSizeChanger: true,
+            pageSizeOptions: ["10", "20", "50", "100"],
+            onChange: (page, limit) => setPagination({ page, limit }),
+            showTotal: (total, range) =>
+              `${range[0]}-${range[1]} of ${total} DPS accounts`,
           }}
           size="middle"
         />

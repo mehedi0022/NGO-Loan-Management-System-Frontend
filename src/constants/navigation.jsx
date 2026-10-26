@@ -6,6 +6,7 @@ import {
   DollarOutlined,
   FileTextOutlined,
   HomeOutlined,
+  SafetyCertificateOutlined,
   SettingOutlined,
   TeamOutlined,
   UserSwitchOutlined,
@@ -28,6 +29,7 @@ export const navigationItems = [
   },
   { key: "/collections", label: "Collections", icon: <DollarOutlined />, permission: permissions.collectionsReadAny },
   { key: "/savings", label: "Savings", icon: <BookOutlined />, permission: permissions.savingsReadAny },
+  { key: "/dps", label: "DPS Accounts", icon: <SafetyCertificateOutlined />, permission: permissions.dpsReadAny },
   {
     key: "/income-expense",
     label: "Income & Expense",

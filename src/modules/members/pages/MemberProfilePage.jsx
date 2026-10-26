@@ -42,6 +42,8 @@ import { useGetCollectionsQuery } from "../../collections/collectionsApi.js";
 import { QuickSavingsCollectionModal } from "../../savings/components/QuickSavingsCollectionModal.jsx";
 import { SavingsWithdrawalModal } from "../../savings/components/SavingsWithdrawalModal.jsx";
 import { PrintableMemberPassbookModal } from "../components/PrintableMemberPassbookModal.jsx";
+import { MemberDpsTable } from "../../dps/components/MemberDpsTable.jsx";
+import { OpenDpsModal } from "../../dps/components/OpenDpsModal.jsx";
 import { resolveUploadUrl } from "../../../utils/uploadUrl.js";
 import { formatDate, formatEnum } from "../../loans/loanFormatters.js";
 
@@ -63,6 +65,7 @@ export function MemberProfilePage() {
   const [savingsWithdrawalOpen, setSavingsWithdrawalOpen] = useState(false);
   const [passbookOpen, setPassbookOpen] = useState(false);
   const [passbookSection, setPassbookSection] = useState("all");
+  const [openDpsModal, setOpenDpsModal] = useState(false);
   const [loanPagination, setLoanPagination] = useState({
     current: 1,
     pageSize: 10,
@@ -565,6 +568,36 @@ export function MemberProfilePage() {
       ),
     },
     {
+      key: "dps",
+      label: `DPS (${(member.dpsAccounts || []).length})`,
+      children: (
+        <Space direction="vertical" size={16} className="w-full">
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              icon={<PrinterOutlined />}
+              onClick={() => {
+                setPassbookSection("dps");
+                setPassbookOpen(true);
+              }}
+            >
+              Print DPS Passbook
+            </Button>
+            <Button
+              type="primary"
+              onClick={() => setOpenDpsModal(true)}
+            >
+              Open New DPS
+            </Button>
+          </div>
+          <MemberDpsTable
+            member={member}
+            dpsAccounts={member.dpsAccounts || []}
+            onRefresh={refetch}
+          />
+        </Space>
+      ),
+    },
+    {
       key: "collections",
       label: "Collections",
       children: (
@@ -628,6 +661,10 @@ export function MemberProfilePage() {
             onClick={() => navigate(`/members/${member.id}/edit`)}
           >
             Edit Member
+          </Button>
+
+          <Button onClick={() => setOpenDpsModal(true)}>
+            Open DPS
           </Button>
 
           <Button
@@ -720,6 +757,7 @@ export function MemberProfilePage() {
       <MemberFinancialSummary
         loans={memberLoans}
         savingsAccount={member.savingsAccount}
+        dpsAccounts={member.dpsAccounts || []}
         loading={isFetching}
       />
 
@@ -746,6 +784,12 @@ export function MemberProfilePage() {
         loans={memberLoans}
         defaultSection={passbookSection}
         onClose={() => setPassbookOpen(false)}
+      />
+      <OpenDpsModal
+        open={openDpsModal}
+        member={member}
+        onClose={() => setOpenDpsModal(false)}
+        onSuccess={refetch}
       />
     </PageContainer>
   );
