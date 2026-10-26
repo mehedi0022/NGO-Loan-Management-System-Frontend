@@ -11,7 +11,7 @@ import {
   theme,
 } from "antd";
 import dayjs from "dayjs";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatCurrency } from "../../loans/loanFormatters.js";
 
 const paymentMethods = [
@@ -44,7 +44,23 @@ export function CollectionModal({
   const specialSavings = Form.useWatch("specialSavingsAmount", form) || 0;
   const dpsAmount = Form.useWatch("dpsAmount", form) || 0;
   const collectionDate = Form.useWatch("collectionDate", form);
-  const activeDps = (member?.dpsAccounts || []).find((d) => d.status === "ACTIVE");
+  const activeDpsList = useMemo(
+    () => (member?.dpsAccounts || []).filter((d) => d.status === "ACTIVE"),
+    [member],
+  );
+  const [selectedDpsId, setSelectedDpsId] = useState(null);
+
+  const activeDps =
+    activeDpsList.find((d) => d.id === selectedDpsId) || activeDpsList[0];
+
+  const activeDpsTarget = Number(activeDps?.installmentAmount || 0);
+  const activeDpsTotalPaid = Number(activeDps?.totalPaidAmount || 0);
+  const activeDpsPartialPaid =
+    activeDpsTarget > 0 ? activeDpsTotalPaid % activeDpsTarget : 0;
+  const activeDpsDue =
+    activeDpsPartialPaid > 0
+      ? activeDpsTarget - activeDpsPartialPaid
+      : activeDpsTarget;
 
   const isUpcoming = Boolean(
     installment?.dueDate &&
@@ -61,18 +77,22 @@ export function CollectionModal({
   useEffect(() => {
     if (!open || !installment) return;
 
+    const defaultDps = activeDpsList[0];
+    setSelectedDpsId(defaultDps?.id || null);
+
     form.setFieldsValue({
       loanCollectionAmount: remaining,
       generalSavingsAmount: 0,
       specialSavingsAmount: 0,
       dpsAmount: 0,
+      dpsAccountId: defaultDps?.id || undefined,
       collectionDate: dayjs(),
       paymentMethod: "CASH",
       allowAdvance: false,
       reference: undefined,
       notes: undefined,
     });
-  }, [form, installment, open, remaining]);
+  }, [form, installment, open, remaining, activeDpsList]);
 
   const submit = async (values) => {
     await onSubmit({
@@ -85,7 +105,7 @@ export function CollectionModal({
       generalSavingsAmount: toAmount(values.generalSavingsAmount),
       specialSavingsAmount: toAmount(values.specialSavingsAmount),
       dpsAmount: toAmount(values.dpsAmount),
-      dpsAccountId: activeDps?.id || undefined,
+      dpsAccountId: values.dpsAccountId || activeDps?.id || undefined,
 
       collectionDate: values.collectionDate.format("YYYY-MM-DD"),
       paymentMethod: values.paymentMethod,
@@ -223,12 +243,61 @@ export function CollectionModal({
             />
           </Form.Item>
 
+          {activeDpsList.length > 1 && (
+            <Form.Item
+              name="dpsAccountId"
+              label="Select DPS Account"
+              rules={[{ required: true, message: "Select DPS account" }]}
+              className="sm:col-span-2"
+            >
+              <Select
+                value={selectedDpsId}
+                onChange={(val) => {
+                  setSelectedDpsId(val);
+                  const chosen = activeDpsList.find((d) => d.id === val);
+                  if (chosen) {
+                    const cTarget = Number(chosen.installmentAmount || 0);
+                    const cTotalPaid = Number(chosen.totalPaidAmount || 0);
+                    const cPartial =
+                      cTarget > 0 ? cTotalPaid % cTarget : 0;
+                    const cDue =
+                      cPartial > 0 ? cTarget - cPartial : cTarget;
+                    form.setFieldsValue({
+                      dpsAmount: cDue,
+                    });
+                  }
+                }}
+                options={activeDpsList.map((d) => {
+                  const isWk = d.frequency === "WEEKLY";
+                  const total = isWk
+                    ? Math.round(((d.durationMonths || 12) / 12) * 52)
+                    : d.durationMonths;
+                  const dTarget = Number(d.installmentAmount || 0);
+                  const dPaid = Number(d.totalPaidAmount || 0);
+                  const dPartial = dTarget > 0 ? dPaid % dTarget : 0;
+                  const dDue = dPartial > 0 ? dTarget - dPartial : dTarget;
+                  return {
+                    value: d.id,
+                    label: `${d.dpsNumber || `DPS-${d.id}`} — Due: ৳${dDue.toLocaleString()} (Target: ৳${dTarget.toLocaleString()}/${isWk ? "wk" : "mo"}${dPartial > 0 ? `, ৳${dPartial.toLocaleString()} adv` : ""})`,
+                  };
+                })}
+              />
+            </Form.Item>
+          )}
+
           <Form.Item
             name="dpsAmount"
             label={
               activeDps
-                ? `DPS (Req: ৳${Number(activeDps.installmentAmount).toLocaleString()})`
+                ? `DPS Deposit (${activeDps.dpsNumber || "DPS"} Due: ৳${activeDpsDue.toLocaleString()}${activeDpsPartialPaid > 0 ? ` [৳${activeDpsPartialPaid.toLocaleString()} adv]` : ""})`
                 : "DPS (No Active Account)"
+            }
+            extra={
+              activeDpsPartialPaid > 0 ? (
+                <span style={{ fontSize: 11, color: "#059669" }}>
+                  💡 ৳{activeDpsPartialPaid.toLocaleString()} already paid in advance. ৳{activeDpsDue.toLocaleString()} completes this installment.
+                </span>
+              ) : null
             }
           >
             <InputNumber
@@ -237,7 +306,7 @@ export function CollectionModal({
               precision={2}
               prefix="৳"
               disabled={!activeDps}
-              placeholder={activeDps ? String(activeDps.installmentAmount) : "No active DPS"}
+              placeholder={activeDps ? String(activeDpsDue) : "No active DPS"}
             />
           </Form.Item>
         </div>

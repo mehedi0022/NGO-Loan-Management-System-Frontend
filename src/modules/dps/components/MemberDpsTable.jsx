@@ -20,6 +20,7 @@ import { formatCurrency, formatDate } from "../../loans/loanFormatters.js";
 import { OpenDpsModal } from "./OpenDpsModal.jsx";
 import { DepositDpsModal } from "./DepositDpsModal.jsx";
 import { CloseDpsModal } from "./CloseDpsModal.jsx";
+import { DpsScheduleModal } from "./DpsScheduleModal.jsx";
 
 export function MemberDpsTable({ member, dpsAccounts = [], onRefresh }) {
   const safeAccounts = Array.isArray(dpsAccounts)
@@ -56,30 +57,52 @@ export function MemberDpsTable({ member, dpsAccounts = [], onRefresh }) {
       ),
     },
     {
-      title: "Monthly Deposit",
+      title: "Installment",
       dataIndex: "installmentAmount",
       key: "installmentAmount",
-      render: (val) => <strong>{formatCurrency(val)}</strong>,
+      render: (val, record) => (
+        <div>
+          <strong>{formatCurrency(val)}</strong>
+          <div>
+            <Tag
+              color={record.frequency === "WEEKLY" ? "blue" : "purple"}
+              style={{ fontSize: 10, lineHeight: "16px", marginTop: 2 }}
+            >
+              {record.frequency === "WEEKLY" ? "Weekly" : "Monthly"}
+            </Tag>
+          </div>
+        </div>
+      ),
     },
     {
       title: "Duration / Tenure",
       dataIndex: "durationMonths",
       key: "durationMonths",
-      render: (months) => `${months} Months (${Math.floor(months / 12)} Yrs)`,
+      render: (months, record) => {
+        const isWk = record.frequency === "WEEKLY";
+        const count = isWk ? Math.round((months / 12) * 52) : months;
+        return isWk
+          ? `${count} Weeks (${months / 12} Yrs)`
+          : `${months} Months (${Math.floor(months / 12)} Yrs)`;
+      },
     },
     {
       title: "Progress",
       key: "progress",
       render: (_, record) => {
+        const isWk = record.frequency === "WEEKLY";
+        const total = isWk
+          ? Math.round(((record.durationMonths || 12) / 12) * 52)
+          : record.durationMonths || 1;
         const percent = Math.min(
           100,
-          Math.round(((record.paidInstallments || 0) / (record.durationMonths || 1)) * 100),
+          Math.round(((record.paidInstallments || 0) / total) * 100),
         );
         return (
           <div style={{ width: 140 }}>
             <Progress percent={percent} size="small" />
             <div style={{ fontSize: 10, color: "#64748b" }}>
-              {record.paidInstallments || 0} of {record.durationMonths} installments paid
+              {record.paidInstallments || 0} of {total} installments paid
             </div>
           </div>
         );
@@ -236,82 +259,21 @@ export function MemberDpsTable({ member, dpsAccounts = [], onRefresh }) {
             setSelectedDps(null);
           }}
           dpsAccount={selectedDps}
+          member={member}
           onSuccess={onRefresh}
         />
       )}
 
       {/* Installment Schedule Modal */}
       {selectedDps && (
-        <Modal
+        <DpsScheduleModal
           open={scheduleModalOpen}
-          onCancel={() => {
+          onClose={() => {
             setScheduleModalOpen(false);
             setSelectedDps(null);
           }}
-          title={`DPS Installment Schedule — ${selectedDps.dpsNumber}`}
-          width={700}
-          footer={[
-            <Button
-              key="close"
-              onClick={() => {
-                setScheduleModalOpen(false);
-                setSelectedDps(null);
-              }}
-            >
-              Close
-            </Button>,
-          ]}
-        >
-          <Table
-            dataSource={selectedDps.installments || []}
-            rowKey="id"
-            size="small"
-            pagination={{ pageSize: 12 }}
-            columns={[
-              { title: "Inst #", dataIndex: "installmentNo", key: "installmentNo", align: "center" },
-              {
-                title: "Due Date",
-                dataIndex: "dueDate",
-                key: "dueDate",
-                render: (val) => formatDate(val),
-              },
-              {
-                title: "Installment Amount",
-                dataIndex: "amount",
-                key: "amount",
-                align: "right",
-                render: (val) => formatCurrency(val),
-              },
-              {
-                title: "Paid Amount",
-                dataIndex: "paidAmount",
-                key: "paidAmount",
-                align: "right",
-                render: (val) => (
-                  <span style={{ color: Number(val) > 0 ? "#047857" : "inherit" }}>
-                    {formatCurrency(val)}
-                  </span>
-                ),
-              },
-              {
-                title: "Status",
-                dataIndex: "status",
-                key: "status",
-                align: "center",
-                render: (status) => {
-                  const colors = { PAID: "green", PARTIAL: "orange", PENDING: "default" };
-                  return <Tag color={colors[status] || "default"}>{status}</Tag>;
-                },
-              },
-              {
-                title: "Paid At",
-                dataIndex: "paidAt",
-                key: "paidAt",
-                render: (val) => (val ? formatDate(val) : "—"),
-              },
-            ]}
-          />
-        </Modal>
+          dpsAccount={selectedDps}
+        />
       )}
 
       {/* Close & Settlement Modal */}

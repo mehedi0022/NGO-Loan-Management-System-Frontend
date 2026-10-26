@@ -48,6 +48,7 @@ import {
   useGetActiveSomitiesQuery,
   useGetSomitiMembersQuery,
 } from "../../somities/somitiesApi.js";
+import { useGetDpsAccountsQuery } from "../../dps/dpsApi.js";
 
 const paymentMethods = [
   { value: "CASH", label: "Cash" },
@@ -111,6 +112,15 @@ export function CollectionPage() {
     Number(selectedSomitiId),
     { skip: !selectedSomitiId || selectedSomitiId === "ALL" },
   );
+
+  const { data: dpsAccountsData } = useGetDpsAccountsQuery({
+    status: "ACTIVE",
+    limit: 1000,
+    somitiId:
+      selectedSomitiId && selectedSomitiId !== "ALL"
+        ? Number(selectedSomitiId)
+        : undefined,
+  });
 
   const somitiOptions = useMemo(
     () => [
@@ -181,6 +191,8 @@ export function CollectionPage() {
 
       dpsAmount: hasActiveDps ? (values.dpsAmount ?? 0) : 0,
 
+      dpsAccountId: values.dpsAccountId,
+
       paymentMethod: values.paymentMethod ?? paymentMethod,
     };
   };
@@ -190,7 +202,10 @@ export function CollectionPage() {
       ...current,
       [installmentId]: {
         ...current[installmentId],
-        [field]: toAmount(value),
+        [field]:
+          field === "paymentMethod" || field === "dpsAccountId"
+            ? value
+            : toAmount(value),
       },
     }));
   };
@@ -391,7 +406,10 @@ export function CollectionPage() {
     const items = selectedInstallments.map((item) => {
       const values = getRowValues(item);
       const member = getMember(item);
-      const activeDps = (member?.dpsAccounts || []).find((d) => d.status === "ACTIVE");
+      const activeDpsList = (member?.dpsAccounts || []).filter(
+        (d) => d.status === "ACTIVE",
+      );
+      const currentDpsId = values.dpsAccountId || activeDpsList[0]?.id;
 
       return {
         memberId: member.id,
@@ -403,7 +421,7 @@ export function CollectionPage() {
         generalSavingsAmount: toAmount(values.generalSavingsAmount),
         specialSavingsAmount: toAmount(values.specialSavingsAmount),
         dpsAmount: toAmount(values.dpsAmount),
-        dpsAccountId: activeDps?.id || undefined,
+        dpsAccountId: currentDpsId || undefined,
 
         paymentMethod: values.paymentMethod,
       };
@@ -454,7 +472,6 @@ export function CollectionPage() {
 
               <Typography.Text type="secondary" className="block text-xs">
                 {member?.memberId || "—"}
-                {member?.somiti?.name ? ` · 🏷️ ${member.somiti.name}` : ""}
                 {member?.mobileNumber ? ` · ${member.mobileNumber}` : ""}
               </Typography.Text>
             </div>
@@ -588,23 +605,63 @@ export function CollectionPage() {
     {
       title: "DPS Deposit",
       key: "dpsAmount",
-      width: 170,
+      width: 195,
 
       render: (_, item) => {
         const values = getRowValues(item);
         const member = getMember(item);
-        const activeDps = (member?.dpsAccounts || []).find((d) => d.status === "ACTIVE");
-        const hasDps = Boolean(activeDps);
+        const activeDpsList = (member?.dpsAccounts || []).filter(
+          (d) => d.status === "ACTIVE",
+        );
+        const hasDps = activeDpsList.length > 0;
+        const currentDpsId = values.dpsAccountId || activeDpsList[0]?.id;
+        const activeDps =
+          activeDpsList.find((d) => d.id === currentDpsId) || activeDpsList[0];
+
+        const activeDpsTarget = Number(activeDps?.installmentAmount || 0);
+        const activeDpsTotalPaid = Number(activeDps?.totalPaidAmount || 0);
+        const activeDpsPartial =
+          activeDpsTarget > 0 ? activeDpsTotalPaid % activeDpsTarget : 0;
+        const activeDpsDue =
+          activeDpsPartial > 0
+            ? activeDpsTarget - activeDpsPartial
+            : activeDpsTarget;
 
         return (
           <div>
+            {activeDpsList.length > 1 && (
+              <Select
+                size="small"
+                className="w-full mb-1"
+                value={currentDpsId}
+                onChange={(selectedId) => {
+                  const selectedAcc = activeDpsList.find((d) => d.id === selectedId);
+                  const sTarget = Number(selectedAcc?.installmentAmount || 0);
+                  const sPaid = Number(selectedAcc?.totalPaidAmount || 0);
+                  const sPartial = sTarget > 0 ? sPaid % sTarget : 0;
+                  const sDue = sPartial > 0 ? sTarget - sPartial : sTarget;
+                  updateRowValue(item.id, "dpsAccountId", selectedId);
+                  updateRowValue(item.id, "dpsAmount", sDue);
+                }}
+                options={activeDpsList.map((d) => {
+                  const dTarget = Number(d.installmentAmount || 0);
+                  const dPaid = Number(d.totalPaidAmount || 0);
+                  const dPartial = dTarget > 0 ? dPaid % dTarget : 0;
+                  const dDue = dPartial > 0 ? dTarget - dPartial : dTarget;
+                  return {
+                    value: d.id,
+                    label: `${d.dpsNumber || `DPS-${d.id}`} (Due: ৳${dDue.toLocaleString()} / ৳${dTarget.toLocaleString()})`,
+                  };
+                })}
+              />
+            )}
             <InputNumber
               className="w-full"
               min={0}
               precision={2}
               prefix="৳"
               disabled={!hasDps}
-              placeholder={hasDps ? String(activeDps.installmentAmount) : "No DPS"}
+              placeholder={hasDps ? String(activeDpsDue) : "No DPS"}
               value={hasDps ? values.dpsAmount : 0}
               onChange={(value) => {
                 if (hasDps) {
@@ -614,10 +671,19 @@ export function CollectionPage() {
             />
             {hasDps ? (
               <div
-                style={{ fontSize: 10, color: "#0284c7", fontWeight: 600, marginTop: 2 }}
-                title={`Req: ৳${activeDps.installmentAmount}`}
+                style={{
+                  fontSize: 10,
+                  color: activeDpsPartial > 0 ? "#15803d" : "#0284c7",
+                  fontWeight: 600,
+                  marginTop: 2,
+                }}
+                title={`Target: ৳${activeDpsTarget}/${activeDps?.frequency === "WEEKLY" ? "week" : "month"}`}
               >
-                {activeDps.dpsNumber || "DPS"}: ৳{Number(activeDps.installmentAmount).toLocaleString()}
+                {activeDps?.dpsNumber || "DPS"}: ৳{activeDpsDue.toLocaleString()} due{" "}
+                {activeDpsPartial > 0
+                  ? `(৳${activeDpsPartial.toLocaleString()} adv)`
+                  : `/${activeDps?.frequency === "WEEKLY" ? "wk" : "mo"}`}
+                {activeDpsList.length > 1 ? ` (${activeDpsList.length} Accounts)` : ""}
               </div>
             ) : (
               <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>
@@ -1036,6 +1102,7 @@ export function CollectionPage() {
         onClose={() => setPrintModalOpen(false)}
         installments={filteredInstallments}
         somitiMembers={somitiMembersData?.data}
+        dpsAccounts={dpsAccountsData?.data?.accounts}
         dueDate={dueDate}
         selectedSomiti={selectedSomiti}
         currentUser={currentUser}

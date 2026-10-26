@@ -22,7 +22,7 @@ import { useCreateDpsAccountMutation } from "../dpsApi.js";
 import { useGetAllMembersQuery } from "../../members/membersApi.js";
 import { formatCurrency } from "../../loans/loanFormatters.js";
 
-const TENURE_OPTIONS = [
+const MONTHLY_TENURE_OPTIONS = [
   { label: "1 Year (12 Months)", value: 12 },
   { label: "2 Years (24 Months)", value: 24 },
   { label: "3 Years (36 Months)", value: 36 },
@@ -31,24 +31,36 @@ const TENURE_OPTIONS = [
   { label: "10 Years (120 Months)", value: 120 },
 ];
 
-const PRESET_AMOUNTS = [500, 1000, 1500, 2000, 2500, 3000, 5000];
+const WEEKLY_TENURE_OPTIONS = [
+  { label: "1 Year (52 Weeks / 12 Months)", value: 12 },
+  { label: "2 Years (104 Weeks / 24 Months)", value: 24 },
+  { label: "3 Years (156 Weeks / 36 Months)", value: 36 },
+  { label: "5 Years (260 Weeks / 60 Months)", value: 60 },
+  { label: "7 Years (364 Weeks / 84 Months)", value: 84 },
+  { label: "10 Years (520 Weeks / 120 Months)", value: 120 },
+];
+
+const MONTHLY_PRESET_AMOUNTS = [500, 1000, 1500, 2000, 2500, 3000, 5000];
+const WEEKLY_PRESET_AMOUNTS = [100, 200, 250, 500, 1000, 1500, 2000];
 
 export function OpenDpsModal({ open, onClose, member, onSuccess }) {
   const [form] = Form.useForm();
   const [createDps, { isLoading }] = useCreateDpsAccountMutation();
   const [memberSearch, setMemberSearch] = useState("");
 
-  const { data: membersData, isFetching: membersFetching } = useGetAllMembersQuery(
-    {
-      page: 1,
-      limit: 20,
-      search: memberSearch || undefined,
-      status: "ACTIVE",
-    },
-    { skip: !open || Boolean(member) },
-  );
+  const { data: membersData, isFetching: membersFetching } =
+    useGetAllMembersQuery(
+      {
+        page: 1,
+        limit: 20,
+        search: memberSearch || undefined,
+        status: "ACTIVE",
+      },
+      { skip: !open || Boolean(member) },
+    );
 
-  const [monthlyAmount, setMonthlyAmount] = useState(1000);
+  const [frequency, setFrequency] = useState("MONTHLY");
+  const [installmentAmount, setInstallmentAmount] = useState(1000);
   const [durationMonths, setDurationMonths] = useState(60);
   const [interestRate, setInterestRate] = useState(8.5);
 
@@ -56,23 +68,37 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
     if (open) {
       form.setFieldsValue({
         memberId: member?.id,
+        frequency: "MONTHLY",
         installmentAmount: 1000,
         durationMonths: 60,
         interestRate: 8.5,
         startDate: dayjs(),
         notes: "",
       });
-      setMonthlyAmount(1000);
+      setFrequency("MONTHLY");
+      setInstallmentAmount(1000);
       setDurationMonths(60);
       setInterestRate(8.5);
     }
   }, [open, form, member]);
 
-  const totalPrincipal = monthlyAmount * durationMonths;
-  // Statutory Recurring Deposit interest formula: (P * n * (n + 1) * r) / 2400
+  const isWeekly = frequency === "WEEKLY";
+  const installmentCount = isWeekly
+    ? Math.round((durationMonths / 12) * 52)
+    : durationMonths;
+
+  const totalPrincipal = installmentAmount * installmentCount;
+  // Statutory Recurring Deposit interest formula:
+  // Monthly: (P * n * (n + 1) * r) / (2 * 12 * 100) = 2400
+  // Weekly:  (P * n * (n + 1) * r) / (2 * 52 * 100) = 10400
+  const divisor = isWeekly ? 10400 : 2400;
   const estimatedProfit =
-    (monthlyAmount * durationMonths * (durationMonths + 1) * interestRate) / 2400;
+    (installmentAmount * installmentCount * (installmentCount + 1) * interestRate) /
+    divisor;
   const estimatedMaturity = totalPrincipal + estimatedProfit;
+
+  const presetAmounts = isWeekly ? WEEKLY_PRESET_AMOUNTS : MONTHLY_PRESET_AMOUNTS;
+  const tenureOptions = isWeekly ? WEEKLY_TENURE_OPTIONS : MONTHLY_TENURE_OPTIONS;
 
   const handleSubmit = async (values) => {
     const targetMemberId = member?.id || values.memberId;
@@ -84,10 +110,13 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
     try {
       await createDps({
         memberId: Number(targetMemberId),
+        frequency: values.frequency || frequency || "MONTHLY",
         installmentAmount: Number(values.installmentAmount),
         durationMonths: Number(values.durationMonths),
         interestRate: Number(values.interestRate),
-        startDate: values.startDate ? values.startDate.toISOString() : new Date().toISOString(),
+        startDate: values.startDate
+          ? values.startDate.toISOString()
+          : new Date().toISOString(),
         notes: values.notes,
       }).unwrap();
 
@@ -105,8 +134,14 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
       onCancel={onClose}
       title={
         <Space>
-          <SafetyCertificateOutlined style={{ color: "#0284c7", fontSize: 18 }} />
-          <span>{member ? `Open New DPS Account — ${member.fullName}` : "Open New DPS Account"}</span>
+          <SafetyCertificateOutlined
+            style={{ color: "#0284c7", fontSize: 18 }}
+          />
+          <span>
+            {member
+              ? `Open New DPS Account — ${member.fullName}`
+              : "Open New DPS Account"}
+          </span>
         </Space>
       }
       footer={null}
@@ -119,6 +154,7 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
         onFinish={handleSubmit}
         initialValues={{
           memberId: member?.id,
+          frequency: "MONTHLY",
           installmentAmount: 1000,
           durationMonths: 60,
           interestRate: 8.5,
@@ -128,16 +164,22 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
         {member ? (
           <div style={{ marginBottom: 16 }}>
             <Typography.Text type="secondary">Member ID: </Typography.Text>
-            <Typography.Text strong>{member.memberId || `ID: ${member.id}`}</Typography.Text>
+            <Typography.Text strong>
+              {member.memberId || `ID: ${member.id}`}
+            </Typography.Text>
             <span style={{ margin: "0 8px" }}>•</span>
             <Typography.Text type="secondary">Somiti: </Typography.Text>
-            <Typography.Text strong>{member.somiti?.name || "—"}</Typography.Text>
+            <Typography.Text strong>
+              {member.somiti?.name || "—"}
+            </Typography.Text>
           </div>
         ) : (
           <Form.Item
             name="memberId"
             label="Select Member"
-            rules={[{ required: true, message: "Please select a member to open DPS" }]}
+            rules={[
+              { required: true, message: "Please select a member to open DPS" },
+            ]}
           >
             <Select
               showSearch
@@ -146,7 +188,9 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
               filterOption={false}
               onSearch={setMemberSearch}
               placeholder="Search by member name, ID, or mobile"
-              notFoundContent={membersFetching ? "Searching..." : "No member found"}
+              notFoundContent={
+                membersFetching ? "Searching..." : "No member found"
+              }
               options={(membersData?.data ?? []).map((m) => ({
                 value: m.id,
                 label: `${m.fullName} (${m.memberId || `#${m.id}`}) — ${m.mobileNumber}`,
@@ -155,20 +199,55 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
           </Form.Item>
         )}
 
-        {/* Preset Amount Selector */}
-        <Form.Item label="Preset Monthly Deposit">
+        {/* Deposit Frequency Toggle */}
+        <Form.Item
+          name="frequency"
+          label="Deposit Frequency"
+          rules={[{ required: true }]}
+        >
           <Radio.Group
-            value={PRESET_AMOUNTS.includes(monthlyAmount) ? monthlyAmount : null}
+            value={frequency}
+            onChange={(e) => {
+              const newFreq = e.target.value;
+              setFrequency(newFreq);
+              form.setFieldsValue({ frequency: newFreq });
+
+              // Auto switch default amounts cleanly
+              if (newFreq === "WEEKLY" && installmentAmount === 1000) {
+                setInstallmentAmount(250);
+                form.setFieldsValue({ installmentAmount: 250 });
+              } else if (newFreq === "MONTHLY" && installmentAmount === 250) {
+                setInstallmentAmount(1000);
+                form.setFieldsValue({ installmentAmount: 1000 });
+              }
+            }}
+            buttonStyle="solid"
+          >
+            <Radio.Button value="MONTHLY">Monthly DPS</Radio.Button>
+            <Radio.Button value="WEEKLY">Weekly DPS</Radio.Button>
+          </Radio.Group>
+        </Form.Item>
+
+        {/* Preset Amount Selector */}
+        <Form.Item
+          label={`Preset ${isWeekly ? "Weekly" : "Monthly"} Deposit Amount`}
+        >
+          <Radio.Group
+            value={
+              presetAmounts.includes(installmentAmount)
+                ? installmentAmount
+                : null
+            }
             onChange={(e) => {
               const val = e.target.value;
-              setMonthlyAmount(val);
+              setInstallmentAmount(val);
               form.setFieldsValue({ installmentAmount: val });
             }}
             optionType="button"
             buttonStyle="solid"
             size="small"
           >
-            {PRESET_AMOUNTS.map((amt) => (
+            {presetAmounts.map((amt) => (
               <Radio.Button key={amt} value={amt}>
                 ৳{amt.toLocaleString()}
               </Radio.Button>
@@ -180,16 +259,21 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
           <Col xs={24} sm={12}>
             <Form.Item
               name="installmentAmount"
-              label="Monthly Installment Amount (৳)"
-              rules={[{ required: true, message: "Please enter monthly installment amount" }]}
+              label={`${isWeekly ? "Weekly" : "Monthly"} Installment Amount (৳)`}
+              rules={[
+                {
+                  required: true,
+                  message: `Please enter ${isWeekly ? "weekly" : "monthly"} installment amount`,
+                },
+              ]}
             >
               <InputNumber
                 style={{ width: "100%" }}
-                min={100}
+                min={50}
                 max={100000}
-                step={100}
+                step={50}
                 prefix="৳"
-                onChange={(val) => setMonthlyAmount(Number(val) || 0)}
+                onChange={(val) => setInstallmentAmount(Number(val) || 0)}
               />
             </Form.Item>
           </Col>
@@ -201,7 +285,7 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
               rules={[{ required: true, message: "Please select duration" }]}
             >
               <Select
-                options={TENURE_OPTIONS}
+                options={tenureOptions}
                 onChange={(val) => setDurationMonths(Number(val))}
               />
             </Form.Item>
@@ -249,7 +333,7 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
           <Row gutter={16} align="middle">
             <Col xs={8}>
               <Statistic
-                title="Total Principal"
+                title={`Total Principal (${installmentCount} Inst.)`}
                 value={totalPrincipal}
                 precision={2}
                 prefix="৳"
@@ -271,19 +355,31 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
                 value={estimatedMaturity}
                 precision={2}
                 prefix="৳"
-                valueStyle={{ color: "#047857", fontWeight: 700, fontSize: 18 }}
+                valueStyle={{
+                  color: "#047857",
+                  fontWeight: 700,
+                  fontSize: 18,
+                }}
               />
             </Col>
           </Row>
           <div style={{ fontSize: 11, color: "#64748b", marginTop: 8 }}>
-            💡 Depositing <strong>{formatCurrency(monthlyAmount)}</strong>/month for{" "}
-            <strong>{durationMonths} months</strong> ({durationMonths / 12} years) at{" "}
-            <strong>{interestRate}%</strong> interest yield.
+            💡 Depositing{" "}
+            <strong>{formatCurrency(installmentAmount)}</strong>/
+            {isWeekly ? "week" : "month"} for{" "}
+            <strong>
+              {installmentCount} {isWeekly ? "weeks" : "months"}
+            </strong>{" "}
+            ({durationMonths / 12} years) at <strong>{interestRate}%</strong>{" "}
+            interest yield.
           </div>
         </Card>
 
         <Form.Item name="notes" label="Notes / Comments">
-          <Input.TextArea rows={2} placeholder="Optional notes for this DPS account" />
+          <Input.TextArea
+            rows={2}
+            placeholder="Optional notes for this DPS account"
+          />
         </Form.Item>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>

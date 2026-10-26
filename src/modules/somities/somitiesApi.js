@@ -52,14 +52,25 @@ export const somitiesApi = baseApi.injectEndpoints({
     }),
 
     getSomitiMembers: builder.query({
-      query: (id) => ({
-        url: `/somities/${id}/members`,
-        method: "GET",
-      }),
-      providesTags: (_result, _error, id) => [
-        { type: "Somiti", id: `MEMBERS-${id}` },
-        "Member",
-      ],
+      query: (arg) => {
+        const id = typeof arg === "object" ? arg.id : arg;
+        const params =
+          typeof arg === "object"
+            ? { page: arg.page || 1, limit: arg.limit || 1000 }
+            : { limit: 1000 };
+        return {
+          url: `/somities/${id}/members`,
+          method: "GET",
+          params,
+        };
+      },
+      providesTags: (_result, _error, arg) => {
+        const id = typeof arg === "object" ? arg.id : arg;
+        return [
+          { type: "Somiti", id: `MEMBERS-${id}` },
+          "Member",
+        ];
+      },
     }),
 
     createSomiti: builder.mutation({

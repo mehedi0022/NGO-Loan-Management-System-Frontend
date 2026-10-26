@@ -33,6 +33,7 @@ import { useGetDpsAccountsQuery } from "../dpsApi.js";
 import { OpenDpsModal } from "../components/OpenDpsModal.jsx";
 import { DepositDpsModal } from "../components/DepositDpsModal.jsx";
 import { CloseDpsModal } from "../components/CloseDpsModal.jsx";
+import { DpsScheduleModal } from "../components/DpsScheduleModal.jsx";
 
 export function DpsPage() {
   const [page, setPage] = useState(1);
@@ -115,32 +116,54 @@ export function DpsPage() {
       },
     },
     {
-      title: "Monthly Deposit",
+      title: "Deposit Amount",
       dataIndex: "installmentAmount",
       key: "installmentAmount",
-      render: (val) => <strong>{formatCurrency(val)}</strong>,
+      render: (val, record) => (
+        <div>
+          <strong>{formatCurrency(val)}</strong>
+          <div>
+            <Tag
+              color={record.frequency === "WEEKLY" ? "blue" : "purple"}
+              style={{ fontSize: 10, lineHeight: "16px", marginTop: 2 }}
+            >
+              {record.frequency === "WEEKLY" ? "Weekly" : "Monthly"}
+            </Tag>
+          </div>
+        </div>
+      ),
     },
     {
       title: "Duration",
       dataIndex: "durationMonths",
       key: "durationMonths",
-      render: (months) => `${months} Mo (${Math.floor(months / 12)} Yrs)`,
+      render: (months, record) => {
+        const isWk = record.frequency === "WEEKLY";
+        const count = isWk ? Math.round((months / 12) * 52) : months;
+        return isWk
+          ? `${count} Wk (${months / 12} Yrs)`
+          : `${months} Mo (${Math.floor(months / 12)} Yrs)`;
+      },
     },
     {
       title: "Progress",
       key: "progress",
       render: (_, record) => {
+        const isWk = record.frequency === "WEEKLY";
+        const total = isWk
+          ? Math.round(((record.durationMonths || 12) / 12) * 52)
+          : record.durationMonths || 1;
         const percent = Math.min(
           100,
           Math.round(
-            ((record.paidInstallments || 0) / (record.durationMonths || 1)) * 100,
+            ((record.paidInstallments || 0) / total) * 100,
           ),
         );
         return (
           <div style={{ width: 130 }}>
             <Progress percent={percent} size="small" />
             <div style={{ fontSize: 10, color: "#64748b" }}>
-              {record.paidInstallments || 0} / {record.durationMonths} Installments
+              {record.paidInstallments || 0} / {total} Installments
             </div>
           </div>
         );
@@ -419,57 +442,16 @@ export function DpsPage() {
         />
       )}
 
+      {/* Installment Schedule Modal */}
       {selectedDps && (
-        <Modal
+        <DpsScheduleModal
           open={scheduleModalOpen}
-          onCancel={() => {
+          onClose={() => {
             setScheduleModalOpen(false);
             setSelectedDps(null);
           }}
-          title={
-            <Space>
-              <CalendarOutlined style={{ color: "#0284c7" }} />
-              <span>
-                DPS Installment Schedule — {selectedDps.dpsNumber || `DPS-${selectedDps.id}`}
-              </span>
-            </Space>
-          }
-          width={760}
-          footer={[
-            <Button
-              key="close"
-              type="primary"
-              onClick={() => {
-                setScheduleModalOpen(false);
-                setSelectedDps(null);
-              }}
-            >
-              Close
-            </Button>,
-          ]}
-        >
-          <div style={{ marginBottom: 12 }}>
-            <Typography.Text type="secondary">Member: </Typography.Text>
-            <Typography.Text strong>{selectedDps.member?.fullName || "—"}</Typography.Text>
-            <span style={{ margin: "0 8px" }}>•</span>
-            <Typography.Text type="secondary">Monthly Installment: </Typography.Text>
-            <Typography.Text strong>
-              {formatCurrency(selectedDps.installmentAmount)}
-            </Typography.Text>
-            <span style={{ margin: "0 8px" }}>•</span>
-            <Typography.Text type="secondary">Progress: </Typography.Text>
-            <Typography.Text strong>
-              {selectedDps.paidInstallments || 0} / {selectedDps.durationMonths}
-            </Typography.Text>
-          </div>
-          <Table
-            dataSource={selectedDps.installments || []}
-            columns={scheduleColumns}
-            rowKey="installmentNumber"
-            size="small"
-            pagination={{ pageSize: 12 }}
-          />
-        </Modal>
+          dpsAccount={selectedDps}
+        />
       )}
 
       {/* Close & Settlement Modal */}
