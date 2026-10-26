@@ -4,6 +4,7 @@ import {
   CloseOutlined,
   EditOutlined,
   PhoneOutlined,
+  PrinterOutlined,
 } from "@ant-design/icons";
 import {
   Alert,
@@ -31,6 +32,7 @@ import { InstallmentScheduleTable } from "../collections/components/InstallmentS
 import { LoanPaymentHistoryTable } from "../collections/components/LoanPaymentHistoryTable.jsx";
 import { useCreateCollectionMutation } from "../collections/collectionsApi.js";
 import { DetailItem } from "../members/components/DetailItem.jsx";
+import { PrintableLoanAgreementModal } from "./components/PrintableLoanAgreementModal.jsx";
 import {
   formatCharge,
   formatCurrency,
@@ -53,6 +55,7 @@ export function LoanDetailsPage() {
   const [disbursementConfirmation, setDisbursementConfirmation] =
     useState(null);
   const [selectedInstallment, setSelectedInstallment] = useState(null);
+  const [agreementOpen, setAgreementOpen] = useState(false);
 
   const [rejectForm] = Form.useForm();
   const [disbursementForm] = Form.useForm();
@@ -303,39 +306,48 @@ export function LoanDetailsPage() {
           Back to Loans
         </Button>
 
-        {loan.status === "PENDING" && (
-          <Space wrap>
-            <Button
-              icon={<EditOutlined />}
-              onClick={() => navigate(`/loans/${loan.id}/edit`)}
-            >
-              Edit Loan
-            </Button>
-
-            <Button
-              type="primary"
-              icon={<CheckOutlined />}
-              loading={approving}
-              onClick={approve}
-            >
-              Approve
-            </Button>
-
-            <Button
-              danger
-              icon={<CloseOutlined />}
-              onClick={() => setRejectOpen(true)}
-            >
-              Reject
-            </Button>
-          </Space>
-        )}
-
-        {loan.status === "APPROVED" && (
-          <Button type="primary" onClick={() => setDisbursementOpen(true)}>
-            Disburse Loan
+        <Space wrap>
+          <Button
+            icon={<PrinterOutlined />}
+            onClick={() => setAgreementOpen(true)}
+          >
+            Print Loan Agreement
           </Button>
-        )}
+
+          {loan.status === "PENDING" && (
+            <>
+              <Button
+                icon={<EditOutlined />}
+                onClick={() => navigate(`/loans/${loan.id}/edit`)}
+              >
+                Edit Loan
+              </Button>
+
+              <Button
+                type="primary"
+                icon={<CheckOutlined />}
+                loading={approving}
+                onClick={approve}
+              >
+                Approve
+              </Button>
+
+              <Button
+                danger
+                icon={<CloseOutlined />}
+                onClick={() => setRejectOpen(true)}
+              >
+                Reject
+              </Button>
+            </>
+          )}
+
+          {loan.status === "APPROVED" && (
+            <Button type="primary" onClick={() => setDisbursementOpen(true)}>
+              Disburse Loan
+            </Button>
+          )}
+        </Space>
       </div>
 
       {isFetching && (
@@ -801,6 +813,12 @@ export function LoanDetailsPage() {
         loading={creatingCollection}
         onCancel={() => setSelectedInstallment(null)}
         onSubmit={submitCollection}
+      />
+
+      <PrintableLoanAgreementModal
+        open={agreementOpen}
+        loan={loan}
+        onClose={() => setAgreementOpen(false)}
       />
     </PageContainer>
   );

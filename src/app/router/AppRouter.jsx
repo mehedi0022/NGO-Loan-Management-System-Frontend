@@ -23,19 +23,8 @@ import { PermissionRoute } from "../../modules/auth/components/PermissionRoute.j
 import { permissions } from "../../modules/auth/permissions.js";
 import { UsersPage } from "../../modules/users/pages/UsersPage.jsx";
 import { ReportsPage } from "../../modules/reports/pages/ReportsPage.jsx";
-
-const pages = [
-  {
-    path: "income-expense",
-    title: "Income & Expense",
-    description: "Financial income and expense records will appear here.",
-  },
-  {
-    path: "settings",
-    title: "Settings",
-    description: "Application settings will appear here.",
-  },
-];
+import { IncomeExpensePage } from "../../modules/income-expense/pages/IncomeExpensePage.jsx";
+import { SettingsPage } from "../../modules/settings/pages/SettingsPage.jsx";
 
 export function AppRouter() {
   return (
@@ -85,14 +74,23 @@ export function AppRouter() {
               </PermissionRoute>
             }
           />
+          <Route
+            path="income-expense"
+            element={
+              <PermissionRoute permission={permissions.incomeExpenseReadAny}>
+                <IncomeExpensePage />
+              </PermissionRoute>
+            }
+          />
 
-          {pages.map((page) => (
-            <Route
-              key={page.path}
-              path={page.path}
-              element={<PlaceholderPage {...page} />}
-            />
-          ))}
+          <Route
+            path="settings"
+            element={
+              <PermissionRoute permission={permissions.settingsRead}>
+                <SettingsPage />
+              </PermissionRoute>
+            }
+          />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

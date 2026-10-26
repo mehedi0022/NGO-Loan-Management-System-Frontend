@@ -32,8 +32,9 @@ export const navigationItems = [
     key: "/income-expense",
     label: "Income & Expense",
     icon: <BarChartOutlined />,
+    permission: permissions.incomeExpenseReadAny,
   },
   { key: "/reports", label: "Reports", icon: <FileTextOutlined />, permission: permissions.reportsReadAny },
   { key: "/users", label: "Users & Roles", icon: <UserSwitchOutlined />, permission: permissions.usersReadAny },
-  { key: "/settings", label: "Settings", icon: <SettingOutlined /> },
+  { key: "/settings", label: "Settings", icon: <SettingOutlined />, permission: permissions.settingsRead },
 ];

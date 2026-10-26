@@ -2,6 +2,7 @@ import {
   ArrowLeftOutlined,
   EditOutlined,
   PhoneOutlined,
+  PrinterOutlined,
 } from "@ant-design/icons";
 import {
   Alert,
@@ -40,6 +41,7 @@ import { LoanPaymentHistoryTable } from "../../collections/components/LoanPaymen
 import { useGetCollectionsQuery } from "../../collections/collectionsApi.js";
 import { QuickSavingsCollectionModal } from "../../savings/components/QuickSavingsCollectionModal.jsx";
 import { SavingsWithdrawalModal } from "../../savings/components/SavingsWithdrawalModal.jsx";
+import { PrintableMemberPassbookModal } from "../components/PrintableMemberPassbookModal.jsx";
 import { resolveUploadUrl } from "../../../utils/uploadUrl.js";
 import { formatDate, formatEnum } from "../../loans/loanFormatters.js";
 
@@ -59,6 +61,8 @@ export function MemberProfilePage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [savingsCollectionOpen, setSavingsCollectionOpen] = useState(false);
   const [savingsWithdrawalOpen, setSavingsWithdrawalOpen] = useState(false);
+  const [passbookOpen, setPassbookOpen] = useState(false);
+  const [passbookSection, setPassbookSection] = useState("all");
   const [loanPagination, setLoanPagination] = useState({
     current: 1,
     pageSize: 10,
@@ -135,7 +139,19 @@ export function MemberProfilePage() {
       limit: savingsPagination.pageSize,
       sortOrder: "desc",
     },
-    { skip: !id || activeTab !== "savings" || !member?.savingsAccount },
+    { skip: !id || activeTab !== "savings" },
+  );
+
+  const {
+    data: passbookSavingsResponse,
+  } = useGetMemberSavingsTransactionsQuery(
+    {
+      memberId: Number(id),
+      page: 1,
+      limit: 100,
+      sortOrder: "asc",
+    },
+    { skip: !id || !passbookOpen },
   );
   const {
     data: collectionsResponse,
@@ -482,6 +498,15 @@ export function MemberProfilePage() {
         <Space direction="vertical" size={16} className="w-full">
           <div className="flex flex-wrap justify-end gap-2">
             <Button
+              icon={<PrinterOutlined />}
+              onClick={() => {
+                setPassbookSection("savings");
+                setPassbookOpen(true);
+              }}
+            >
+              Print Savings Ledger
+            </Button>
+            <Button
               type="primary"
               onClick={() => setSavingsCollectionOpen(true)}
             >
@@ -588,6 +613,16 @@ export function MemberProfilePage() {
         </Button>
 
         <Space wrap>
+          <Button
+            icon={<PrinterOutlined />}
+            onClick={() => {
+              setPassbookSection("all");
+              setPassbookOpen(true);
+            }}
+          >
+            Print Passbook
+          </Button>
+
           <Button
             icon={<EditOutlined />}
             onClick={() => navigate(`/members/${member.id}/edit`)}
@@ -703,6 +738,14 @@ export function MemberProfilePage() {
         member={member}
         account={member.savingsAccount}
         onClose={() => setSavingsWithdrawalOpen(false)}
+      />
+      <PrintableMemberPassbookModal
+        open={passbookOpen}
+        member={member}
+        savingsTransactions={passbookSavingsResponse?.data ?? savingsTransactions}
+        loans={memberLoans}
+        defaultSection={passbookSection}
+        onClose={() => setPassbookOpen(false)}
       />
     </PageContainer>
   );

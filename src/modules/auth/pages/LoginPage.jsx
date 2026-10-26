@@ -61,7 +61,7 @@ export function LoginPage() {
     <main className="login-page">
       <section
         className="login-intro"
-        aria-label="পূর্বাশা আর্থিক উন্নয়ন সংস্থা"
+        aria-label="Purbasha Financial Development Organization"
       >
         <div className="login-brand">
           <div className="login-brand-mark">
@@ -70,26 +70,26 @@ export function LoginPage() {
           </div>
           <div>
             <Typography.Text className="login-brand-name">
-              পূর্বাশা আর্থিক উন্নয়ন সংস্থা
+              Purbasha Financial Development Organization
             </Typography.Text>
             <Typography.Text className="login-brand-caption">
-              ক্ষুদ্রঋণ ও সঞ্চয় ব্যবস্থাপনা সিস্টেম
+              Microfinance & Savings Management System
             </Typography.Text>
           </div>
         </div>
 
         <div className="login-intro-copy">
           <Typography.Text className="login-eyebrow">
-            এনজিও অপারেশন ওয়ার্কস্পেস
+            NGO OPERATIONS WORKSPACE
           </Typography.Text>
           <Typography.Title level={2} className="login-intro-title">
-            মানুষের উন্নয়নে
+            Empowering Communities
             <br />
-            সঞ্চয় ও ক্ষুদ্রঋণের ডিজিটাল সমাধান
+            with Modern Microfinance
           </Typography.Title>
           <Typography.Paragraph>
-            সদস্য, ঋণ, কিস্তি, সঞ্চয় ও দৈনিক আদায় কার্যক্রম এক প্ল্যাটফর্মে
-            নিরাপদ ও সহজভাবে পরিচালনা করুন।
+            Manage members, loans, installments, savings, and daily collections
+            securely and effortlessly on a single unified platform.
           </Typography.Paragraph>
         </div>
 
@@ -133,7 +133,7 @@ export function LoginPage() {
         <Card bordered={false} className="login-card">
           <div className="login-card-heading">
             <Typography.Text className="login-mobile-label">
-              পূর্বাশা আর্থিক উন্নয়ন সংস্থা
+              Purbasha Financial Development Organization
             </Typography.Text>
             <Typography.Title level={2}>Welcome back</Typography.Title>
             <Typography.Paragraph>

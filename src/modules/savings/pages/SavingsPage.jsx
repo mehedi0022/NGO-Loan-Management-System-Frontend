@@ -1,4 +1,9 @@
-import { BankOutlined, MinusCircleOutlined, PlusCircleOutlined } from "@ant-design/icons";
+import {
+  BankOutlined,
+  MinusCircleOutlined,
+  PlusCircleOutlined,
+  PrinterOutlined,
+} from "@ant-design/icons";
 import { Alert, Button, Card, Empty, Space, Spin, Typography } from "antd";
 import { useState } from "react";
 
@@ -9,18 +14,20 @@ import { useGetMemberSavingsTransactionsQuery } from "../../members/membersApi.j
 import { MemberSavingsSelector } from "../components/MemberSavingsSelector.jsx";
 import { QuickSavingsCollectionModal } from "../components/QuickSavingsCollectionModal.jsx";
 import { SavingsWithdrawalModal } from "../components/SavingsWithdrawalModal.jsx";
+import { PrintableMemberPassbookModal } from "../../members/components/PrintableMemberPassbookModal.jsx";
 import { useGetMemberSavingsQuery } from "../savingsApi.js";
 
 export function SavingsPage() {
   const [memberId, setMemberId] = useState();
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
+  const [passbookOpen, setPassbookOpen] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20 });
   const { data, isFetching, isError, error } = useGetMemberSavingsQuery(memberId, { skip: !memberId });
   const member = data?.data;
   const { data: transactionsData, isFetching: transactionsFetching } = useGetMemberSavingsTransactionsQuery(
     { memberId, page: pagination.current, limit: pagination.pageSize, sortOrder: "desc" },
-    { skip: !memberId || !member?.savingsAccount },
+    { skip: !memberId },
   );
 
   const selectMember = (value) => {
@@ -53,6 +60,12 @@ export function SavingsPage() {
                 <Typography.Text type="secondary">{member.memberId || `#${member.id}`} · {member.mobileNumber}</Typography.Text>
               </div>
               <Space wrap>
+                <Button
+                  icon={<PrinterOutlined />}
+                  onClick={() => setPassbookOpen(true)}
+                >
+                  Print Savings Ledger
+                </Button>
                 <Button type="primary" icon={<PlusCircleOutlined />} onClick={() => setDepositOpen(true)}>Collect Savings</Button>
                 <Button danger icon={<MinusCircleOutlined />} disabled={!member.savingsAccount || member.savingsAccount.status !== "ACTIVE"} onClick={() => setWithdrawalOpen(true)}>Withdraw Savings</Button>
               </Space>
@@ -74,6 +87,14 @@ export function SavingsPage() {
 
       <QuickSavingsCollectionModal open={depositOpen} member={member} onClose={() => setDepositOpen(false)} />
       <SavingsWithdrawalModal open={withdrawalOpen} member={member} account={member?.savingsAccount} onClose={() => setWithdrawalOpen(false)} />
+      <PrintableMemberPassbookModal
+        open={passbookOpen}
+        member={member}
+        savingsTransactions={transactionsData?.data ?? []}
+        loans={[]}
+        defaultSection="savings"
+        onClose={() => setPassbookOpen(false)}
+      />
     </PageContainer>
   );
 }

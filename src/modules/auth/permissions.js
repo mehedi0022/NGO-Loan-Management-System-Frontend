@@ -33,6 +33,14 @@ export const permissions = Object.freeze({
   savingsWithdraw: "savings:withdraw",
 
   reportsReadAny: "reports:read:any",
+
+  incomeExpenseReadAny: "income-expense:read:any",
+  incomeExpenseCreate: "income-expense:create",
+  incomeExpenseUpdateAny: "income-expense:update:any",
+  incomeExpenseDeleteAny: "income-expense:delete:any",
+
+  settingsRead: "settings:read",
+  settingsUpdate: "settings:update",
 });
 
 export const can = (user, permission) =>

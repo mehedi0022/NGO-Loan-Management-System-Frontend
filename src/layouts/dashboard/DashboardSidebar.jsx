@@ -56,10 +56,10 @@ export function DashboardSidebar({
         </div>
         <div className="brand-info">
           <Typography.Text className="brand-name">
-            পূর্বাশা আর্থিক উন্নয়ন সংস্থা
+            Purbasha Financial NGO
           </Typography.Text>
           <Typography.Text className="brand-caption">
-            ক্ষুদ্রঋণ ও সঞ্চয় ব্যবস্থাপনা সিস্টেম
+            Microfinance & Savings System
           </Typography.Text>
         </div>
         {isMobile && (
