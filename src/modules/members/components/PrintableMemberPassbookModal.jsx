@@ -244,7 +244,8 @@ export function PrintableMemberPassbookModal({
   const dpsAccountsList = member.dpsAccounts || [];
   const activeDpsAccount =
     dpsAccountsList.find((d) => d.status === "ACTIVE") ||
-    dpsAccountsList[0];
+    dpsAccountsList.find((d) => d.status === "MATURED") ||
+    null;
 
   const dpsDurationMonths = Number(activeDpsAccount?.durationMonths || 60);
   const dpsInstallmentAmount = Number(activeDpsAccount?.installmentAmount || 1000);

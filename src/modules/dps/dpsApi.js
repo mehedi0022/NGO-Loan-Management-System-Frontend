@@ -39,7 +39,12 @@ export const dpsApi = baseApi.injectEndpoints({
         method: "POST",
         body: payload,
       }),
-      invalidatesTags: ["DPS", "Member", "Dashboard"],
+      invalidatesTags: [
+        { type: "DPS", id: "LIST" },
+        { type: "Member" },
+        "Member",
+        "Dashboard",
+      ],
     }),
 
     depositDpsInstallment: builder.mutation({
@@ -51,6 +56,7 @@ export const dpsApi = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, { id }) => [
         { type: "DPS", id },
         { type: "DPS", id: "LIST" },
+        { type: "Member" },
         "Member",
         "Dashboard",
       ],
@@ -65,6 +71,7 @@ export const dpsApi = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, { id }) => [
         { type: "DPS", id },
         { type: "DPS", id: "LIST" },
+        { type: "Member" },
         "Member",
         "Dashboard",
       ],

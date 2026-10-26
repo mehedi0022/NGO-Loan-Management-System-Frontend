@@ -37,10 +37,12 @@ export function MemberFinancialSummary({ loans = [], savingsAccount, dpsAccounts
     );
   const generalSavings = toAmount(savingsAccount?.generalSavingsBalance);
   const specialSavings = toAmount(savingsAccount?.specialSavingsBalance);
-  const totalDps = (dpsAccounts || []).reduce(
-    (total, dps) => total + toAmount(dps.totalPaidAmount),
-    0,
-  );
+  const totalDps = (dpsAccounts || [])
+    .filter((dps) => dps.status !== "CLOSED")
+    .reduce(
+      (total, dps) => total + toAmount(dps.totalPaidAmount),
+      0,
+    );
 
   const summaries = [
     { title: "Total Borrowed", value: totalBorrowed },

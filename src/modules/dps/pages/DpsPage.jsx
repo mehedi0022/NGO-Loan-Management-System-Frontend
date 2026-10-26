@@ -5,6 +5,7 @@ import {
   PlusOutlined,
   SafetyCertificateOutlined,
   SearchOutlined,
+  StopOutlined,
 } from "@ant-design/icons";
 import {
   Alert,
@@ -31,6 +32,7 @@ import { formatCurrency, formatDate } from "../../loans/loanFormatters.js";
 import { useGetDpsAccountsQuery } from "../dpsApi.js";
 import { OpenDpsModal } from "../components/OpenDpsModal.jsx";
 import { DepositDpsModal } from "../components/DepositDpsModal.jsx";
+import { CloseDpsModal } from "../components/CloseDpsModal.jsx";
 
 export function DpsPage() {
   const [page, setPage] = useState(1);
@@ -41,6 +43,14 @@ export function DpsPage() {
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [selectedDps, setSelectedDps] = useState(null);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [closeModalOpen, setCloseModalOpen] = useState(false);
+  const [closeModalMode, setCloseModalMode] = useState("MATURITY");
+
+  const handleOpenCloseModal = (record, mode) => {
+    setSelectedDps(record);
+    setCloseModalMode(mode);
+    setCloseModalOpen(true);
+  };
 
   const { data, isLoading, isFetching, isError, error, refetch } =
     useGetDpsAccountsQuery({
@@ -178,18 +188,41 @@ export function DpsPage() {
       render: (_, record) => (
         <Space size="small">
           {record.status === "ACTIVE" && (
+            <>
+              <Button
+                size="small"
+                type="primary"
+                icon={<DollarOutlined />}
+                onClick={() => {
+                  setSelectedDps(record);
+                  setDepositModalOpen(true);
+                }}
+              >
+                Deposit
+              </Button>
+              <Button
+                size="small"
+                danger
+                icon={<StopOutlined />}
+                onClick={() => handleOpenCloseModal(record, "PREMATURE")}
+              >
+                Break / Cancel
+              </Button>
+            </>
+          )}
+
+          {record.status === "MATURED" && (
             <Button
               size="small"
               type="primary"
-              icon={<DollarOutlined />}
-              onClick={() => {
-                setSelectedDps(record);
-                setDepositModalOpen(true);
-              }}
+              style={{ background: "#059669", borderColor: "#059669" }}
+              icon={<SafetyCertificateOutlined />}
+              onClick={() => handleOpenCloseModal(record, "MATURITY")}
             >
-              Deposit
+              Withdraw Maturity
             </Button>
           )}
+
           <Button
             size="small"
             icon={<CalendarOutlined />}
@@ -437,6 +470,20 @@ export function DpsPage() {
             pagination={{ pageSize: 12 }}
           />
         </Modal>
+      )}
+
+      {/* Close & Settlement Modal */}
+      {closeModalOpen && selectedDps && (
+        <CloseDpsModal
+          open={closeModalOpen}
+          onClose={() => {
+            setCloseModalOpen(false);
+            setSelectedDps(null);
+          }}
+          dps={selectedDps}
+          initialMode={closeModalMode}
+          onSuccess={refetch}
+        />
       )}
     </PageContainer>
   );

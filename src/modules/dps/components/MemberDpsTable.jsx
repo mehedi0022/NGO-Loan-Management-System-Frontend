@@ -13,11 +13,13 @@ import {
   DollarOutlined,
   PlusOutlined,
   SafetyCertificateOutlined,
+  StopOutlined,
 } from "@ant-design/icons";
 import { useState } from "react";
 import { formatCurrency, formatDate } from "../../loans/loanFormatters.js";
 import { OpenDpsModal } from "./OpenDpsModal.jsx";
 import { DepositDpsModal } from "./DepositDpsModal.jsx";
+import { CloseDpsModal } from "./CloseDpsModal.jsx";
 
 export function MemberDpsTable({ member, dpsAccounts = [], onRefresh }) {
   const safeAccounts = Array.isArray(dpsAccounts)
@@ -30,6 +32,14 @@ export function MemberDpsTable({ member, dpsAccounts = [], onRefresh }) {
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [selectedDps, setSelectedDps] = useState(null);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [closeModalOpen, setCloseModalOpen] = useState(false);
+  const [closeModalMode, setCloseModalMode] = useState("MATURITY");
+
+  const handleOpenCloseModal = (record, mode) => {
+    setSelectedDps(record);
+    setCloseModalMode(mode);
+    setCloseModalOpen(true);
+  };
 
   const columns = [
     {
@@ -115,18 +125,41 @@ export function MemberDpsTable({ member, dpsAccounts = [], onRefresh }) {
       render: (_, record) => (
         <Space size="small">
           {record.status === "ACTIVE" && (
+            <>
+              <Button
+                size="small"
+                type="primary"
+                icon={<DollarOutlined />}
+                onClick={() => {
+                  setSelectedDps(record);
+                  setDepositModalOpen(true);
+                }}
+              >
+                Deposit
+              </Button>
+              <Button
+                size="small"
+                danger
+                icon={<StopOutlined />}
+                onClick={() => handleOpenCloseModal(record, "PREMATURE")}
+              >
+                Break / Cancel
+              </Button>
+            </>
+          )}
+
+          {record.status === "MATURED" && (
             <Button
               size="small"
               type="primary"
-              icon={<DollarOutlined />}
-              onClick={() => {
-                setSelectedDps(record);
-                setDepositModalOpen(true);
-              }}
+              style={{ background: "#059669", borderColor: "#059669" }}
+              icon={<SafetyCertificateOutlined />}
+              onClick={() => handleOpenCloseModal(record, "MATURITY")}
             >
-              Deposit
+              Withdraw Maturity
             </Button>
           )}
+
           <Button
             size="small"
             icon={<CalendarOutlined />}
@@ -279,6 +312,20 @@ export function MemberDpsTable({ member, dpsAccounts = [], onRefresh }) {
             ]}
           />
         </Modal>
+      )}
+
+      {/* Close & Settlement Modal */}
+      {closeModalOpen && selectedDps && (
+        <CloseDpsModal
+          open={closeModalOpen}
+          onClose={() => {
+            setCloseModalOpen(false);
+            setSelectedDps(null);
+          }}
+          dps={selectedDps}
+          initialMode={closeModalMode}
+          onSuccess={onRefresh}
+        />
       )}
     </Card>
   );
