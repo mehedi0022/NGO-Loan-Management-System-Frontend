@@ -22,17 +22,13 @@ import { PublicOnlyRoute } from "../../modules/auth/components/PublicOnlyRoute.j
 import { PermissionRoute } from "../../modules/auth/components/PermissionRoute.jsx";
 import { permissions } from "../../modules/auth/permissions.js";
 import { UsersPage } from "../../modules/users/pages/UsersPage.jsx";
+import { ReportsPage } from "../../modules/reports/pages/ReportsPage.jsx";
 
 const pages = [
   {
     path: "income-expense",
     title: "Income & Expense",
     description: "Financial income and expense records will appear here.",
-  },
-  {
-    path: "reports",
-    title: "Reports",
-    description: "Operational and financial reports will appear here.",
   },
   {
     path: "settings",
@@ -78,6 +74,14 @@ export function AppRouter() {
             element={
               <PermissionRoute permission={permissions.usersReadAny}>
                 <UsersPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="reports"
+            element={
+              <PermissionRoute permission={permissions.reportsReadAny}>
+                <ReportsPage />
               </PermissionRoute>
             }
           />
