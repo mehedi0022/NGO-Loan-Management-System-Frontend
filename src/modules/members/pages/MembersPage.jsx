@@ -76,7 +76,7 @@ export function MembersPage() {
       ),
     },
     {
-      title: "Somiti (সমিতি)",
+      title: "Somiti",
       key: "somiti",
       responsive: ["sm"],
       render: (_, member) =>

@@ -48,24 +48,24 @@ import { SomitiFormDrawer } from "../components/SomitiFormDrawer.jsx";
 import { SomitiMembersModal } from "../components/SomitiMembersModal.jsx";
 
 const dayLabels = {
-  SATURDAY: { label: "Saturday / শনিবার", color: "blue" },
-  SUNDAY: { label: "Sunday / রবিবার", color: "cyan" },
-  MONDAY: { label: "Monday / সোমবার", color: "green" },
-  TUESDAY: { label: "Tuesday / মঙ্গলবার", color: "gold" },
-  WEDNESDAY: { label: "Wednesday / বুধবার", color: "purple" },
-  THURSDAY: { label: "Thursday / বৃহস্পতিবার", color: "magenta" },
-  FRIDAY: { label: "Friday / শুক্রবার", color: "volcano" },
+  SATURDAY: { label: "Saturday", color: "blue" },
+  SUNDAY: { label: "Sunday", color: "cyan" },
+  MONDAY: { label: "Monday", color: "green" },
+  TUESDAY: { label: "Tuesday", color: "gold" },
+  WEDNESDAY: { label: "Wednesday", color: "purple" },
+  THURSDAY: { label: "Thursday", color: "magenta" },
+  FRIDAY: { label: "Friday", color: "volcano" },
 };
 
 const dayFilterOptions = [
   { value: "ALL", label: "All Days" },
-  { value: "SATURDAY", label: "Saturday (শনিবার)" },
-  { value: "SUNDAY", label: "Sunday (রবিবার)" },
-  { value: "MONDAY", label: "Monday (সোমবার)" },
-  { value: "TUESDAY", label: "Tuesday (মঙ্গলবার)" },
-  { value: "WEDNESDAY", label: "Wednesday (বুধবার)" },
-  { value: "THURSDAY", label: "Thursday (বৃহস্পতিবার)" },
-  { value: "FRIDAY", label: "Friday (শুক্রবার)" },
+  { value: "SATURDAY", label: "Saturday" },
+  { value: "SUNDAY", label: "Sunday" },
+  { value: "MONDAY", label: "Monday" },
+  { value: "TUESDAY", label: "Tuesday" },
+  { value: "WEDNESDAY", label: "Wednesday" },
+  { value: "THURSDAY", label: "Thursday" },
+  { value: "FRIDAY", label: "Friday" },
 ];
 
 const statusFilterOptions = [
@@ -215,7 +215,7 @@ export function SomitiesPage() {
       },
     },
     {
-      title: "Field Officer (দায়িত্বপ্রাপ্ত)",
+      title: "Field Officer",
       key: "fieldOfficer",
       render: (_, record) => {
         if (!record.fieldOfficer) {
@@ -237,7 +237,7 @@ export function SomitiesPage() {
       },
     },
     {
-      title: "Members (সদস্য)",
+      title: "Members",
       key: "members",
       align: "center",
       render: (_, record) => (
@@ -322,7 +322,7 @@ export function SomitiesPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div>
           <Typography.Title level={2} style={{ margin: 0 }}>
-            Somiti Management (সমিতি ব্যবস্থাপনা)
+            Somiti Management
           </Typography.Title>
           <Typography.Text type="secondary">
             Manage borrower groups, meeting days, and assign responsible Field Officers.
@@ -352,7 +352,7 @@ export function SomitiesPage() {
         <Col xs={24} sm={8}>
           <Card bordered={false} style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
             <Statistic
-              title="Total Somities (মোট সমিতি)"
+              title="Total Somities"
               value={meta?.total ?? somities.length}
               prefix={<ApartmentOutlined style={{ color: "#1890ff", marginRight: 8 }} />}
             />
@@ -361,7 +361,7 @@ export function SomitiesPage() {
         <Col xs={24} sm={8}>
           <Card bordered={false} style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
             <Statistic
-              title="Active Somities (সক্রিয় সমিতি)"
+              title="Active Somities"
               value={activeSomitiesCount}
               valueStyle={{ color: "#52c41a" }}
               prefix={<CheckCircleOutlined style={{ color: "#52c41a", marginRight: 8 }} />}
@@ -371,7 +371,7 @@ export function SomitiesPage() {
         <Col xs={24} sm={8}>
           <Card bordered={false} style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
             <Statistic
-              title="Members in Listed Somities (মোট সদস্য)"
+              title="Enrolled Members"
               value={totalMembersCount}
               prefix={<TeamOutlined style={{ color: "#722ed1", marginRight: 8 }} />}
             />

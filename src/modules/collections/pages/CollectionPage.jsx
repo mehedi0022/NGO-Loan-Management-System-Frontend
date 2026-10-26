@@ -106,7 +106,7 @@ export function CollectionPage() {
 
   const somitiOptions = useMemo(
     () => [
-      { value: "ALL", label: "All Somities (সকল সমিতি)" },
+      { value: "ALL", label: "All Somities" },
       ...(somitiesData?.data ?? []).map((s) => ({
         value: String(s.id),
         label: `${s.name} (${s.somitiId || s.code || "No Code"})${
@@ -634,7 +634,7 @@ export function CollectionPage() {
             onClick={() => setPrintModalOpen(true)}
             disabled={installments.length === 0}
           >
-            Print Field Sheet (কালেকশন শিট প্রিন্ট)
+            Print Collection Sheet
           </Button>
           <Button type="primary" onClick={() => setSavingsCollectionOpen(true)}>
             Collect Savings
@@ -675,7 +675,7 @@ export function CollectionPage() {
 
           <div>
             <Typography.Text strong className="mb-2 block">
-              Somiti / সমিতি
+              Somiti
             </Typography.Text>
 
             <Select

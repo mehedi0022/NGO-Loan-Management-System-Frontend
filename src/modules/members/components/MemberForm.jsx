@@ -315,7 +315,7 @@ export function MemberForm({
               </Col>
 
               <Col xs={24} md={12} lg={8}>
-                <Form.Item label="Somiti / সমিতি" name="somitiId">
+                <Form.Item label="Somiti" name="somitiId">
                   <Select
                     showSearch
                     allowClear

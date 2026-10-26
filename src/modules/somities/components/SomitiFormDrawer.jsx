@@ -4,13 +4,13 @@ import { FormDrawer } from "../../../components/form-drawer/FormDrawer.jsx";
 import { useGetUsersQuery } from "../../users/usersApi.js";
 
 const dayOptions = [
-  { value: "SATURDAY", label: "Saturday / শনিবার" },
-  { value: "SUNDAY", label: "Sunday / রবিবার" },
-  { value: "MONDAY", label: "Monday / সোমবার" },
-  { value: "TUESDAY", label: "Tuesday / মঙ্গলবার" },
-  { value: "WEDNESDAY", label: "Wednesday / বুধবার" },
-  { value: "THURSDAY", label: "Thursday / বৃহস্পতিবার" },
-  { value: "FRIDAY", label: "Friday / শুক্রবার" },
+  { value: "SATURDAY", label: "Saturday" },
+  { value: "SUNDAY", label: "Sunday" },
+  { value: "MONDAY", label: "Monday" },
+  { value: "TUESDAY", label: "Tuesday" },
+  { value: "WEDNESDAY", label: "Wednesday" },
+  { value: "THURSDAY", label: "Thursday" },
+  { value: "FRIDAY", label: "Friday" },
 ];
 
 const statusOptions = [
@@ -94,18 +94,18 @@ export function SomitiFormDrawer({
       <Form form={form} layout="vertical" requiredMark="optional">
         <Form.Item
           name="name"
-          label="Somiti Name (সমিতির নাম)"
+          label="Somiti Name"
           rules={[
             { required: true, message: "Somiti name is required" },
             { min: 2, message: "Name must be at least 2 characters" },
           ]}
         >
-          <Input placeholder="e.g. পদ্মা মহিলা সমিতি / Padma Somiti" />
+          <Input placeholder="e.g. Padma Somiti" />
         </Form.Item>
 
         <Form.Item
           name="code"
-          label="Somiti Code (সমিতি কোড)"
+          label="Somiti Code"
           extra="Leave empty for auto-generated code (e.g. SM-00001)"
         >
           <Input placeholder="e.g. SM-00001" />
@@ -113,7 +113,7 @@ export function SomitiFormDrawer({
 
         <Form.Item
           name="meetingDay"
-          label="Meeting Day (সাপ্তাহিক কিস্তির বার)"
+          label="Meeting Day"
           rules={[{ required: true, message: "Meeting day is required" }]}
         >
           <Select options={dayOptions} placeholder="Select meeting day" />
@@ -121,14 +121,14 @@ export function SomitiFormDrawer({
 
         <Form.Item
           name="meetingTime"
-          label="Meeting Time (কিস্তির সময়)"
+          label="Meeting Time"
         >
           <Input placeholder="e.g. 10:00 AM" />
         </Form.Item>
 
         <Form.Item
           name="fieldOfficerId"
-          label="Assigned Field Officer (দায়িত্বপ্রাপ্ত ফিল্ড অফিসার)"
+          label="Assigned Field Officer"
         >
           <Select
             placeholder="Assign a Field Officer"
@@ -142,11 +142,11 @@ export function SomitiFormDrawer({
           />
         </Form.Item>
 
-        <Form.Item name="area" label="Area / Village (এলাকা / গ্রাম)">
+        <Form.Item name="area" label="Area / Village">
           <Input placeholder="e.g. Rupnagar, Ward 4" />
         </Form.Item>
 
-        <Form.Item name="address" label="Address / Center Location (ঠিকানা / কেন্দ্র)">
+        <Form.Item name="address" label="Address / Center Location">
           <Input placeholder="e.g. Primary School Road, Center #1" />
         </Form.Item>
 
@@ -160,7 +160,7 @@ export function SomitiFormDrawer({
           </Form.Item>
         )}
 
-        <Form.Item name="description" label="Notes / Description (বিবরণ)">
+        <Form.Item name="description" label="Notes / Description">
           <Input.TextArea rows={3} placeholder="Optional notes about this somiti" />
         </Form.Item>
       </Form>

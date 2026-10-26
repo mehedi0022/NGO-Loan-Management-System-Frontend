@@ -257,7 +257,7 @@ export function MemberProfilePage() {
                 <DetailItem label="Member ID" value={member.memberId} />
 
                 <DetailItem
-                  label="Somiti (সমিতি)"
+                  label="Somiti"
                   value={
                     member.somiti ? (
                       <Space wrap>
