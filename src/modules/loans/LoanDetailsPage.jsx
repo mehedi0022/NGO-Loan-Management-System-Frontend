@@ -3,8 +3,10 @@ import {
   CheckOutlined,
   CloseOutlined,
   EditOutlined,
+  ExclamationCircleOutlined,
   PhoneOutlined,
   PrinterOutlined,
+  SwapOutlined,
 } from "@ant-design/icons";
 import {
   Alert,
@@ -17,13 +19,14 @@ import {
   Modal,
   Result,
   Row,
+  Select,
   Skeleton,
   Space,
   Typography,
   message,
 } from "antd";
 import dayjs from "dayjs";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { PageContainer } from "../../components/page-container/PageContainer.jsx";
@@ -34,6 +37,7 @@ import { LoanPaymentHistoryTable } from "../collections/components/LoanPaymentHi
 import { useCreateCollectionMutation } from "../collections/collectionsApi.js";
 import { DetailItem } from "../members/components/DetailItem.jsx";
 import { PrintableLoanAgreementModal } from "./components/PrintableLoanAgreementModal.jsx";
+import { useGetAccountsQuery } from "../accounts/accountsApi.js";
 import {
   formatCharge,
   formatCurrency,
@@ -76,9 +80,27 @@ export function LoanDetailsPage() {
     useState(null);
   const [selectedInstallment, setSelectedInstallment] = useState(null);
   const [agreementOpen, setAgreementOpen] = useState(false);
+  const [selectedAccountId, setSelectedAccountId] = useState(undefined);
 
   const [rejectForm] = Form.useForm();
   const [disbursementForm] = Form.useForm();
+
+  // Accounts query for disbursement cash balance check
+  const { data: accountsResponse } = useGetAccountsQuery();
+  const accounts = useMemo(() => {
+    if (Array.isArray(accountsResponse?.data)) return accountsResponse.data;
+    if (Array.isArray(accountsResponse?.data?.accounts))
+      return accountsResponse.data.accounts;
+    return [];
+  }, [accountsResponse]);
+
+  const defaultAccount = useMemo(() => {
+    return (
+      accounts.find((a) => a.isDefault && a.isActive) ||
+      accounts.find((a) => a.accountType === "CASH" && a.isActive) ||
+      accounts[0]
+    );
+  }, [accounts]);
 
   const {
     data: response,
@@ -107,16 +129,32 @@ export function LoanDetailsPage() {
       ? SOMITI_DAY_MAP[somitiMeetingDay]
       : undefined;
 
+  const activePayoutAccount = useMemo(() => {
+    if (selectedAccountId) {
+      const found = accounts.find((a) => a.id === selectedAccountId);
+      if (found) return found;
+    }
+    return defaultAccount;
+  }, [accounts, selectedAccountId, defaultAccount]);
+
+  const activePayoutBalance = Number(activePayoutAccount?.currentBalance) || 0;
+  const principalNeeded = Number(loan?.principalAmount) || 0;
+  const hasSufficientBalance = activePayoutBalance >= principalNeeded;
+  const balanceShortage = Math.max(0, principalNeeded - activePayoutBalance);
+
   useEffect(() => {
     if (disbursementOpen) {
       const today = dayjs();
       const nextSomiti = getNextSomitiDay(today, somitiDayIndex);
+      const accId = defaultAccount?.id;
+      setSelectedAccountId(accId);
       disbursementForm.setFieldsValue({
+        accountId: accId,
         disbursementDate: today,
         firstDueDate: nextSomiti || today.add(7, "day"),
       });
     }
-  }, [disbursementOpen, somitiDayIndex, disbursementForm]);
+  }, [disbursementOpen, somitiDayIndex, defaultAccount, disbursementForm]);
 
   /*
    * Preferred backend shape:
@@ -191,10 +229,17 @@ export function LoanDetailsPage() {
   };
 
   const requestDisbursement = (values) => {
+    if (!hasSufficientBalance) {
+      message.error(
+        `Insufficient funds in ${activePayoutAccount?.accountName}. Please transfer funds from Bank or inject capital first.`,
+      );
+      return;
+    }
+
     setDisbursementConfirmation({
       disbursementDate: values.disbursementDate.format("YYYY-MM-DD"),
-
       firstDueDate: values.firstDueDate.format("YYYY-MM-DD"),
+      accountId: values.accountId || activePayoutAccount?.id,
     });
   };
 
@@ -261,6 +306,7 @@ export function LoanDetailsPage() {
 
   const closeDisbursementModal = () => {
     disbursementForm.resetFields();
+    setSelectedAccountId(undefined);
     setDisbursementConfirmation(null);
     setDisbursementOpen(false);
   };
@@ -732,11 +778,93 @@ export function LoanDetailsPage() {
           </div>
         )}
 
+        {/* Insufficient Balance Blocking Alert */}
+        {!hasSufficientBalance && (
+          <Alert
+            type="error"
+            showIcon
+            icon={<ExclamationCircleOutlined />}
+            style={{ marginBottom: 16 }}
+            message={
+              <span style={{ fontWeight: 700 }}>
+                Insufficient Balance — Disbursement Blocked
+              </span>
+            }
+            description={
+              <div>
+                <div style={{ marginTop: 2 }}>
+                  Account <strong>{activePayoutAccount?.accountName}</strong> has only{" "}
+                  <strong style={{ color: "#dc2626" }}>{formatCurrency(activePayoutBalance)}</strong>, but this loan requires{" "}
+                  <strong>{formatCurrency(principalNeeded)}</strong> in physical cash.
+                </div>
+                <div
+                  style={{
+                    marginTop: 6,
+                    fontWeight: 700,
+                    color: "#b91c1c",
+                    fontSize: 13,
+                  }}
+                >
+                  Cash Shortage: {formatCurrency(balanceShortage)}
+                </div>
+                <div style={{ marginTop: 6, fontSize: 12, color: "#4b5563", lineHeight: 1.5 }}>
+                  You cannot disburse physical cash exceeding your cash on hand. Please transfer funds from your Bank Account to <strong>{activePayoutAccount?.accountName}</strong> via <strong>Accounts &amp; Cash</strong> before disbursing this loan.
+                </div>
+                <Button
+                  size="small"
+                  type="primary"
+                  danger
+                  icon={<SwapOutlined />}
+                  style={{ marginTop: 10, fontWeight: 600 }}
+                  onClick={() => navigate("/accounts")}
+                >
+                  Transfer Funds Now (Bank ➔ Cash)
+                </Button>
+              </div>
+            }
+          />
+        )}
+
         <Form
           form={disbursementForm}
           layout="vertical"
           onFinish={requestDisbursement}
         >
+          <Form.Item
+            name="accountId"
+            label={
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  width: "100%",
+                }}
+              >
+                <span>Disbursement Account (Payout Source)</span>
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: hasSufficientBalance ? "#16a34a" : "#dc2626",
+                    fontWeight: 600,
+                  }}
+                >
+                  Available: {formatCurrency(activePayoutBalance)}
+                </span>
+              </div>
+            }
+            rules={[{ required: true, message: "Please select payout account" }]}
+          >
+            <Select
+              onChange={(val) => setSelectedAccountId(val)}
+              options={accounts
+                .filter((a) => a.isActive)
+                .map((a) => ({
+                  value: a.id,
+                  label: `${a.accountName} (${a.accountType}) — Balance: ${formatCurrency(a.currentBalance)}`,
+                }))}
+            />
+          </Form.Item>
+
           <Form.Item
             name="disbursementDate"
             label="Disbursement Date"
@@ -854,7 +982,16 @@ export function LoanDetailsPage() {
           <Space>
             <Button onClick={closeDisbursementModal}>Cancel</Button>
 
-            <Button type="primary" htmlType="submit">
+            <Button
+              type="primary"
+              htmlType="submit"
+              disabled={!hasSufficientBalance}
+              style={{
+                backgroundColor: hasSufficientBalance ? "#16a34a" : undefined,
+                borderColor: hasSufficientBalance ? "#16a34a" : undefined,
+                fontWeight: 600,
+              }}
+            >
               Continue
             </Button>
           </Space>
@@ -878,6 +1015,11 @@ export function LoanDetailsPage() {
 
         {disbursementConfirmation && (
           <div className="member-profile-info-list">
+            {detail(
+              "Payout Account",
+              activePayoutAccount?.accountName || "Branch Main Cash",
+            )}
+
             {detail(
               "Disbursement Date",
               formatDate(disbursementConfirmation.disbursementDate),

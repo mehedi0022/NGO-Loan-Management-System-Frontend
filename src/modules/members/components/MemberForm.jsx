@@ -9,6 +9,7 @@ import {
   DatePicker,
   Form,
   Input,
+  InputNumber,
   Row,
   Select,
   Typography,
@@ -347,6 +348,23 @@ export function MemberForm({
                       width: "100%",
                     }}
                     format="DD MMM YYYY"
+                  />
+                </Form.Item>
+              </Col>
+
+              <Col xs={24} md={12} lg={8}>
+                <Form.Item
+                  label="Admission Fee"
+                  name="admissionFee"
+                  tooltip="Non-refundable admission fee (automatically recorded as Income & Cash)"
+                >
+                  <InputNumber
+                    style={{
+                      width: "100%",
+                    }}
+                    prefix="৳"
+                    min={0}
+                    placeholder="0.00"
                   />
                 </Form.Item>
               </Col>

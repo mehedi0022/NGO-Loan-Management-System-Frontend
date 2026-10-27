@@ -44,6 +44,12 @@ export const permissions = Object.freeze({
   incomeExpenseUpdateAny: "income-expense:update:any",
   incomeExpenseDeleteAny: "income-expense:delete:any",
 
+  accountsReadAny: "accounts:read:any",
+  accountsCreate: "accounts:create",
+  accountsUpdateAny: "accounts:update:any",
+  accountsTransfer: "accounts:transfer",
+  accountsInjectCapital: "accounts:inject-capital",
+
   settingsRead: "settings:read",
   settingsUpdate: "settings:update",
 });

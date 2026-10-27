@@ -9,13 +9,13 @@ import { EditMemberPage } from "../../modules/members/pages/EditMemberPage.jsx";
 import { MembersPage } from "../../modules/members/pages/MembersPage.jsx";
 import { CreateLoanPage } from "../../modules/loans/CreateLoanPage.jsx";
 import { LoanApprovalPage } from "../../modules/loans/LoanApprovalPage.jsx";
+import { LoanDisbursementPage } from "../../modules/loans/LoanDisbursementPage.jsx";
 import { LoanDetailsPage } from "../../modules/loans/LoanDetailsPage.jsx";
 import { EditLoanPage } from "../../modules/loans/EditLoanPage.jsx";
 import { LoansPage } from "../../modules/loans/LoansPage.jsx";
 import { CollectionPage } from "../../modules/collections/pages/CollectionPage.jsx";
 import { SavingsPage } from "../../modules/savings/pages/SavingsPage.jsx";
 import { DpsPage } from "../../modules/dps/pages/DpsPage.jsx";
-import { DueOverduePage } from "../../modules/loans/DueOverduePage.jsx";
 import { PlaceholderPage } from "../../modules/shared/PlaceholderPage.jsx";
 
 import { ProtectedRoute } from "../../modules/auth/components/ProtectedRoute.jsx";
@@ -24,6 +24,7 @@ import { PermissionRoute } from "../../modules/auth/components/PermissionRoute.j
 import { permissions } from "../../modules/auth/permissions.js";
 import { UsersPage } from "../../modules/users/pages/UsersPage.jsx";
 import { ReportsPage } from "../../modules/reports/pages/ReportsPage.jsx";
+import { AccountsPage } from "../../modules/accounts/pages/AccountsPage.jsx";
 import { IncomeExpensePage } from "../../modules/income-expense/pages/IncomeExpensePage.jsx";
 import { SettingsPage } from "../../modules/settings/pages/SettingsPage.jsx";
 
@@ -53,13 +54,22 @@ export function AppRouter() {
           <Route path="members" element={<MembersPage />} />
           <Route path="loans/new" element={<CreateLoanPage />} />
           <Route path="loans/approval" element={<LoanApprovalPage />} />
-          <Route path="loans/overdue" element={<DueOverduePage />} />
+          <Route path="loans/disbursement" element={<LoanDisbursementPage />} />
+          <Route path="loans/overdue" element={<LoanDisbursementPage />} />
           <Route path="loans/:id/edit" element={<EditLoanPage />} />
           <Route path="loans/:id" element={<LoanDetailsPage />} />
           <Route path="loans" element={<LoansPage />} />
           <Route path="collections" element={<CollectionPage />} />
           <Route path="savings" element={<SavingsPage />} />
           <Route path="dps" element={<DpsPage />} />
+          <Route
+            path="accounts"
+            element={
+              <PermissionRoute permission={permissions.accountsReadAny}>
+                <AccountsPage />
+              </PermissionRoute>
+            }
+          />
           <Route
             path="users"
             element={

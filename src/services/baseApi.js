@@ -2,7 +2,6 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: import.meta.env.VITE_API_BASE_URL || "/api/v1",
-
   credentials: "include",
 });
 
@@ -50,9 +49,7 @@ const baseQueryWithAuthHandling = async (args, api, extraOptions) => {
 
 export const baseApi = createApi({
   reducerPath: "api",
-
   baseQuery: baseQueryWithAuthHandling,
-
   tagTypes: [
     "Auth",
     "Dashboard",
@@ -65,7 +62,9 @@ export const baseApi = createApi({
     "Reports",
     "Users",
     "Somiti",
+    "IncomeExpense",
+    "Accounts",
+    "AccountTransactions",
   ],
-
   endpoints: () => ({}),
 });

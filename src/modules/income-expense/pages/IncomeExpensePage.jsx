@@ -9,7 +9,6 @@ import {
   PlusCircleOutlined,
   PrinterOutlined,
   SearchOutlined,
-  TransactionOutlined,
 } from "@ant-design/icons";
 import {
   Button,
@@ -344,8 +343,6 @@ export function IncomeExpensePage() {
     },
   ];
 
-  const netBalance = summary.netBalance ?? 0;
-
   return (
     <PageContainer>
       {/* Page Title & Top Action Bar */}
@@ -402,7 +399,7 @@ export function IncomeExpensePage() {
 
       {/* KPI Cards Row */}
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={12} sm={6} lg={6}>
+        <Col xs={24} sm={8} lg={8}>
           <Card
             size="small"
             bordered={false}
@@ -423,7 +420,7 @@ export function IncomeExpensePage() {
           </Card>
         </Col>
 
-        <Col xs={12} sm={6} lg={6}>
+        <Col xs={24} sm={8} lg={8}>
           <Card
             size="small"
             bordered={false}
@@ -444,41 +441,7 @@ export function IncomeExpensePage() {
           </Card>
         </Col>
 
-        <Col xs={24} sm={6} lg={6}>
-          <Card
-            size="small"
-            bordered={false}
-            className="shadow-sm"
-            style={{
-              background: netBalance >= 0 ? "#eff6ff" : "#fff1f2",
-              border: `1px solid ${netBalance >= 0 ? "#bfdbfe" : "#fecdd3"}`,
-            }}
-          >
-            <Statistic
-              title={
-                <span style={{ color: netBalance >= 0 ? "#1e40af" : "#9f1239" }}>
-                  Net Cash Surplus / (Deficit)
-                </span>
-              }
-              value={netBalance}
-              precision={2}
-              formatter={(v) => formatCurrency(v)}
-              styles={{
-                content: {
-                  color: netBalance >= 0 ? "#2563eb" : "#e11d48",
-                  fontWeight: 800,
-                  fontSize: 20,
-                },
-              }}
-              prefix={<TransactionOutlined style={{ color: netBalance >= 0 ? "#2563eb" : "#e11d48" }} />}
-            />
-            <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
-              Income minus expenses
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={6} lg={6}>
+        <Col xs={24} sm={8} lg={8}>
           <Card size="small" bordered={false} className="shadow-sm">
             <Statistic
               title="Total Transactions"

@@ -24,21 +24,13 @@ const transformAddress = (address, type) => {
 
   return {
     type,
-
     houseOrHolding: cleanOptionalString(address.houseOrHolding),
-
     road: cleanOptionalString(address.road),
-
     village: address.village?.trim(),
-
     postOffice: address.postOffice?.trim(),
-
     union: findNameById(unions, address.unionId),
-
     upazila: findNameById(upazilas, address.upazilaId),
-
     district: findNameById(districts, address.districtId),
-
     division: findNameById(divisions, address.divisionId),
   };
 };
@@ -50,35 +42,20 @@ const transformGuarantor = (guarantor) => {
 
   return {
     fullName: guarantor.fullName?.trim(),
-
     fatherName: cleanOptionalString(guarantor.fatherName),
-
     motherName: cleanOptionalString(guarantor.motherName),
-
     mobileNumber: guarantor.mobileNumber?.trim(),
-
     nidNumber: cleanOptionalString(guarantor.nidNumber),
-
     relationship: guarantor.relationship?.trim(),
-
     occupation: cleanOptionalString(guarantor.occupation),
-
     notes: cleanOptionalString(guarantor.notes),
-
     houseOrHolding: cleanOptionalString(address?.houseOrHolding),
-
     road: cleanOptionalString(address?.road),
-
     village: address?.village?.trim(),
-
     postOffice: address?.postOffice?.trim(),
-
     union: findNameById(unions, address?.unionId),
-
     upazila: findNameById(upazilas, address?.upazilaId),
-
     district: findNameById(districts, address?.districtId),
-
     division: findNameById(divisions, address?.divisionId),
   };
 };
@@ -97,25 +74,16 @@ export const buildCreateMemberPayload = (
     fullName: values.fullName.trim(),
     fatherName: values.fatherName.trim(),
     motherName: values.motherName.trim(),
-
     guardianName: cleanOptionalString(values.guardianName),
-
     mobileNumber: values.mobileNumber.trim(),
-
     nidNumber: cleanOptionalString(values.nidNumber),
-
     email: cleanOptionalString(values.email),
-
     occupation: cleanOptionalString(values.occupation),
-
+    admissionFee: values.admissionFee != null ? Number(values.admissionFee) : 0,
     notes: cleanOptionalString(values.notes),
-
     joinDate: values.joinDate?.toISOString(),
-
     photoUrl: cleanOptionalString(photoUrl),
-
     somitiId: values.somitiId ? Number(values.somitiId) : null,
-
     addresses,
   };
 
@@ -138,7 +106,6 @@ export const buildUpdateMemberPayload = (
 
   return {
     ...payload,
-
     // Explicitly tell backend to remove guarantor
     guarantors: hasGuarantor ? payload.guarantors : [],
   };
