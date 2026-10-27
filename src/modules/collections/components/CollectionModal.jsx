@@ -7,6 +7,7 @@ import {
   InputNumber,
   Modal,
   Select,
+  Tag,
   Typography,
   theme,
 } from "antd";
@@ -32,7 +33,10 @@ export function CollectionModal({
 }) {
   const [form] = Form.useForm();
   const { token } = theme.useToken();
-  const member = installment?.loan?.member;
+  const member = installment?.loan?.member || installment?.member;
+  const isDpsOnly = Boolean(
+    installment?.isDpsOnly || (installment && !installment?.loanId),
+  );
 
   const remaining = Math.max(
     0,
@@ -43,15 +47,24 @@ export function CollectionModal({
   const generalSavings = Form.useWatch("generalSavingsAmount", form) || 0;
   const specialSavings = Form.useWatch("specialSavingsAmount", form) || 0;
   const dpsAmount = Form.useWatch("dpsAmount", form) || 0;
+  const dpsAmounts = Form.useWatch("dpsAmounts", form) || {};
   const collectionDate = Form.useWatch("collectionDate", form);
   const activeDpsList = useMemo(
     () => (member?.dpsAccounts || []).filter((d) => d.status === "ACTIVE"),
     [member],
   );
-  const [selectedDpsId, setSelectedDpsId] = useState(null);
 
-  const activeDps =
-    activeDpsList.find((d) => d.id === selectedDpsId) || activeDpsList[0];
+  const effectiveDpsAmount = useMemo(() => {
+    if (activeDpsList.length > 1) {
+      return Object.values(dpsAmounts).reduce(
+        (sum, val) => sum + toAmount(val),
+        0,
+      );
+    }
+    return toAmount(dpsAmount);
+  }, [activeDpsList.length, dpsAmounts, dpsAmount]);
+
+  const activeDps = activeDpsList[0];
 
   const activeDpsTarget = Number(activeDps?.installmentAmount || 0);
   const activeDpsTotalPaid = Number(activeDps?.totalPaidAmount || 0);
@@ -72,40 +85,71 @@ export function CollectionModal({
     toAmount(loanAmount) +
     toAmount(generalSavings) +
     toAmount(specialSavings) +
-    toAmount(dpsAmount);
+    effectiveDpsAmount;
 
   useEffect(() => {
     if (!open || !installment) return;
 
-    const defaultDps = activeDpsList[0];
-    setSelectedDpsId(defaultDps?.id || null);
+    const initDpsAmounts = {};
+    activeDpsList.forEach((d) => {
+      initDpsAmounts[d.id] = 0;
+    });
 
     form.setFieldsValue({
       loanCollectionAmount: remaining,
       generalSavingsAmount: 0,
       specialSavingsAmount: 0,
       dpsAmount: 0,
-      dpsAccountId: defaultDps?.id || undefined,
+      dpsAmounts: initDpsAmounts,
+      dpsAccountId: activeDps?.id || undefined,
       collectionDate: dayjs(),
       paymentMethod: "CASH",
       allowAdvance: false,
       reference: undefined,
       notes: undefined,
     });
-  }, [form, installment, open, remaining, activeDpsList]);
+  }, [form, installment, open, remaining, activeDpsList, activeDps]);
 
   const submit = async (values) => {
+    let dpsCollections = undefined;
+    let finalDpsAmount = 0;
+    let finalDpsAccountId = undefined;
+
+    if (activeDpsList.length > 1) {
+      const amountsMap = values.dpsAmounts || {};
+      dpsCollections = activeDpsList
+        .map((dps) => ({
+          dpsAccountId: dps.id,
+          amount: toAmount(amountsMap[dps.id] || 0),
+        }))
+        .filter((d) => d.amount > 0);
+      finalDpsAmount = dpsCollections.reduce((sum, d) => sum + d.amount, 0);
+      finalDpsAccountId = dpsCollections[0]?.dpsAccountId || activeDpsList[0]?.id;
+    } else if (activeDpsList.length === 1) {
+      finalDpsAmount = toAmount(values.dpsAmount);
+      finalDpsAccountId = activeDpsList[0].id;
+      if (finalDpsAmount > 0) {
+        dpsCollections = [
+          { dpsAccountId: finalDpsAccountId, amount: finalDpsAmount },
+        ];
+      }
+    }
+
     await onSubmit({
       memberId: member?.id,
 
-      loanId: installment.loanId,
-      installmentId: installment.id,
+      loanId: installment?.loanId || undefined,
+      installmentId: installment?.loanId ? installment.id : undefined,
 
       loanCollectionAmount: toAmount(values.loanCollectionAmount),
       generalSavingsAmount: toAmount(values.generalSavingsAmount),
       specialSavingsAmount: toAmount(values.specialSavingsAmount),
-      dpsAmount: toAmount(values.dpsAmount),
-      dpsAccountId: values.dpsAccountId || activeDps?.id || undefined,
+      dpsAmount: finalDpsAmount,
+      dpsAccountId: finalDpsAccountId,
+      dpsCollections:
+        dpsCollections && dpsCollections.length > 0
+          ? dpsCollections
+          : undefined,
 
       collectionDate: values.collectionDate.format("YYYY-MM-DD"),
       paymentMethod: values.paymentMethod,
@@ -153,8 +197,9 @@ export function CollectionModal({
               </Typography.Text>
 
               <div className="font-semibold">
-                {installment.loan?.loanId || `#${installment.loanId}`} / #
-                {installment.installmentNo}
+                {isDpsOnly
+                  ? "DPS / Savings Only"
+                  : `${installment?.loan?.loanId || `#${installment?.loanId}`} / #${installment?.installmentNo}`}
               </div>
             </div>
 
@@ -164,14 +209,16 @@ export function CollectionModal({
               </Typography.Text>
 
               <div className="font-semibold">
-                {formatCurrency(installment.amount)}
+                {isDpsOnly ? "—" : formatCurrency(installment?.amount)}
               </div>
             </div>
 
             <div>
               <Typography.Text type="secondary">Remaining</Typography.Text>
 
-              <div className="font-semibold">{formatCurrency(remaining)}</div>
+              <div className="font-semibold">
+                {isDpsOnly ? "—" : formatCurrency(remaining)}
+              </div>
             </div>
           </div>
         </div>
@@ -195,6 +242,9 @@ export function CollectionModal({
             rules={[
               {
                 validator: (_, value) => {
+                  if (isDpsOnly) {
+                    return Promise.resolve();
+                  }
                   const amount = toAmount(value);
 
                   if (amount < 0) {
@@ -219,83 +269,21 @@ export function CollectionModal({
             <InputNumber
               style={{ width: "100%" }}
               min={0}
-              max={remaining}
+              max={isDpsOnly ? 0 : remaining}
+              disabled={isDpsOnly}
+              placeholder={isDpsOnly ? "No loan" : undefined}
               precision={2}
               prefix="৳"
             />
           </Form.Item>
-
-          <Form.Item name="generalSavingsAmount" label="General Savings">
-            <InputNumber
-              style={{ width: "100%" }}
-              min={0}
-              precision={2}
-              prefix="৳"
-            />
-          </Form.Item>
-
-          <Form.Item name="specialSavingsAmount" label="Special Savings">
-            <InputNumber
-              style={{ width: "100%" }}
-              min={0}
-              precision={2}
-              prefix="৳"
-            />
-          </Form.Item>
-
-          {activeDpsList.length > 1 && (
-            <Form.Item
-              name="dpsAccountId"
-              label="Select DPS Account"
-              rules={[{ required: true, message: "Select DPS account" }]}
-              className="sm:col-span-2"
-            >
-              <Select
-                value={selectedDpsId}
-                onChange={(val) => {
-                  setSelectedDpsId(val);
-                  const chosen = activeDpsList.find((d) => d.id === val);
-                  if (chosen) {
-                    const cTarget = Number(chosen.installmentAmount || 0);
-                    const cTotalPaid = Number(chosen.totalPaidAmount || 0);
-                    const cPartial =
-                      cTarget > 0 ? cTotalPaid % cTarget : 0;
-                    const cDue =
-                      cPartial > 0 ? cTarget - cPartial : cTarget;
-                    form.setFieldsValue({
-                      dpsAmount: cDue,
-                    });
-                  }
-                }}
-                options={activeDpsList.map((d) => {
-                  const isWk = d.frequency === "WEEKLY";
-                  const total = isWk
-                    ? Math.round(((d.durationMonths || 12) / 12) * 52)
-                    : d.durationMonths;
-                  const dTarget = Number(d.installmentAmount || 0);
-                  const dPaid = Number(d.totalPaidAmount || 0);
-                  const dPartial = dTarget > 0 ? dPaid % dTarget : 0;
-                  const dDue = dPartial > 0 ? dTarget - dPartial : dTarget;
-                  return {
-                    value: d.id,
-                    label: `${d.dpsNumber || `DPS-${d.id}`} — Due: ৳${dDue.toLocaleString()} (Target: ৳${dTarget.toLocaleString()}/${isWk ? "wk" : "mo"}${dPartial > 0 ? `, ৳${dPartial.toLocaleString()} adv` : ""})`,
-                  };
-                })}
-              />
-            </Form.Item>
-          )}
 
           <Form.Item
-            name="dpsAmount"
-            label={
-              activeDps
-                ? `DPS Deposit (${activeDps.dpsNumber || "DPS"} Due: ৳${activeDpsDue.toLocaleString()}${activeDpsPartialPaid > 0 ? ` [৳${activeDpsPartialPaid.toLocaleString()} adv]` : ""})`
-                : "DPS (No Active Account)"
-            }
+            name="generalSavingsAmount"
+            label="General Savings"
             extra={
-              activeDpsPartialPaid > 0 ? (
-                <span style={{ fontSize: 11, color: "#059669" }}>
-                  💡 ৳{activeDpsPartialPaid.toLocaleString()} already paid in advance. ৳{activeDpsDue.toLocaleString()} completes this installment.
+              member?.savingsAccount?.generalSavingsBalance !== undefined ? (
+                <span style={{ fontSize: 11, color: "#64748b" }}>
+                  Balance: ৳{Number(member.savingsAccount.generalSavingsBalance).toLocaleString()}
                 </span>
               ) : null
             }
@@ -305,10 +293,168 @@ export function CollectionModal({
               min={0}
               precision={2}
               prefix="৳"
-              disabled={!activeDps}
-              placeholder={activeDps ? String(activeDpsDue) : "No active DPS"}
             />
           </Form.Item>
+
+          <Form.Item
+            name="specialSavingsAmount"
+            label="Special Savings"
+            extra={
+              member?.savingsAccount?.specialSavingsBalance !== undefined ? (
+                <span style={{ fontSize: 11, color: "#64748b" }}>
+                  Balance: ৳{Number(member.savingsAccount.specialSavingsBalance).toLocaleString()}
+                </span>
+              ) : null
+            }
+          >
+            <InputNumber
+              style={{ width: "100%" }}
+              min={0}
+              precision={2}
+              prefix="৳"
+            />
+          </Form.Item>
+
+          {activeDpsList.length === 0 && (
+            <Form.Item name="dpsAmount" label="DPS (No Active Account)">
+              <InputNumber
+                style={{ width: "100%" }}
+                disabled
+                placeholder="No active DPS"
+                prefix="৳"
+              />
+            </Form.Item>
+          )}
+
+          {activeDpsList.length === 1 && (
+            <Form.Item
+              name="dpsAmount"
+              label={`DPS Deposit (${activeDps.dpsNumber || "DPS"} Due: ৳${activeDpsDue.toLocaleString()}${activeDpsPartialPaid > 0 ? ` [৳${activeDpsPartialPaid.toLocaleString()} adv]` : ""})`}
+              extra={
+                activeDpsPartialPaid > 0 ? (
+                  <span style={{ fontSize: 11, color: "#059669" }}>
+                    💡 ৳{activeDpsPartialPaid.toLocaleString()} already paid in advance. ৳{activeDpsDue.toLocaleString()} completes this installment.
+                  </span>
+                ) : null
+              }
+            >
+              <InputNumber
+                style={{ width: "100%" }}
+                min={0}
+                precision={2}
+                prefix="৳"
+                placeholder={String(activeDpsDue)}
+              />
+            </Form.Item>
+          )}
+
+          {activeDpsList.length > 1 && (
+            <div
+              className="sm:col-span-2"
+              style={{
+                background: "#f8fafc",
+                padding: "12px 14px",
+                borderRadius: 8,
+                border: "1px solid #e2e8f0",
+                marginBottom: 8,
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 600,
+                  color: "#1e293b",
+                  marginBottom: 10,
+                  fontSize: 13,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span>Active DPS Accounts ({activeDpsList.length})</span>
+                <Tag color="cyan" style={{ margin: 0 }}>
+                  Multiple DPS Supported
+                </Tag>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "10px 14px",
+                }}
+              >
+                {activeDpsList.map((dps) => {
+                  const dTarget = Number(dps.installmentAmount || 0);
+                  const dPaid = Number(dps.totalPaidAmount || 0);
+                  const dPartial = dTarget > 0 ? dPaid % dTarget : 0;
+                  const dDue = dPartial > 0 ? dTarget - dPartial : dTarget;
+                  const isWk = dps.frequency === "WEEKLY";
+
+                  return (
+                    <Form.Item
+                      key={dps.id}
+                      name={["dpsAmounts", dps.id]}
+                      label={
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            width: "100%",
+                            fontSize: 12,
+                          }}
+                        >
+                          <span style={{ fontWeight: 600, color: "#0284c7" }}>
+                            {dps.dpsNumber || `DPS-${dps.id}`}
+                          </span>
+                          <span
+                            style={{
+                              color: dPartial > 0 ? "#15803d" : "#475569",
+                              fontSize: 11,
+                            }}
+                          >
+                            Due: ৳{dDue.toLocaleString()}
+                          </span>
+                        </div>
+                      }
+                      extra={
+                        dPartial > 0 ? (
+                          <span style={{ fontSize: 10, color: "#15803d" }}>
+                            ৳{dPartial.toLocaleString()} adv · Target: ৳{dTarget}/
+                            {isWk ? "wk" : "mo"}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: 10, color: "#64748b" }}>
+                            Target: ৳{dTarget}/{isWk ? "wk" : "mo"}
+                          </span>
+                        )
+                      }
+                      style={{ marginBottom: 0 }}
+                    >
+                      <InputNumber
+                        style={{ width: "100%" }}
+                        min={0}
+                        precision={2}
+                        prefix="৳"
+                        placeholder={String(dDue)}
+                      />
+                    </Form.Item>
+                  );
+                })}
+              </div>
+
+              <div
+                style={{
+                  marginTop: 8,
+                  textAlign: "right",
+                  fontSize: 12,
+                  color: "#059669",
+                  fontWeight: 600,
+                }}
+              >
+                Total DPS: ৳{effectiveDpsAmount.toLocaleString()}
+              </div>
+            </div>
+          )}
         </div>
 
         <div

@@ -20,6 +20,8 @@ import {
   Space,
   Statistic,
   Table,
+  Tag,
+  Tooltip,
   Typography,
   message,
 } from "antd";
@@ -63,11 +65,13 @@ const toAmount = (value) => {
   return Number.isFinite(amount) ? amount : 0;
 };
 
-const getRemainingAmount = (installment) =>
-  Math.max(
+const getRemainingAmount = (installment) => {
+  if (installment?.isDpsOnly || !installment?.loanId) return 0;
+  return Math.max(
     0,
     toAmount(installment?.amount) - toAmount(installment?.paidAmount),
   );
+};
 
 const getMember = (installment) => installment?.loan?.member;
 
@@ -115,7 +119,7 @@ export function CollectionPage() {
 
   const { data: dpsAccountsData } = useGetDpsAccountsQuery({
     status: "ACTIVE",
-    limit: 1000,
+    limit: 100,
     somitiId:
       selectedSomitiId && selectedSomitiId !== "ALL"
         ? Number(selectedSomitiId)
@@ -176,25 +180,84 @@ export function CollectionPage() {
     [installments, selectedRowKeys],
   );
 
+  const firstInstallmentIdByMember = useMemo(() => {
+    const map = new Map();
+    for (const item of filteredInstallments) {
+      const mId = getMember(item)?.id;
+      if (mId && !map.has(mId)) {
+        map.set(mId, item.id);
+      }
+    }
+    return map;
+  }, [filteredInstallments]);
+
   const getRowValues = (installment) => {
     const values = collectionValues[installment.id] ?? {};
     const member = getMember(installment);
-    const hasActiveDps = (member?.dpsAccounts || []).some((d) => d.status === "ACTIVE");
+    const mId = member?.id;
+    const isFirstForMember =
+      !mId || firstInstallmentIdByMember.get(mId) === installment.id;
+    const activeDpsList = (member?.dpsAccounts || []).filter(
+      (d) => d.status === "ACTIVE",
+    );
+    const hasActiveDps = activeDpsList.length > 0 && isFirstForMember;
+
+    let defaultDpsAmount = 0;
+    let defaultDpsAmounts = {};
+    if (installment?.isDpsOnly && activeDpsList.length === 1) {
+      const activeDps = activeDpsList[0];
+      const target = Number(activeDps?.installmentAmount || 0);
+      const totalPaid = Number(activeDps?.totalPaidAmount || 0);
+      const partial = target > 0 ? totalPaid % target : 0;
+      const due = partial > 0 ? target - partial : target;
+      defaultDpsAmount = due;
+      defaultDpsAmounts = { [activeDps.id]: due };
+    }
 
     return {
       loanCollectionAmount:
         values.loanCollectionAmount ?? getRemainingAmount(installment),
 
-      generalSavingsAmount: values.generalSavingsAmount ?? 0,
+      generalSavingsAmount: isFirstForMember
+        ? (values.generalSavingsAmount ?? 0)
+        : 0,
 
-      specialSavingsAmount: values.specialSavingsAmount ?? 0,
+      specialSavingsAmount: isFirstForMember
+        ? (values.specialSavingsAmount ?? 0)
+        : 0,
 
-      dpsAmount: hasActiveDps ? (values.dpsAmount ?? 0) : 0,
+      dpsAmount: hasActiveDps ? (values.dpsAmount ?? defaultDpsAmount) : 0,
 
-      dpsAccountId: values.dpsAccountId,
+      dpsAmounts: isFirstForMember
+        ? (values.dpsAmounts ?? defaultDpsAmounts)
+        : {},
+
+      dpsAccountId: isFirstForMember ? values.dpsAccountId : undefined,
 
       paymentMethod: values.paymentMethod ?? paymentMethod,
     };
+  };
+
+  const updateRowDpsAmount = (installmentId, dpsAccountId, value) => {
+    setCollectionValues((current) => {
+      const row = current[installmentId] || {};
+      const currentDpsAmounts = { ...(row.dpsAmounts || {}) };
+      currentDpsAmounts[dpsAccountId] = toAmount(value);
+
+      const totalDps = Object.values(currentDpsAmounts).reduce(
+        (sum, a) => sum + toAmount(a),
+        0,
+      );
+
+      return {
+        ...current,
+        [installmentId]: {
+          ...row,
+          dpsAmounts: currentDpsAmounts,
+          dpsAmount: totalDps,
+        },
+      };
+    });
   };
 
   const updateRowValue = (installmentId, field, value) => {
@@ -372,19 +435,23 @@ export function CollectionPage() {
         return false;
       }
 
+      const member = getMember(item);
+
       if (loanAmount + generalAmount + specialAmount + dpsAmount <= 0) {
         message.error(
-          `Enter a collection amount for installment #${item.installmentNo}`,
+          item.loanId
+            ? `Enter a collection amount for installment #${item.installmentNo}`
+            : `Enter a collection amount for ${member?.fullName || "selected member"}`,
         );
 
         return false;
       }
 
-      const member = getMember(item);
-
       if (!member?.id) {
         message.error(
-          `Member information is missing for installment #${item.installmentNo}`,
+          item.loanId
+            ? `Member information is missing for installment #${item.installmentNo}`
+            : "Member information is missing",
         );
 
         return false;
@@ -403,25 +470,76 @@ export function CollectionPage() {
   const submitBatch = async () => {
     if (!validateSelectedRows()) return;
 
+    const processedMembersInBatch = new Set();
     const items = selectedInstallments.map((item) => {
       const values = getRowValues(item);
       const member = getMember(item);
+      const isFirstSelectedForMember = !processedMembersInBatch.has(member.id);
+      processedMembersInBatch.add(member.id);
+
+      const mId = member?.id;
+      const isFirstForMember =
+        !mId || firstInstallmentIdByMember.get(mId) === item.id;
+      const canCollectSavingsAndDps =
+        isFirstForMember && isFirstSelectedForMember;
+
       const activeDpsList = (member?.dpsAccounts || []).filter(
         (d) => d.status === "ACTIVE",
       );
-      const currentDpsId = values.dpsAccountId || activeDpsList[0]?.id;
+
+      let dpsCollections = undefined;
+      let totalDps = canCollectSavingsAndDps ? toAmount(values.dpsAmount) : 0;
+
+      if (canCollectSavingsAndDps && activeDpsList.length > 0) {
+        if (activeDpsList.length === 1) {
+          const singleDps = activeDpsList[0];
+          const singleAmt = toAmount(
+            values.dpsAmounts?.[singleDps.id] !== undefined
+              ? values.dpsAmounts[singleDps.id]
+              : values.dpsAmount,
+          );
+          if (singleAmt > 0) {
+            dpsCollections = [
+              { dpsAccountId: singleDps.id, amount: singleAmt },
+            ];
+            totalDps = singleAmt;
+          } else {
+            totalDps = 0;
+          }
+        } else {
+          dpsCollections = activeDpsList
+            .map((dps) => ({
+              dpsAccountId: dps.id,
+              amount: toAmount(values.dpsAmounts?.[dps.id] || 0),
+            }))
+            .filter((d) => d.amount > 0);
+          totalDps = dpsCollections.reduce((sum, d) => sum + d.amount, 0);
+        }
+      }
 
       return {
         memberId: member.id,
 
-        loanId: item.loanId,
-        installmentId: item.id,
+        loanId: item.loanId || undefined,
+        installmentId:
+          item.loanId && typeof item.id === "number" ? item.id : undefined,
 
         loanCollectionAmount: toAmount(values.loanCollectionAmount),
-        generalSavingsAmount: toAmount(values.generalSavingsAmount),
-        specialSavingsAmount: toAmount(values.specialSavingsAmount),
-        dpsAmount: toAmount(values.dpsAmount),
-        dpsAccountId: currentDpsId || undefined,
+        generalSavingsAmount: canCollectSavingsAndDps
+          ? toAmount(values.generalSavingsAmount)
+          : 0,
+        specialSavingsAmount: canCollectSavingsAndDps
+          ? toAmount(values.specialSavingsAmount)
+          : 0,
+        dpsAmount: totalDps,
+        dpsAccountId:
+          canCollectSavingsAndDps && activeDpsList[0]?.id
+            ? activeDpsList[0].id
+            : undefined,
+        dpsCollections:
+          dpsCollections && dpsCollections.length > 0
+            ? dpsCollections
+            : undefined,
 
         paymentMethod: values.paymentMethod,
       };
@@ -485,15 +603,20 @@ export function CollectionPage() {
       key: "loan",
       width: 130,
 
-      render: (_, item) => (
-        <Button
-          type="link"
-          className="p-0!"
-          onClick={() => navigate(`/loans/${item.loanId}`)}
-        >
-          {item.loan?.loanId || `#${item.loanId}`}
-        </Button>
-      ),
+      render: (_, item) => {
+        if (item.isDpsOnly || !item.loanId) {
+          return <Tag color="cyan">DPS Only</Tag>;
+        }
+        return (
+          <Button
+            type="link"
+            className="p-0!"
+            onClick={() => navigate(`/loans/${item.loanId}`)}
+          >
+            {item.loan?.loanId || `#${item.loanId}`}
+          </Button>
+        );
+      },
     },
 
     {
@@ -502,7 +625,7 @@ export function CollectionPage() {
       key: "installmentNo",
       width: 110,
       align: "center",
-      render: (value) => (value ? `#${value}` : "—"),
+      render: (value, item) => (item.isDpsOnly || !value ? "—" : `#${value}`),
     },
 
     {
@@ -519,7 +642,12 @@ export function CollectionPage() {
       key: "status",
       width: 120,
 
-      render: (value) => <StatusTag status={value} label={formatEnum(value)} />,
+      render: (value, item) => {
+        if (item.isDpsOnly) {
+          return <Tag color="blue">ACTIVE</Tag>;
+        }
+        return <StatusTag status={value} label={formatEnum(value)} />;
+      },
     },
 
     {
@@ -528,7 +656,12 @@ export function CollectionPage() {
       width: 130,
       align: "right",
 
-      render: (_, item) => formatCurrency(getRemainingAmount(item)),
+      render: (_, item) => {
+        if (item.isDpsOnly || !item.loanId) {
+          return <span style={{ color: "#94a3b8" }}>—</span>;
+        }
+        return formatCurrency(getRemainingAmount(item));
+      },
     },
 
     {
@@ -537,6 +670,16 @@ export function CollectionPage() {
       width: 170,
 
       render: (_, item) => {
+        if (item.isDpsOnly || !item.loanId) {
+          return (
+            <InputNumber
+              className="w-full"
+              disabled
+              placeholder="No loan"
+              value={0}
+            />
+          );
+        }
         const values = getRowValues(item);
         const remaining = getRemainingAmount(item);
 
@@ -562,6 +705,19 @@ export function CollectionPage() {
       width: 165,
 
       render: (_, item) => {
+        const member = getMember(item);
+        const mId = member?.id;
+        const isFirstForMember =
+          !mId || firstInstallmentIdByMember.get(mId) === item.id;
+
+        if (!isFirstForMember) {
+          return (
+            <Tooltip title="General Savings is collected on 1st loan row">
+              <span style={{ color: "#94a3b8" }}>—</span>
+            </Tooltip>
+          );
+        }
+
         const values = getRowValues(item);
 
         return (
@@ -585,6 +741,19 @@ export function CollectionPage() {
       width: 165,
 
       render: (_, item) => {
+        const member = getMember(item);
+        const mId = member?.id;
+        const isFirstForMember =
+          !mId || firstInstallmentIdByMember.get(mId) === item.id;
+
+        if (!isFirstForMember) {
+          return (
+            <Tooltip title="Special Savings is collected on 1st loan row">
+              <span style={{ color: "#94a3b8" }}>—</span>
+            </Tooltip>
+          );
+        }
+
         const values = getRowValues(item);
 
         return (
@@ -605,71 +774,78 @@ export function CollectionPage() {
     {
       title: "DPS Deposit",
       key: "dpsAmount",
-      width: 195,
+      width: 220,
 
       render: (_, item) => {
-        const values = getRowValues(item);
         const member = getMember(item);
+        const mId = member?.id;
+        const isFirstForMember =
+          !mId || firstInstallmentIdByMember.get(mId) === item.id;
+
+        if (!isFirstForMember) {
+          return (
+            <Tooltip title="DPS is collected on 1st loan row">
+              <Tag color="default" style={{ margin: 0, color: "#64748b" }}>
+                Included in 1st loan
+              </Tag>
+            </Tooltip>
+          );
+        }
+
+        const values = getRowValues(item);
         const activeDpsList = (member?.dpsAccounts || []).filter(
           (d) => d.status === "ACTIVE",
         );
         const hasDps = activeDpsList.length > 0;
-        const currentDpsId = values.dpsAccountId || activeDpsList[0]?.id;
-        const activeDps =
-          activeDpsList.find((d) => d.id === currentDpsId) || activeDpsList[0];
 
-        const activeDpsTarget = Number(activeDps?.installmentAmount || 0);
-        const activeDpsTotalPaid = Number(activeDps?.totalPaidAmount || 0);
-        const activeDpsPartial =
-          activeDpsTarget > 0 ? activeDpsTotalPaid % activeDpsTarget : 0;
-        const activeDpsDue =
-          activeDpsPartial > 0
-            ? activeDpsTarget - activeDpsPartial
-            : activeDpsTarget;
-
-        return (
-          <div>
-            {activeDpsList.length > 1 && (
-              <Select
-                size="small"
-                className="w-full mb-1"
-                value={currentDpsId}
-                onChange={(selectedId) => {
-                  const selectedAcc = activeDpsList.find((d) => d.id === selectedId);
-                  const sTarget = Number(selectedAcc?.installmentAmount || 0);
-                  const sPaid = Number(selectedAcc?.totalPaidAmount || 0);
-                  const sPartial = sTarget > 0 ? sPaid % sTarget : 0;
-                  const sDue = sPartial > 0 ? sTarget - sPartial : sTarget;
-                  updateRowValue(item.id, "dpsAccountId", selectedId);
-                  updateRowValue(item.id, "dpsAmount", sDue);
-                }}
-                options={activeDpsList.map((d) => {
-                  const dTarget = Number(d.installmentAmount || 0);
-                  const dPaid = Number(d.totalPaidAmount || 0);
-                  const dPartial = dTarget > 0 ? dPaid % dTarget : 0;
-                  const dDue = dPartial > 0 ? dTarget - dPartial : dTarget;
-                  return {
-                    value: d.id,
-                    label: `${d.dpsNumber || `DPS-${d.id}`} (Due: ৳${dDue.toLocaleString()} / ৳${dTarget.toLocaleString()})`,
-                  };
-                })}
+        if (!hasDps) {
+          return (
+            <div>
+              <InputNumber
+                className="w-full"
+                min={0}
+                precision={2}
+                prefix="৳"
+                disabled
+                placeholder="No DPS"
+                value={0}
               />
-            )}
-            <InputNumber
-              className="w-full"
-              min={0}
-              precision={2}
-              prefix="৳"
-              disabled={!hasDps}
-              placeholder={hasDps ? String(activeDpsDue) : "No DPS"}
-              value={hasDps ? values.dpsAmount : 0}
-              onChange={(value) => {
-                if (hasDps) {
-                  updateRowValue(item.id, "dpsAmount", value);
+              <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>
+                No active DPS
+              </div>
+            </div>
+          );
+        }
+
+        // Single active DPS account
+        if (activeDpsList.length === 1) {
+          const activeDps = activeDpsList[0];
+          const activeDpsTarget = Number(activeDps?.installmentAmount || 0);
+          const activeDpsTotalPaid = Number(activeDps?.totalPaidAmount || 0);
+          const activeDpsPartial =
+            activeDpsTarget > 0 ? activeDpsTotalPaid % activeDpsTarget : 0;
+          const activeDpsDue =
+            activeDpsPartial > 0
+              ? activeDpsTarget - activeDpsPartial
+              : activeDpsTarget;
+          const currentVal =
+            values.dpsAmounts?.[activeDps.id] !== undefined
+              ? values.dpsAmounts[activeDps.id]
+              : values.dpsAmount;
+
+          return (
+            <div>
+              <InputNumber
+                className="w-full"
+                min={0}
+                precision={2}
+                prefix="৳"
+                placeholder={String(activeDpsDue)}
+                value={currentVal}
+                onChange={(value) =>
+                  updateRowDpsAmount(item.id, activeDps.id, value)
                 }
-              }}
-            />
-            {hasDps ? (
+              />
               <div
                 style={{
                   fontSize: 10,
@@ -683,13 +859,82 @@ export function CollectionPage() {
                 {activeDpsPartial > 0
                   ? `(৳${activeDpsPartial.toLocaleString()} adv)`
                   : `/${activeDps?.frequency === "WEEKLY" ? "wk" : "mo"}`}
-                {activeDpsList.length > 1 ? ` (${activeDpsList.length} Accounts)` : ""}
               </div>
-            ) : (
-              <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>
-                No active DPS
-              </div>
-            )}
+            </div>
+          );
+        }
+
+        // Multiple active DPS accounts: render individual inputs for all accounts
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {activeDpsList.map((dps) => {
+              const dTarget = Number(dps.installmentAmount || 0);
+              const dPaid = Number(dps.totalPaidAmount || 0);
+              const dPartial = dTarget > 0 ? dPaid % dTarget : 0;
+              const dDue = dPartial > 0 ? dTarget - dPartial : dTarget;
+              const isWk = dps.frequency === "WEEKLY";
+              const currentVal = values.dpsAmounts?.[dps.id] ?? 0;
+
+              return (
+                <div
+                  key={dps.id}
+                  style={{
+                    background: "#f8fafc",
+                    padding: "4px 6px",
+                    borderRadius: 4,
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 2,
+                      fontSize: 11,
+                    }}
+                  >
+                    <span style={{ fontWeight: 600, color: "#0284c7" }}>
+                      {dps.dpsNumber || `DPS-${dps.id}`}
+                    </span>
+                    <span
+                      style={{
+                        color: dPartial > 0 ? "#15803d" : "#64748b",
+                        fontSize: 10,
+                      }}
+                    >
+                      Due: ৳{dDue.toLocaleString()}{" "}
+                      <span style={{ color: "#94a3b8" }}>
+                        ({dPartial > 0 ? `৳${dPartial} adv` : `৳${dTarget}/${isWk ? "wk" : "mo"}`})
+                      </span>
+                    </span>
+                  </div>
+                  <InputNumber
+                    size="small"
+                    className="w-full"
+                    min={0}
+                    precision={2}
+                    prefix="৳"
+                    placeholder={String(dDue)}
+                    value={currentVal}
+                    onChange={(value) =>
+                      updateRowDpsAmount(item.id, dps.id, value)
+                    }
+                  />
+                </div>
+              );
+            })}
+            <div
+              style={{
+                fontSize: 11,
+                color: "#059669",
+                fontWeight: 600,
+                textAlign: "right",
+                paddingRight: 2,
+              }}
+            >
+              Total DPS: ৳{(values.dpsAmount || 0).toLocaleString()}
+            </div>
           </div>
         );
       },
@@ -967,8 +1212,9 @@ export function CollectionPage() {
 
             getCheckboxProps: (item) => ({
               disabled:
-                getRemainingAmount(item) <= 0 ||
-                (isUpcoming(item) && !allowAdvance),
+                !item.isDpsOnly &&
+                (getRemainingAmount(item) <= 0 ||
+                  (isUpcoming(item) && !allowAdvance)),
             }),
           }}
           pagination={{

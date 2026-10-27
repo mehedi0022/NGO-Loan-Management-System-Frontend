@@ -22,7 +22,8 @@ import {
   Typography,
   message,
 } from "antd";
-import { useState } from "react";
+import dayjs from "dayjs";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { PageContainer } from "../../components/page-container/PageContainer.jsx";
@@ -45,6 +46,25 @@ import {
   useGetLoanByIdQuery,
   useRejectLoanMutation,
 } from "./loansApi.js";
+
+const SOMITI_DAY_MAP = {
+  SUNDAY: 0,
+  MONDAY: 1,
+  TUESDAY: 2,
+  WEDNESDAY: 3,
+  THURSDAY: 4,
+  FRIDAY: 5,
+  SATURDAY: 6,
+};
+
+const getNextSomitiDay = (fromDate, targetDayIndex) => {
+  if (!fromDate || targetDayIndex === undefined) return null;
+  let next = fromDate.add(1, "day");
+  while (next.day() !== targetDayIndex) {
+    next = next.add(1, "day");
+  }
+  return next;
+};
 
 export function LoanDetailsPage() {
   const navigate = useNavigate();
@@ -81,6 +101,22 @@ export function LoanDetailsPage() {
     useCreateCollectionMutation();
 
   const loan = response?.data;
+  const somitiMeetingDay = loan?.member?.somiti?.meetingDay;
+  const somitiDayIndex =
+    somitiMeetingDay && SOMITI_DAY_MAP[somitiMeetingDay] !== undefined
+      ? SOMITI_DAY_MAP[somitiMeetingDay]
+      : undefined;
+
+  useEffect(() => {
+    if (disbursementOpen) {
+      const today = dayjs();
+      const nextSomiti = getNextSomitiDay(today, somitiDayIndex);
+      disbursementForm.setFieldsValue({
+        disbursementDate: today,
+        firstDueDate: nextSomiti || today.add(7, "day"),
+      });
+    }
+  }, [disbursementOpen, somitiDayIndex, disbursementForm]);
 
   /*
    * Preferred backend shape:
@@ -106,6 +142,12 @@ export function LoanDetailsPage() {
    * is added.
    */
   const payments = loan?.payments ?? [];
+
+  const nextPayableInstallment = (loan?.installments || []).find(
+    (inst) =>
+      ["PENDING", "PARTIAL"].includes(inst.status) &&
+      Math.max(0, Number(inst.amount || 0) - Number(inst.paidAmount || 0)) > 0,
+  );
 
   const approve = () => {
     Modal.confirm({
@@ -207,6 +249,7 @@ export function LoanDetailsPage() {
       message.success("Collection completed successfully");
 
       setSelectedInstallment(null);
+      refetch();
     } catch (requestError) {
       message.error(
         requestError?.data?.message || "Unable to complete collection",
@@ -345,6 +388,15 @@ export function LoanDetailsPage() {
           {loan.status === "APPROVED" && (
             <Button type="primary" onClick={() => setDisbursementOpen(true)}>
               Disburse Loan
+            </Button>
+          )}
+
+          {loan.status === "ACTIVE" && nextPayableInstallment && (
+            <Button
+              type="primary"
+              onClick={() => handleCollectInstallment(nextPayableInstallment)}
+            >
+              Collect Installment #{nextPayableInstallment.installmentNo}
             </Button>
           )}
         </Space>
@@ -659,6 +711,27 @@ export function LoanDetailsPage() {
         footer={null}
         destroyOnHidden
       >
+        {somitiMeetingDay && (
+          <div
+            style={{
+              background: "#f0f9ff",
+              border: "1px solid #bae6fd",
+              padding: "10px 14px",
+              borderRadius: 6,
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ fontWeight: 600, color: "#0369a1", fontSize: 13 }}>
+              📌 Somiti Meeting Day: {somitiMeetingDay}{" "}
+              {loan.member?.somiti?.name ? `(${loan.member.somiti.name})` : ""}
+            </div>
+            <div style={{ color: "#0284c7", fontSize: 11, marginTop: 2 }}>
+              First installment due date is strictly locked to only allow{" "}
+              <strong>{somitiMeetingDay}s</strong>.
+            </div>
+          </div>
+        )}
+
         <Form
           form={disbursementForm}
           layout="vertical"
@@ -674,7 +747,20 @@ export function LoanDetailsPage() {
               },
             ]}
           >
-            <DatePicker className="full-width-control" format="DD MMM YYYY" />
+            <DatePicker
+              className="full-width-control"
+              format="DD MMM YYYY"
+              onChange={(val) => {
+                if (val && somitiDayIndex !== undefined) {
+                  const nextSomiti = getNextSomitiDay(val, somitiDayIndex);
+                  if (nextSomiti) {
+                    disbursementForm.setFieldsValue({
+                      firstDueDate: nextSomiti,
+                    });
+                  }
+                }
+              }}
+            />
           </Form.Item>
 
           <Form.Item
@@ -689,7 +775,28 @@ export function LoanDetailsPage() {
               return (
                 <Form.Item
                   name="firstDueDate"
-                  label="First Installment Due Date"
+                  label={
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        width: "100%",
+                      }}
+                    >
+                      <span>First Installment Due Date</span>
+                      {somitiMeetingDay && (
+                        <span
+                          style={{
+                            color: "#0369a1",
+                            fontSize: 11,
+                            fontWeight: 600,
+                          }}
+                        >
+                          Only {somitiMeetingDay}s allowed
+                        </span>
+                      )}
+                    </div>
+                  }
                   dependencies={["disbursementDate"]}
                   rules={[
                     {
@@ -699,19 +806,30 @@ export function LoanDetailsPage() {
 
                     () => ({
                       validator(_, value) {
+                        if (!value) return Promise.resolve();
                         if (
-                          !value ||
-                          !disbursementDate ||
-                          value.isAfter(disbursementDate, "day")
+                          disbursementDate &&
+                          !value.isAfter(disbursementDate, "day")
                         ) {
-                          return Promise.resolve();
+                          return Promise.reject(
+                            new Error(
+                              "First installment due date must be after disbursement date",
+                            ),
+                          );
                         }
 
-                        return Promise.reject(
-                          new Error(
-                            "First installment due date must be after disbursement date",
-                          ),
-                        );
+                        if (
+                          somitiDayIndex !== undefined &&
+                          value.day() !== somitiDayIndex
+                        ) {
+                          return Promise.reject(
+                            new Error(
+                              `First installment due date must fall on Somiti meeting day (${somitiMeetingDay})`,
+                            ),
+                          );
+                        }
+
+                        return Promise.resolve();
                       },
                     }),
                   ]}
@@ -719,12 +837,14 @@ export function LoanDetailsPage() {
                   <DatePicker
                     className="full-width-control"
                     format="DD MMM YYYY"
-                    disabledDate={(current) =>
-                      Boolean(
-                        disbursementDate &&
-                        !current.isAfter(disbursementDate, "day"),
-                      )
-                    }
+                    disabledDate={(current) => {
+                      if (!disbursementDate) return true;
+                      if (!current.isAfter(disbursementDate, "day")) return true;
+                      if (somitiDayIndex !== undefined) {
+                        return current.day() !== somitiDayIndex;
+                      }
+                      return false;
+                    }}
                   />
                 </Form.Item>
               );

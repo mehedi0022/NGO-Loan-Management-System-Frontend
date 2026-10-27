@@ -56,8 +56,8 @@ export const somitiesApi = baseApi.injectEndpoints({
         const id = typeof arg === "object" ? arg.id : arg;
         const params =
           typeof arg === "object"
-            ? { page: arg.page || 1, limit: arg.limit || 1000 }
-            : { limit: 1000 };
+            ? { page: arg.page || 1, limit: arg.limit || 100 }
+            : { limit: 100 };
         return {
           url: `/somities/${id}/members`,
           method: "GET",

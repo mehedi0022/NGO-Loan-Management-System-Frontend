@@ -12,6 +12,7 @@ import {
   Select,
   Space,
   Statistic,
+  Tag,
   Typography,
   message,
 } from "antd";
@@ -21,6 +22,25 @@ import { useEffect, useState } from "react";
 import { useCreateDpsAccountMutation } from "../dpsApi.js";
 import { useGetAllMembersQuery } from "../../members/membersApi.js";
 import { formatCurrency } from "../../loans/loanFormatters.js";
+
+const SOMITI_DAY_MAP = {
+  SUNDAY: 0,
+  MONDAY: 1,
+  TUESDAY: 2,
+  WEDNESDAY: 3,
+  THURSDAY: 4,
+  FRIDAY: 5,
+  SATURDAY: 6,
+};
+
+const getNextSomitiDay = (fromDate, targetDayIndex) => {
+  if (!fromDate || targetDayIndex === undefined) return fromDate || dayjs();
+  let next = fromDate;
+  while (next.day() !== targetDayIndex) {
+    next = next.add(1, "day");
+  }
+  return next;
+};
 
 const MONTHLY_TENURE_OPTIONS = [
   { label: "1 Year (12 Months)", value: 12 },
@@ -52,7 +72,7 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
     useGetAllMembersQuery(
       {
         page: 1,
-        limit: 20,
+        limit: 100,
         search: memberSearch || undefined,
         status: "ACTIVE",
       },
@@ -64,15 +84,36 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
   const [durationMonths, setDurationMonths] = useState(60);
   const [interestRate, setInterestRate] = useState(8.5);
 
+  const selectedMemberId = Form.useWatch("memberId", form);
+  const activeMember =
+    member ||
+    (membersData?.data ?? []).find(
+      (m) => String(m.id) === String(selectedMemberId),
+    );
+  const somitiMeetingDay = activeMember?.somiti?.meetingDay;
+  const somitiDayIndex = somitiMeetingDay
+    ? SOMITI_DAY_MAP[somitiMeetingDay]
+    : undefined;
+
   useEffect(() => {
     if (open) {
+      const initialMeetingDay = member?.somiti?.meetingDay;
+      const initialDayIndex = initialMeetingDay
+        ? SOMITI_DAY_MAP[initialMeetingDay]
+        : undefined;
+
+      const initialStartDate =
+        initialDayIndex !== undefined
+          ? getNextSomitiDay(dayjs(), initialDayIndex)
+          : dayjs();
+
       form.setFieldsValue({
         memberId: member?.id,
         frequency: "MONTHLY",
         installmentAmount: 1000,
         durationMonths: 60,
         interestRate: 8.5,
-        startDate: dayjs(),
+        startDate: initialStartDate,
         notes: "",
       });
       setFrequency("MONTHLY");
@@ -81,6 +122,21 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
       setInterestRate(8.5);
     }
   }, [open, form, member]);
+
+  const handleMemberChange = (newMemberId) => {
+    if (!newMemberId) return;
+    const mem = (membersData?.data ?? []).find(
+      (m) => String(m.id) === String(newMemberId),
+    );
+    if (mem?.somiti?.meetingDay) {
+      const dayIdx = SOMITI_DAY_MAP[mem.somiti.meetingDay];
+      if (dayIdx !== undefined) {
+        form.setFieldsValue({
+          startDate: getNextSomitiDay(dayjs(), dayIdx),
+        });
+      }
+    }
+  };
 
   const isWeekly = frequency === "WEEKLY";
   const installmentCount = isWeekly
@@ -115,8 +171,8 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
         durationMonths: Number(values.durationMonths),
         interestRate: Number(values.interestRate),
         startDate: values.startDate
-          ? values.startDate.toISOString()
-          : new Date().toISOString(),
+          ? values.startDate.format("YYYY-MM-DD")
+          : dayjs().format("YYYY-MM-DD"),
         notes: values.notes,
       }).unwrap();
 
@@ -172,31 +228,57 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
             <Typography.Text strong>
               {member.somiti?.name || "—"}
             </Typography.Text>
+            {member.somiti?.meetingDay && (
+              <>
+                <span style={{ margin: "0 8px" }}>•</span>
+                <Tag color="blue">Day: {member.somiti.meetingDay}</Tag>
+              </>
+            )}
           </div>
         ) : (
-          <Form.Item
-            name="memberId"
-            label="Select Member"
-            rules={[
-              { required: true, message: "Please select a member to open DPS" },
-            ]}
-          >
-            <Select
-              showSearch
-              allowClear
-              loading={membersFetching}
-              filterOption={false}
-              onSearch={setMemberSearch}
-              placeholder="Search by member name, ID, or mobile"
-              notFoundContent={
-                membersFetching ? "Searching..." : "No member found"
-              }
-              options={(membersData?.data ?? []).map((m) => ({
-                value: m.id,
-                label: `${m.fullName} (${m.memberId || `#${m.id}`}) — ${m.mobileNumber}`,
-              }))}
-            />
-          </Form.Item>
+          <>
+            <Form.Item
+              name="memberId"
+              label="Select Member"
+              rules={[
+                { required: true, message: "Please select a member to open DPS" },
+              ]}
+            >
+              <Select
+                showSearch
+                allowClear
+                loading={membersFetching}
+                optionFilterProp="label"
+                filterOption={(input, option) =>
+                  (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                }
+                onSearch={setMemberSearch}
+                onChange={handleMemberChange}
+                placeholder="Search by member name, ID, or mobile"
+                notFoundContent={
+                  membersFetching ? "Searching..." : "No member found"
+                }
+                options={(membersData?.data ?? []).map((m) => ({
+                  value: m.id,
+                  label: `${m.fullName} (${m.memberId || `#${m.id}`}) — ${m.mobileNumber}`,
+                }))}
+              />
+            </Form.Item>
+            {activeMember && (
+              <div style={{ marginTop: -12, marginBottom: 16 }}>
+                <Typography.Text type="secondary">Somiti: </Typography.Text>
+                <Typography.Text strong>
+                  {activeMember.somiti?.name || "—"}
+                </Typography.Text>
+                {activeMember.somiti?.meetingDay && (
+                  <>
+                    <span style={{ margin: "0 8px" }}>•</span>
+                    <Tag color="blue">Meeting Day: {activeMember.somiti.meetingDay}</Tag>
+                  </>
+                )}
+              </div>
+            )}
+          </>
         )}
 
         {/* Deposit Frequency Toggle */}
@@ -313,10 +395,41 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
           <Col xs={24} sm={12}>
             <Form.Item
               name="startDate"
-              label="Start Date"
+              label={
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    width: "100%",
+                  }}
+                >
+                  <span>First Installment Date</span>
+                  {somitiMeetingDay && (
+                    <Tag color="blue" style={{ marginInlineEnd: 0 }}>
+                      Somiti: {somitiMeetingDay}
+                    </Tag>
+                  )}
+                </div>
+              }
               rules={[{ required: true, message: "Please select start date" }]}
+              extra={
+                somitiMeetingDay
+                  ? `Deposit schedule aligns with member's Somiti meeting day (${somitiMeetingDay}).`
+                  : undefined
+              }
             >
-              <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
+              <DatePicker
+                style={{ width: "100%" }}
+                format="DD MMM YYYY"
+                disabledDate={(current) => {
+                  if (!current) return false;
+                  const isPast = current.isBefore(dayjs().startOf("day"));
+                  if (somitiDayIndex !== undefined) {
+                    return isPast || current.day() !== somitiDayIndex;
+                  }
+                  return isPast;
+                }}
+              />
             </Form.Item>
           </Col>
         </Row>

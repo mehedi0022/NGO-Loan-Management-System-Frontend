@@ -28,10 +28,18 @@ export function PrintableCollectionSheetModal({
     window.print();
   };
 
-  const totalDueLoan = installments.reduce((acc, item) => {
-    const due = Math.max(0, toAmount(item.amount) - toAmount(item.paidAmount));
-    return acc + due;
-  }, 0);
+  const loanInstallments = useMemo(() => {
+    return (installments || []).filter(
+      (item) => !item.isDpsOnly && item.loanId,
+    );
+  }, [installments]);
+
+  const totalDueLoan = useMemo(() => {
+    return loanInstallments.reduce((acc, item) => {
+      const due = Math.max(0, toAmount(item.amount) - toAmount(item.paidAmount));
+      return acc + due;
+    }, 0);
+  }, [loanInstallments]);
 
   const officerName =
     selectedSomiti?.fieldOfficer?.fullName ||
@@ -541,7 +549,7 @@ export function PrintableCollectionSheetModal({
 
   // Helper: Loan Table (Sheet 3)
   const renderLoanTable = () => {
-    if (installments.length === 0) {
+    if (loanInstallments.length === 0) {
       return (
         <Empty
           description="No due loan installments found for this date"
@@ -576,7 +584,7 @@ export function PrintableCollectionSheetModal({
           </tr>
         </thead>
         <tbody>
-          {installments.map((item, index) => {
+          {loanInstallments.map((item, index) => {
             const member = item.loan?.member;
             const dueLoan = Math.max(
               0,
@@ -633,7 +641,7 @@ export function PrintableCollectionSheetModal({
           {/* Summary Row */}
           <tr style={{ background: "#f8f9fa", fontWeight: "bold" }}>
             <td colSpan={6} style={{ textAlign: "right", paddingRight: 8 }}>
-              Total Loan Demand ({installments.length} Members):
+              Total Loan Demand ({loanInstallments.length} Members):
             </td>
             <td style={{ textAlign: "right", fontSize: 11.5 }}>
               {formatCurrency(totalDueLoan)}

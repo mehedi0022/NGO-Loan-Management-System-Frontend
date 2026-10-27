@@ -50,8 +50,8 @@ export function SomitiFormDrawer({
         meetingDay: somiti.meetingDay,
         meetingTime: somiti.meetingTime || "",
         fieldOfficerId: somiti.fieldOfficerId || somiti.fieldOfficer?.id || undefined,
-        area: somiti.area || "",
-        address: somiti.address || "",
+        area: somiti.area || somiti.village || "",
+        address: somiti.address || somiti.union || "",
         status: somiti.status || "ACTIVE",
         description: somiti.description || "",
       });
@@ -74,7 +74,9 @@ export function SomitiFormDrawer({
       meetingTime: values.meetingTime?.trim() || undefined,
       fieldOfficerId: values.fieldOfficerId ? Number(values.fieldOfficerId) : undefined,
       area: values.area?.trim() || undefined,
+      village: values.area?.trim() || undefined,
       address: values.address?.trim() || undefined,
+      union: values.address?.trim() || undefined,
       status: values.status || "ACTIVE",
       description: values.description?.trim() || undefined,
     };
