@@ -1017,9 +1017,9 @@ export function CollectionPage() {
       </div>
 
       <Card className="mb-4 border-[#deded7] shadow-none">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[170px_170px_220px_1fr_170px]">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-[170px_170px_220px_1fr_170px] gap-3 sm:gap-4">
           <div>
-            <Typography.Text strong className="mb-2 block">
+            <Typography.Text strong className="mb-1.5 block text-xs sm:text-sm">
               Due Date
             </Typography.Text>
 
@@ -1034,7 +1034,7 @@ export function CollectionPage() {
           </div>
 
           <div>
-            <Typography.Text strong className="mb-2 block">
+            <Typography.Text strong className="mb-1.5 block text-xs sm:text-sm">
               Collection Date
             </Typography.Text>
 
@@ -1047,8 +1047,8 @@ export function CollectionPage() {
             />
           </div>
 
-          <div>
-            <Typography.Text strong className="mb-2 block">
+          <div className="col-span-2 sm:col-span-1 md:col-span-1 xl:col-span-1">
+            <Typography.Text strong className="mb-1.5 block text-xs sm:text-sm">
               Somiti
             </Typography.Text>
 
@@ -1065,8 +1065,8 @@ export function CollectionPage() {
             />
           </div>
 
-          <div>
-            <Typography.Text strong className="mb-2 block">
+          <div className="col-span-2 sm:col-span-1 md:col-span-1 xl:col-span-1">
+            <Typography.Text strong className="mb-1.5 block text-xs sm:text-sm">
               Search Members
             </Typography.Text>
 
@@ -1075,12 +1075,12 @@ export function CollectionPage() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               prefix={<SearchOutlined />}
-              placeholder="Name, member ID, phone or loan ID"
+              placeholder="Name, ID, phone or loan"
             />
           </div>
 
-          <div>
-            <Typography.Text strong className="mb-2 block">
+          <div className="col-span-2 sm:col-span-2 md:col-span-2 xl:col-span-1">
+            <Typography.Text strong className="mb-1.5 block text-xs sm:text-sm">
               Default Payment Method
             </Typography.Text>
 
@@ -1106,12 +1106,12 @@ export function CollectionPage() {
         </div>
       </Card>
 
-      <div className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card>
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Card styles={{ body: { padding: "12px 14px" } }}>
           <Statistic title="Due Installments" value={installments.length} />
         </Card>
 
-        <Card>
+        <Card styles={{ body: { padding: "12px 14px" } }}>
           <Statistic
             title="Total Loan Due"
             value={totalLoanDue}
@@ -1119,14 +1119,14 @@ export function CollectionPage() {
           />
         </Card>
 
-        <Card>
+        <Card styles={{ body: { padding: "12px 14px" } }}>
           <Statistic
             title="Selected Members"
             value={selectedInstallments.length}
           />
         </Card>
 
-        <Card>
+        <Card styles={{ body: { padding: "12px 14px" } }}>
           <Statistic
             title="Selected Collection"
             value={selectedTotal}

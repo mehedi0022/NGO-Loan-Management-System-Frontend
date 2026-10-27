@@ -115,6 +115,7 @@ export function SomitiMembersModal({ open, somiti, onClose }) {
           columns={columns}
           dataSource={members}
           loading={isLoading}
+          scroll={{ x: 550 }}
           pagination={{ pageSize: 5 }}
           locale={{
             emptyText: (

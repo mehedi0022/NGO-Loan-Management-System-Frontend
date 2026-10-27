@@ -485,30 +485,30 @@ export function LoanDetailsPage() {
 
       {/* Summary */}
 
-      <Row gutter={[16, 16]} className="member-profile-summary">
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
-            <Typography.Text type="secondary">Principal Amount</Typography.Text>
+      <Row gutter={[12, 12]} className="member-profile-summary">
+        <Col xs={12} sm={12} lg={8}>
+          <Card styles={{ body: { padding: "12px 14px" } }}>
+            <Typography.Text type="secondary" className="text-xs truncate block">Principal Amount</Typography.Text>
 
-            <Typography.Title level={4}>
+            <Typography.Title level={4} className="mt-1! mb-0! truncate">
               {formatCurrency(loan.principalAmount)}
             </Typography.Title>
 
-            <Typography.Text type="secondary">
+            <Typography.Text type="secondary" className="text-xs truncate block">
               Original loan amount
             </Typography.Text>
           </Card>
         </Col>
 
-        <Col xs={24} sm={12} lg={8}>
-          <Card>
-            <Typography.Text type="secondary">
+        <Col xs={12} sm={12} lg={8}>
+          <Card styles={{ body: { padding: "12px 14px" } }}>
+            <Typography.Text type="secondary" className="text-xs truncate block">
               {loan.regularInstallmentCount === 0
                 ? "Single Installment"
                 : "Regular Installment"}
             </Typography.Text>
 
-            <Typography.Title level={4}>
+            <Typography.Title level={4} className="mt-1! mb-0! truncate">
               {formatCurrency(
                 loan.regularInstallmentCount === 0
                   ? loan.lastInstallmentAmount
@@ -516,7 +516,7 @@ export function LoanDetailsPage() {
               )}
             </Typography.Title>
 
-            <Typography.Text type="secondary">
+            <Typography.Text type="secondary" className="text-xs truncate block">
               {loan.regularInstallmentCount === 0
                 ? "One payment"
                 : `${loan.regularInstallmentCount} regular payments`}
@@ -525,14 +525,14 @@ export function LoanDetailsPage() {
         </Col>
 
         <Col xs={24} sm={12} lg={8}>
-          <Card>
-            <Typography.Text type="secondary">Frequency</Typography.Text>
+          <Card styles={{ body: { padding: "12px 14px" } }}>
+            <Typography.Text type="secondary" className="text-xs truncate block">Frequency</Typography.Text>
 
-            <Typography.Title level={4}>
+            <Typography.Title level={4} className="mt-1! mb-0! truncate">
               {formatEnum(loan.frequency)}
             </Typography.Title>
 
-            <Typography.Text type="secondary">
+            <Typography.Text type="secondary" className="text-xs truncate block">
               Repayment schedule
             </Typography.Text>
           </Card>
@@ -979,7 +979,7 @@ export function LoanDetailsPage() {
             }}
           </Form.Item>
 
-          <Space>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
             <Button onClick={closeDisbursementModal}>Cancel</Button>
 
             <Button
@@ -994,7 +994,7 @@ export function LoanDetailsPage() {
             >
               Continue
             </Button>
-          </Space>
+          </div>
         </Form>
       </Modal>
 
@@ -1057,13 +1057,13 @@ export function LoanDetailsPage() {
             <Input.TextArea rows={4} />
           </Form.Item>
 
-          <Space>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
             <Button onClick={closeRejectModal}>Cancel</Button>
 
             <Button danger type="primary" htmlType="submit" loading={rejecting}>
               Reject Loan
             </Button>
-          </Space>
+          </div>
         </Form>
       </Modal>
 

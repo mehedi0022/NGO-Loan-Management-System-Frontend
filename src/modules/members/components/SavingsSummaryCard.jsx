@@ -21,17 +21,17 @@ export function SavingsSummaryCard({ account }) {
       className="member-profile-card"
       extra={<StatusTag status={account.status} label={formatEnum(account.status)} />}
     >
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={6}>
+      <Row gutter={[12, 12]}>
+        <Col xs={12} sm={12} lg={6}>
           <Statistic title="General Savings" value={formatCurrency(general)} />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <Statistic title="Special Savings" value={formatCurrency(special)} />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <Statistic title="Total Savings" value={formatCurrency(general + special)} />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <Typography.Text type="secondary">Account ID</Typography.Text>
           <Typography.Title level={5}>{account.accountId || `#${account.id}`}</Typography.Title>
           <Typography.Text type="secondary">Opened {formatDate(account.openedAt)}</Typography.Text>

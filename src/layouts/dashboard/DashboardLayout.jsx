@@ -1,18 +1,26 @@
 import { Layout } from "antd";
 import { useEffect, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { DashboardHeader } from "./DashboardHeader.jsx";
 import { DashboardSidebar } from "./DashboardSidebar.jsx";
 
 const { Content } = Layout;
 
 export function DashboardLayout() {
+  const location = useLocation();
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 992,
   );
   const [collapsed, setCollapsed] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 992,
   );
+
+  // Auto-close sidebar on mobile when route changes
+  useEffect(() => {
+    if (isMobile) {
+      setCollapsed(true);
+    }
+  }, [location.pathname, isMobile]);
 
   // Close sidebar on Escape key when open on mobile
   useEffect(() => {
@@ -43,7 +51,7 @@ export function DashboardLayout() {
           aria-hidden="true"
         />
       )}
-      <Layout>
+      <Layout style={{ minWidth: 0, overflow: "hidden" }}>
         <DashboardHeader
           collapsed={collapsed}
           onToggle={() => setCollapsed((value) => !value)}

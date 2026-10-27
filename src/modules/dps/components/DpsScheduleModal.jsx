@@ -251,6 +251,7 @@ export function DpsScheduleModal({ open, onClose, dpsAccount }) {
         rowKey="id"
         size="small"
         loading={isLoading || isFetching}
+        scroll={{ x: 650 }}
         pagination={{
           pageSize: isWeekly ? 26 : 12,
           showSizeChanger: true,

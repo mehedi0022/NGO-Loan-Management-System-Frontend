@@ -398,8 +398,8 @@ export function IncomeExpensePage() {
       </div>
 
       {/* KPI Cards Row */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8} lg={8}>
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col xs={12} sm={8} lg={8}>
           <Card
             size="small"
             bordered={false}
@@ -411,7 +411,7 @@ export function IncomeExpensePage() {
               value={summary.totalIncome ?? 0}
               precision={2}
               formatter={(v) => formatCurrency(v)}
-              styles={{ content: { color: "#16a34a", fontWeight: 700, fontSize: 20 } }}
+              styles={{ content: { color: "#16a34a", fontWeight: 700, fontSize: 18 } }}
               prefix={<PlusCircleOutlined style={{ color: "#16a34a" }} />}
             />
             <div style={{ fontSize: 11, color: "#15803d", marginTop: 4 }}>
@@ -420,7 +420,7 @@ export function IncomeExpensePage() {
           </Card>
         </Col>
 
-        <Col xs={24} sm={8} lg={8}>
+        <Col xs={12} sm={8} lg={8}>
           <Card
             size="small"
             bordered={false}
@@ -432,7 +432,7 @@ export function IncomeExpensePage() {
               value={summary.totalExpense ?? 0}
               precision={2}
               formatter={(v) => formatCurrency(v)}
-              styles={{ content: { color: "#dc2626", fontWeight: 700, fontSize: 20 } }}
+              styles={{ content: { color: "#dc2626", fontWeight: 700, fontSize: 18 } }}
               prefix={<MinusCircleOutlined style={{ color: "#dc2626" }} />}
             />
             <div style={{ fontSize: 11, color: "#b91c1c", marginTop: 4 }}>
@@ -446,7 +446,7 @@ export function IncomeExpensePage() {
             <Statistic
               title="Total Transactions"
               value={summary.totalCount ?? 0}
-              styles={{ content: { fontSize: 20, fontWeight: 700 } }}
+              styles={{ content: { fontSize: 18, fontWeight: 700 } }}
             />
             <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
               Recorded in active filter
@@ -457,7 +457,7 @@ export function IncomeExpensePage() {
 
       {/* Filters Toolbar */}
       <Card size="small" bordered={false} className="shadow-sm" style={{ marginBottom: 16 }}>
-        <Row gutter={[12, 12]} align="middle">
+        <Row gutter={[10, 10]} align="middle">
           <Col xs={24} sm={12} md={6}>
             <DatePicker.RangePicker
               value={filters.dateRange}
@@ -527,7 +527,7 @@ export function IncomeExpensePage() {
             />
           </Col>
 
-          <Col xs={24} sm={12} md={3}>
+          <Col xs={16} sm={12} md={3}>
             <Input
               placeholder="Search voucher/memo..."
               prefix={<SearchOutlined />}
@@ -540,8 +540,15 @@ export function IncomeExpensePage() {
             />
           </Col>
 
-          <Col xs={12} sm={6} md={1}>
-            <Button icon={<ClearOutlined />} onClick={handleResetFilters} title="Reset Filters" />
+          <Col xs={8} sm={6} md={1}>
+            <Button
+              icon={<ClearOutlined />}
+              onClick={handleResetFilters}
+              title="Reset Filters"
+              style={{ width: "100%" }}
+            >
+              Reset
+            </Button>
           </Col>
         </Row>
       </Card>
@@ -553,6 +560,7 @@ export function IncomeExpensePage() {
           columns={columns}
           dataSource={records}
           loading={isLoading || isFetching || isDeleting}
+          scroll={{ x: 950 }}
           pagination={{
             current: meta.page ?? 1,
             pageSize: meta.limit ?? 15,

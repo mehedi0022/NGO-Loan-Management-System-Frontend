@@ -676,22 +676,22 @@ export function PrintableCollectionSheetModal({
           <Space wrap>
             <PrinterOutlined style={{ fontSize: 18, color: "#1890ff" }} />
             <Typography.Text strong style={{ fontSize: 16 }}>
-              Field Collection Sheets Print
+              Field Collection Sheets
             </Typography.Text>
           </Space>
-          <Space wrap>
+          <div className="overflow-x-auto max-w-full">
             <Radio.Group
               value={sheetType === "combined" ? "all" : sheetType}
               onChange={(e) => setSheetType(e.target.value)}
               buttonStyle="solid"
               size="small"
             >
-              <Radio.Button value="savings">1. Savings Sheet</Radio.Button>
-              <Radio.Button value="dps">2. DPS Sheet</Radio.Button>
-              <Radio.Button value="loan">3. Loan Sheet</Radio.Button>
-              <Radio.Button value="all">4. All Sheets (1, 2, 3)</Radio.Button>
+              <Radio.Button value="savings">1. Savings</Radio.Button>
+              <Radio.Button value="dps">2. DPS</Radio.Button>
+              <Radio.Button value="loan">3. Loan</Radio.Button>
+              <Radio.Button value="all">4. All</Radio.Button>
             </Radio.Group>
-          </Space>
+          </div>
         </div>
       }
       footer={

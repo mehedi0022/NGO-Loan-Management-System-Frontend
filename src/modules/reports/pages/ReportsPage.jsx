@@ -971,6 +971,7 @@ function DailyCollectionsTab({
           columns={columns}
           dataSource={records}
           loading={isLoading || isFetching}
+          scroll={{ x: 1200 }}
           pagination={{
             current: meta.page ?? 1,
             pageSize: meta.limit ?? 10,
@@ -1223,6 +1224,7 @@ function LoanPortfolioTab({
           columns={columns}
           dataSource={records}
           loading={isLoading || isFetching}
+          scroll={{ x: 1200 }}
           pagination={{
             current: meta.page ?? 1,
             pageSize: meta.limit ?? 10,
@@ -1460,6 +1462,7 @@ function OverdueTab({
           columns={columns}
           dataSource={records}
           loading={isLoading || isFetching}
+          scroll={{ x: 1200 }}
           pagination={{
             current: meta.page ?? 1,
             pageSize: meta.limit ?? 10,
@@ -1679,6 +1682,7 @@ function SavingsSummaryTab({
           columns={columns}
           dataSource={records}
           loading={isLoading || isFetching}
+          scroll={{ x: 1200 }}
           pagination={{
             current: meta.page ?? 1,
             pageSize: meta.limit ?? 10,
@@ -1950,6 +1954,7 @@ function DpsSummaryTab({
           columns={columns}
           dataSource={records}
           loading={isLoading || isFetching}
+          scroll={{ x: 1200 }}
           pagination={{
             current: meta.page ?? 1,
             pageSize: meta.limit ?? 10,

@@ -235,7 +235,7 @@ export function CollectionModal({
       )}
 
       <Form form={form} layout="vertical" onFinish={submit}>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <Form.Item
             name="loanCollectionAmount"
             label="Loan Collection"
@@ -350,7 +350,7 @@ export function CollectionModal({
 
           {activeDpsList.length > 1 && (
             <div
-              className="sm:col-span-2"
+              className="col-span-1 sm:col-span-2 md:col-span-4"
               style={{
                 background: "#f8fafc",
                 padding: "12px 14px",
@@ -376,13 +376,7 @@ export function CollectionModal({
                 </Tag>
               </div>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "10px 14px",
-                }}
-              >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 {activeDpsList.map((dps) => {
                   const dTarget = Number(dps.installmentAmount || 0);
                   const dPaid = Number(dps.totalPaidAmount || 0);

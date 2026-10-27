@@ -121,7 +121,7 @@ export function MembersPage() {
           onChange={(event) => { setSearch(event.target.value); resetToFirstPage(); }}
         />
         <Select
-          style={{ minWidth: 160 }}
+          className="w-full"
           value={somitiId}
           options={somitiOptions}
           loading={somitiesLoading}
@@ -132,6 +132,7 @@ export function MembersPage() {
           onChange={(value) => { setSomitiId(value); resetToFirstPage(); }}
         />
         <Select
+          className="w-full"
           value={status}
           aria-label="Filter members by status"
           options={statusOptions}

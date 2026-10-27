@@ -325,6 +325,8 @@ export function PrintableMemberPassbookModal({
               <Radio.Button value="field">Field Blank Book</Radio.Button>
               <Radio.Button value="statement">Account Statement</Radio.Button>
             </Radio.Group>
+          </Space>
+          <Space wrap className="hidden sm:inline-flex">
             <Button onClick={onClose}>Close</Button>
             <Button type="primary" icon={<PrinterOutlined />} onClick={handlePrint}>
               Print Passbook / PDF

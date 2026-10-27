@@ -418,8 +418,8 @@ export function LoanDisbursementPage() {
       </div>
 
       {/* KPI Stats Row with Real-Time Cash Availability Card */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8} lg={8}>
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col xs={12} sm={8} lg={8}>
           <Card
             size="small"
             bordered={false}
@@ -429,7 +429,7 @@ export function LoanDisbursementPage() {
             <Statistic
               title={<span style={{ color: "#166534" }}>Ready for Disbursement</span>}
               value={summary.totalCount}
-              styles={{ content: { color: "#16a34a", fontWeight: 700, fontSize: 22 } }}
+              styles={{ content: { color: "#16a34a", fontWeight: 700, fontSize: 18 } }}
               prefix={<ClockCircleOutlined style={{ color: "#16a34a" }} />}
             />
             <div style={{ fontSize: 11, color: "#15803d", marginTop: 4 }}>
@@ -438,7 +438,7 @@ export function LoanDisbursementPage() {
           </Card>
         </Col>
 
-        <Col xs={24} sm={8} lg={8}>
+        <Col xs={12} sm={8} lg={8}>
           <Card
             size="small"
             bordered={false}
@@ -450,7 +450,7 @@ export function LoanDisbursementPage() {
               value={summary.totalPrincipal}
               precision={2}
               formatter={(v) => formatCurrency(v)}
-              styles={{ content: { color: "#059669", fontWeight: 700, fontSize: 22 } }}
+              styles={{ content: { color: "#059669", fontWeight: 700, fontSize: 18 } }}
               prefix={<DollarCircleOutlined style={{ color: "#059669" }} />}
             />
             <div style={{ fontSize: 11, color: "#047857", marginTop: 4 }}>
@@ -505,7 +505,7 @@ export function LoanDisbursementPage() {
       {/* Filters Toolbar */}
       <Card size="small" bordered={false} className="shadow-sm" style={{ marginBottom: 16 }}>
         <Row gutter={[12, 12]} align="middle">
-          <Col xs={24} sm={12} md={8}>
+          <Col xs={24} sm={14} md={8}>
             <Input
               placeholder="Search by loan ID, member name, or phone..."
               prefix={<SearchOutlined />}
@@ -518,7 +518,7 @@ export function LoanDisbursementPage() {
             />
           </Col>
 
-          <Col xs={12} sm={6} md={4}>
+          <Col xs={24} sm={10} md={4}>
             <Select
               value={frequencyFilter}
               onChange={(val) => {
@@ -554,6 +554,7 @@ export function LoanDisbursementPage() {
           columns={columns}
           dataSource={loans}
           loading={isLoading || isFetching}
+          scroll={{ x: 1050 }}
           pagination={{
             current: meta.page ?? 1,
             pageSize: meta.limit ?? 15,
@@ -634,7 +635,7 @@ export function LoanDisbursementPage() {
               }}
             >
               <Row gutter={[12, 12]}>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <div style={{ fontSize: 11, color: "#6b7280" }}>Member</div>
                   <div style={{ fontWeight: 600, color: "#111827" }}>
                     {selectedLoan.member?.fullName}
@@ -643,13 +644,13 @@ export function LoanDisbursementPage() {
                     ID: {selectedLoan.member?.memberId}
                   </div>
                 </Col>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <div style={{ fontSize: 11, color: "#6b7280" }}>Disbursement Amount</div>
                   <div style={{ fontWeight: 700, fontSize: 18, color: "#16a34a" }}>
                     {formatCurrency(selectedLoan.principalAmount)}
                   </div>
                 </Col>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <div style={{ fontSize: 11, color: "#6b7280" }}>Installment Plan</div>
                   <div style={{ fontWeight: 600 }}>
                     {selectedLoan.installmentCount} installments ({selectedLoan.frequency})
@@ -658,7 +659,7 @@ export function LoanDisbursementPage() {
                     {formatCurrency(selectedLoan.installmentAmount)} per installment
                   </div>
                 </Col>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <div style={{ fontSize: 11, color: "#6b7280" }}>Total Recoverable</div>
                   <div style={{ fontWeight: 600 }}>
                     {formatCurrency(selectedLoan.totalPayable)}
@@ -878,7 +879,7 @@ export function LoanDisbursementPage() {
 
               <Divider style={{ margin: "16px 0" }} />
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
                 <Button onClick={handleCloseModal}>Cancel</Button>
                 {confirmStep ? (
                   <>

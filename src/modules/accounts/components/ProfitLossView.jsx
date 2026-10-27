@@ -126,11 +126,14 @@ export function ProfitLossView() {
   return (
     <div className="profit-loss-wrapper space-y-6">
       {/* Date controls */}
-      <div className="flex flex-wrap justify-between items-center gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm print:hidden">
-        <div className="flex items-center gap-3">
-          <CalendarOutlined className="text-blue-600 text-lg" />
-          <Text strong>Period:</Text>
+      <div className="flex flex-col sm:flex-row flex-wrap justify-between items-stretch sm:items-center gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm print:hidden">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2">
+            <CalendarOutlined className="text-blue-600 text-lg flex-shrink-0" />
+            <Text strong className="whitespace-nowrap">Period:</Text>
+          </div>
           <RangePicker
+            className="w-full sm:w-auto"
             value={[dayjs(dateRange[0]), dayjs(dateRange[1])]}
             onChange={(dates) => {
               if (dates && dates[0] && dates[1]) {
@@ -141,13 +144,13 @@ export function ProfitLossView() {
             allowClear={false}
           />
         </div>
-        <Button type="primary" icon={<PrinterOutlined />} onClick={handlePrint}>
+        <Button type="primary" icon={<PrinterOutlined />} onClick={handlePrint} className="w-full sm:w-auto">
           Print P&L Statement
         </Button>
       </div>
 
       {/* Main Statement */}
-      <div className="print-area bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-6">
+      <div className="print-area bg-white p-4 sm:p-6 rounded-xl border border-gray-100 shadow-sm space-y-6">
         <div className="text-center pb-4 border-b border-gray-200">
           <Title level={3} style={{ marginBottom: 4 }}>
             Purbasha Financial NGO
@@ -161,36 +164,36 @@ export function ProfitLossView() {
         </div>
 
         {/* 3 Metric Cards */}
-        <Row gutter={[16, 16]}>
-          <Col xs={24} md={8}>
-            <Card className="bg-emerald-50 border-emerald-200 text-center">
-              <div className="flex items-center justify-center gap-2 text-emerald-800 text-xs font-semibold uppercase">
+        <Row gutter={[12, 12]}>
+          <Col xs={12} md={8}>
+            <Card className="bg-emerald-50 border-emerald-200 text-center" styles={{ body: { padding: "14px 10px" } }}>
+              <div className="flex items-center justify-center gap-1.5 text-emerald-800 text-[10px] sm:text-xs font-semibold uppercase truncate">
                 <RiseOutlined /> Total Revenue
               </div>
-              <div className="text-2xl font-black text-emerald-800 mt-2">
+              <div className="text-base sm:text-2xl font-black text-emerald-800 mt-1 sm:mt-2 truncate">
                 ৳{totalRevenue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </div>
             </Card>
           </Col>
-          <Col xs={24} md={8}>
-            <Card className="bg-rose-50 border-rose-200 text-center">
-              <div className="flex items-center justify-center gap-2 text-rose-800 text-xs font-semibold uppercase">
+          <Col xs={12} md={8}>
+            <Card className="bg-rose-50 border-rose-200 text-center" styles={{ body: { padding: "14px 10px" } }}>
+              <div className="flex items-center justify-center gap-1.5 text-rose-800 text-[10px] sm:text-xs font-semibold uppercase truncate">
                 <FallOutlined /> Total Expense
               </div>
-              <div className="text-2xl font-black text-rose-800 mt-2">
+              <div className="text-base sm:text-2xl font-black text-rose-800 mt-1 sm:mt-2 truncate">
                 ৳{totalExpense.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </div>
             </Card>
           </Col>
           <Col xs={24} md={8}>
-            <Card className={isProfitable ? "bg-blue-50 border-blue-300 text-center" : "bg-red-50 border-red-300 text-center"}>
-              <div className="flex items-center justify-center gap-2 text-xs font-semibold uppercase">
+            <Card className={isProfitable ? "bg-blue-50 border-blue-300 text-center" : "bg-red-50 border-red-300 text-center"} styles={{ body: { padding: "14px 10px" } }}>
+              <div className="flex items-center justify-center gap-1.5 text-[10px] sm:text-xs font-semibold uppercase truncate">
                 <TrophyOutlined className={isProfitable ? "text-blue-700" : "text-red-700"} />
                 <span className={isProfitable ? "text-blue-800" : "text-red-800"}>
                   {isProfitable ? "Net Surplus / Profit" : "Net Deficit / Loss"}
                 </span>
               </div>
-              <div className={`text-2xl font-black mt-2 ${isProfitable ? "text-blue-800" : "text-red-800"}`}>
+              <div className={`text-base sm:text-2xl font-black mt-1 sm:mt-2 truncate ${isProfitable ? "text-blue-800" : "text-red-800"}`}>
                 ৳{netSurplus.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </div>
             </Card>
@@ -210,6 +213,7 @@ export function ProfitLossView() {
                 columns={revenueColumns}
                 pagination={false}
                 size="middle"
+                scroll={{ x: 380 }}
               />
             </Card>
           </Col>
@@ -225,6 +229,7 @@ export function ProfitLossView() {
                 columns={expenseColumns}
                 pagination={false}
                 size="middle"
+                scroll={{ x: 380 }}
                 locale={{ emptyText: <Empty description="No office expenses in this period" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
               />
             </Card>

@@ -319,7 +319,7 @@ export function SomitiesPage() {
   return (
     <PageContainer>
       {/* Page Title & Actions */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div>
           <Typography.Title level={2} style={{ margin: 0 }}>
             Somiti Management
@@ -328,7 +328,7 @@ export function SomitiesPage() {
             Manage borrower groups, meeting days, and assign responsible Field Officers.
           </Typography.Text>
         </div>
-        <Space>
+        <Space wrap>
           <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
             Refresh
           </Button>
@@ -348,32 +348,32 @@ export function SomitiesPage() {
       </div>
 
       {/* Summary KPI Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
-        <Col xs={24} sm={8}>
-          <Card bordered={false} style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+      <Row gutter={[8, 8]} style={{ marginBottom: 20 }}>
+        <Col xs={8} sm={8}>
+          <Card bordered={false} styles={{ body: { padding: "10px 8px" } }} style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
             <Statistic
-              title="Total Somities"
+              title={<span className="text-[10px] sm:text-xs">Total Somities</span>}
               value={meta?.total ?? somities.length}
-              prefix={<ApartmentOutlined style={{ color: "#1890ff", marginRight: 8 }} />}
+              prefix={<ApartmentOutlined className="text-blue-500" style={{ marginRight: 4 }} />}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
-          <Card bordered={false} style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+        <Col xs={8} sm={8}>
+          <Card bordered={false} styles={{ body: { padding: "10px 8px" } }} style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
             <Statistic
-              title="Active Somities"
+              title={<span className="text-[10px] sm:text-xs">Active Somities</span>}
               value={activeSomitiesCount}
               valueStyle={{ color: "#52c41a" }}
-              prefix={<CheckCircleOutlined style={{ color: "#52c41a", marginRight: 8 }} />}
+              prefix={<CheckCircleOutlined style={{ color: "#52c41a", marginRight: 4 }} />}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
-          <Card bordered={false} style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+        <Col xs={8} sm={8}>
+          <Card bordered={false} styles={{ body: { padding: "10px 8px" } }} style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
             <Statistic
-              title="Enrolled Members"
+              title={<span className="text-[10px] sm:text-xs">Enrolled Members</span>}
               value={totalMembersCount}
-              prefix={<TeamOutlined style={{ color: "#722ed1", marginRight: 8 }} />}
+              prefix={<TeamOutlined style={{ color: "#722ed1", marginRight: 4 }} />}
             />
           </Card>
         </Col>
@@ -447,7 +447,7 @@ export function SomitiesPage() {
       )}
 
       {/* Main Table */}
-      <Card bordered={false} bodyStyle={{ padding: 0 }}>
+      <Card bordered={false} styles={{ body: { padding: 0 } }}>
         <Table
           rowKey="id"
           columns={columns}

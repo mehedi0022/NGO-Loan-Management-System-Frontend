@@ -1,6 +1,7 @@
 import {
-  LogoutOutlined,
+  CloseOutlined,
   KeyOutlined,
+  LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   MoonOutlined,
@@ -8,19 +9,17 @@ import {
   SunOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-
 import {
   Avatar,
   Button,
   Dropdown,
   Input,
   Layout,
-  message,
   Space,
   Tooltip,
   Typography,
+  message,
 } from "antd";
-
 import dayjs from "dayjs";
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -45,6 +44,7 @@ export function DashboardHeader({ collapsed, onToggle }) {
 
   const user = useSelector((state) => state.auth.user);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   const [logout, { isLoading: isLoggingOut }] = useLogoutMutation();
   const [changePassword, { isLoading: isChangingPassword }] =
@@ -53,7 +53,6 @@ export function DashboardHeader({ collapsed, onToggle }) {
   const handleLogout = async () => {
     try {
       await logout().unwrap();
-
       message.success("Logged out successfully");
     } catch (error) {
       console.error("Logout failed:", error);
@@ -69,7 +68,6 @@ export function DashboardHeader({ collapsed, onToggle }) {
 
   const handleMenuClick = ({ key }) => {
     if (key === "profile") {
-      // Profile page will be added later.
       return;
     }
 
@@ -121,6 +119,24 @@ export function DashboardHeader({ collapsed, onToggle }) {
 
   return (
     <Header className="app-header">
+      {/* Mobile Search Overlay */}
+      {mobileSearchOpen && (
+        <div className="mobile-search-bar">
+          <Input
+            autoFocus
+            prefix={<SearchOutlined />}
+            placeholder="Search member, loan ID, phone..."
+            style={{ width: "100%" }}
+            allowClear
+          />
+          <Button
+            type="text"
+            icon={<CloseOutlined />}
+            onClick={() => setMobileSearchOpen(false)}
+          />
+        </div>
+      )}
+
       <Space className="header-left" size="middle">
         <Button
           type="text"
@@ -136,7 +152,16 @@ export function DashboardHeader({ collapsed, onToggle }) {
         />
       </Space>
 
-      <Space className="header-actions" size="middle">
+      <Space className="header-actions" size="small">
+        {/* Mobile search toggle trigger */}
+        <Button
+          type="text"
+          className="mobile-search-toggle-btn"
+          icon={<SearchOutlined style={{ fontSize: 16 }} />}
+          onClick={() => setMobileSearchOpen((v) => !v)}
+          aria-label="Toggle Search"
+        />
+
         <Typography.Text className="header-date">
           {dayjs().format("DD MMM YYYY")}
         </Typography.Text>
@@ -145,7 +170,13 @@ export function DashboardHeader({ collapsed, onToggle }) {
           <Button
             type="text"
             aria-label={isDark ? "Use light mode" : "Use dark mode"}
-            icon={isDark ? <SunOutlined /> : <MoonOutlined />}
+            icon={
+              isDark ? (
+                <SunOutlined style={{ color: "#f59e0b", fontSize: 17 }} />
+              ) : (
+                <MoonOutlined style={{ fontSize: 17 }} />
+              )
+            }
             onClick={toggleTheme}
           />
         </Tooltip>
@@ -159,8 +190,9 @@ export function DashboardHeader({ collapsed, onToggle }) {
         >
           <Button type="text" className="profile-button">
             <Avatar size="small" icon={<UserOutlined />} />
-
-            <Typography.Text>{user?.userName || "User"}</Typography.Text>
+            <Typography.Text className="profile-user-name">
+              {user?.userName || "User"}
+            </Typography.Text>
           </Button>
         </Dropdown>
       </Space>

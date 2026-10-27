@@ -70,7 +70,7 @@ export function PrintableLoanAgreementModal({ open, onClose, loan }) {
               Loan Sanction & Agreement Preview — {loan.loanId}
             </Typography.Text>
           </Space>
-          <Space wrap>
+          <Space wrap className="hidden sm:inline-flex">
             <Button onClick={onClose}>Close</Button>
             <Button type="primary" icon={<PrinterOutlined />} onClick={handlePrint}>
               Print Agreement / PDF

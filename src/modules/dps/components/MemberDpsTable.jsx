@@ -201,15 +201,17 @@ export function MemberDpsTable({ member, dpsAccounts = [], onRefresh }) {
   return (
     <Card
       title={
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <Space>
             <SafetyCertificateOutlined style={{ color: "#0284c7" }} />
-            <span>Deposit Pension Scheme (DPS) Accounts</span>
+            <span>DPS Accounts</span>
           </Space>
           <Button
             type="primary"
+            size="small"
             icon={<PlusOutlined />}
             onClick={() => setOpenDpsModalOpen(true)}
+            className="w-fit"
           >
             Open New DPS
           </Button>
@@ -222,6 +224,7 @@ export function MemberDpsTable({ member, dpsAccounts = [], onRefresh }) {
         columns={columns}
         rowKey="id"
         pagination={false}
+        scroll={{ x: 950 }}
         locale={{
           emptyText: (
             <div style={{ padding: "24px 0", textAlign: "center" }}>

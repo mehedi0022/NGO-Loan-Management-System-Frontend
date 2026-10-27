@@ -174,12 +174,13 @@ export function DailyCashSheetView() {
   return (
     <div className="daily-cash-sheet-wrapper space-y-6">
       {/* Header controls */}
-      <div className="flex flex-wrap justify-between items-center gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm print:hidden">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <CalendarOutlined className="text-blue-600 text-lg" />
-            <Text strong>Date:</Text>
+      <div className="flex flex-col sm:flex-row flex-wrap justify-between items-stretch sm:items-center gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm print:hidden">
+        <div className="grid grid-cols-1 sm:flex sm:flex-row sm:items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <CalendarOutlined className="text-blue-600 text-lg flex-shrink-0" />
+            <Text strong className="whitespace-nowrap text-xs sm:text-sm">Date:</Text>
             <DatePicker
+              className="flex-1 sm:w-auto"
               value={dayjs(selectedDate)}
               onChange={(date) => setSelectedDate(date ? date.format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"))}
               format="DD MMMM YYYY"
@@ -187,11 +188,11 @@ export function DailyCashSheetView() {
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <WalletOutlined className="text-purple-600 text-lg" />
-            <Text strong>Account:</Text>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <WalletOutlined className="text-purple-600 text-lg flex-shrink-0" />
+            <Text strong className="whitespace-nowrap text-xs sm:text-sm">Account:</Text>
             <Select
-              style={{ minWidth: 200 }}
+              className="flex-1 sm:min-w-[200px]"
               value={selectedAccountId}
               onChange={setSelectedAccountId}
               options={[
@@ -205,13 +206,13 @@ export function DailyCashSheetView() {
           </div>
         </div>
 
-        <Button type="primary" icon={<PrinterOutlined />} onClick={handlePrint}>
+        <Button type="primary" icon={<PrinterOutlined />} onClick={handlePrint} className="w-full sm:w-auto">
           Print Daily Cash Sheet
         </Button>
       </div>
 
       {/* Printable Sheet */}
-      <div className="print-area bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+      <div className="print-area bg-white p-3 sm:p-6 rounded-xl border border-gray-100 shadow-sm">
         {/* NGO Header for Print */}
         <div className="text-center pb-6 border-b border-gray-200">
           <Title level={3} style={{ marginBottom: 4 }}>
@@ -226,41 +227,41 @@ export function DailyCashSheetView() {
         </div>
 
         {/* 4 Summary Cards */}
-        <Row gutter={[16, 16]} className="mt-6">
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="bg-slate-50 border-slate-200 shadow-none text-center">
-              <Text type="secondary" className="text-xs uppercase font-medium">Opening Balance</Text>
-              <div className="text-xl font-bold text-slate-800 mt-1">
+        <Row gutter={[12, 12]} className="mt-6">
+          <Col xs={12} sm={12} lg={6}>
+            <Card className="bg-slate-50 border-slate-200 shadow-none text-center" styles={{ body: { padding: "12px 8px" } }}>
+              <Text type="secondary" className="text-[10px] sm:text-xs uppercase font-medium truncate block">Opening Balance</Text>
+              <div className="text-sm sm:text-xl font-bold text-slate-800 mt-1 truncate">
                 ৳{openingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </div>
             </Card>
           </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="bg-emerald-50 border-emerald-200 shadow-none text-center">
-              <div className="flex items-center justify-center gap-1 text-emerald-700 text-xs uppercase font-medium">
+          <Col xs={12} sm={12} lg={6}>
+            <Card className="bg-emerald-50 border-emerald-200 shadow-none text-center" styles={{ body: { padding: "12px 8px" } }}>
+              <div className="flex items-center justify-center gap-1 text-emerald-700 text-[10px] sm:text-xs uppercase font-medium truncate">
                 <ArrowDownOutlined /> Total Cash In
               </div>
-              <div className="text-xl font-bold text-emerald-800 mt-1">
+              <div className="text-sm sm:text-xl font-bold text-emerald-800 mt-1 truncate">
                 +৳{totalCashIn.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </div>
             </Card>
           </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="bg-rose-50 border-rose-200 shadow-none text-center">
-              <div className="flex items-center justify-center gap-1 text-rose-700 text-xs uppercase font-medium">
+          <Col xs={12} sm={12} lg={6}>
+            <Card className="bg-rose-50 border-rose-200 shadow-none text-center" styles={{ body: { padding: "12px 8px" } }}>
+              <div className="flex items-center justify-center gap-1 text-rose-700 text-[10px] sm:text-xs uppercase font-medium truncate">
                 <ArrowUpOutlined /> Total Cash Out
               </div>
-              <div className="text-xl font-bold text-rose-800 mt-1">
+              <div className="text-sm sm:text-xl font-bold text-rose-800 mt-1 truncate">
                 -৳{totalCashOut.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </div>
             </Card>
           </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card className="bg-blue-50 border-blue-200 shadow-none text-center">
-              <div className="flex items-center justify-center gap-1 text-blue-700 text-xs uppercase font-medium">
+          <Col xs={12} sm={12} lg={6}>
+            <Card className="bg-blue-50 border-blue-200 shadow-none text-center" styles={{ body: { padding: "12px 8px" } }}>
+              <div className="flex items-center justify-center gap-1 text-blue-700 text-[10px] sm:text-xs uppercase font-medium truncate">
                 <DollarOutlined /> Closing Balance
               </div>
-              <div className="text-xl font-bold text-blue-800 mt-1">
+              <div className="text-sm sm:text-xl font-bold text-blue-800 mt-1 truncate">
                 ৳{closingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </div>
             </Card>
@@ -281,6 +282,7 @@ export function DailyCashSheetView() {
                 rowKey="key"
                 pagination={false}
                 size="small"
+                scroll={{ x: 380 }}
               />
             </Card>
           </Col>
@@ -297,6 +299,7 @@ export function DailyCashSheetView() {
                 rowKey="key"
                 pagination={false}
                 size="small"
+                scroll={{ x: 380 }}
               />
             </Card>
           </Col>
@@ -308,7 +311,7 @@ export function DailyCashSheetView() {
             <Card
               title={<span className="text-slate-800 font-semibold">Today's Detailed Activity Log ({todayTransactions.length} entries)</span>}
               className="border-gray-200"
-              bodyStyle={{ padding: 0 }}
+              styles={{ body: { padding: 0 } }}
             >
               <Table
                 dataSource={todayTransactions}
@@ -316,6 +319,7 @@ export function DailyCashSheetView() {
                 rowKey="id"
                 pagination={false}
                 size="small"
+                scroll={{ x: 750 }}
               />
             </Card>
           </div>

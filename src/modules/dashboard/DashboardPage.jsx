@@ -15,8 +15,14 @@ import { useGetDashboardSummaryQuery } from "./dashboardApi.js";
 
 export function DashboardPage() {
   const [trendDays, setTrendDays] = useState(7);
-  const { data: response, isLoading, isFetching, isError, error, refetch } =
-    useGetDashboardSummaryQuery({ trendDays });
+  const {
+    data: response,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useGetDashboardSummaryQuery({ trendDays });
   const summary = response?.data;
   const {
     data: collectionsResponse,
@@ -26,9 +32,6 @@ export function DashboardPage() {
     error: collectionsRequestError,
     refetch: refetchCollections,
   } = useGetCollectionsQuery({ page: 1, limit: 5 });
-  const operationalDate = summary?.operationalDate
-    ? dayjs(summary.operationalDate).format("DD MMM YYYY")
-    : "";
   const initialLoading = isLoading && !summary;
   const hasSummaryContent = Boolean(summary) || initialLoading;
 
@@ -41,9 +44,6 @@ export function DashboardPage() {
             Overview of NGO loan and savings operations
           </Typography.Text>
         </div>
-        {operationalDate && (
-          <Typography.Text type="secondary">{operationalDate}</Typography.Text>
-        )}
       </div>
 
       {isError && (
@@ -51,7 +51,11 @@ export function DashboardPage() {
           type={summary ? "warning" : "error"}
           showIcon
           className="mb-4"
-          message={summary ? "Dashboard refresh failed" : "Unable to load dashboard summary"}
+          message={
+            summary
+              ? "Dashboard refresh failed"
+              : "Unable to load dashboard summary"
+          }
           description={
             summary
               ? "Showing the last available dashboard data."
@@ -62,16 +66,26 @@ export function DashboardPage() {
       )}
 
       {isFetching && summary && (
-        <Typography.Text type="secondary" className="dashboard-refresh-status" aria-live="polite">
+        <Typography.Text
+          type="secondary"
+          className="dashboard-refresh-status"
+          aria-live="polite"
+        >
           Refreshing dashboard data…
         </Typography.Text>
       )}
 
       {hasSummaryContent && (
         <>
-          <DashboardOverview overview={summary?.overview} loading={initialLoading} />
+          <DashboardOverview
+            overview={summary?.overview}
+            loading={initialLoading}
+          />
           <TodayActivity today={summary?.today} loading={initialLoading} />
-          <section className="dashboard-section" aria-label="Collection analytics">
+          <section
+            className="dashboard-section"
+            aria-label="Collection analytics"
+          >
             <Row gutter={[16, 16]}>
               <Col xs={24} xl={16}>
                 <CollectionTrendChart
@@ -82,17 +96,30 @@ export function DashboardPage() {
                 />
               </Col>
               <Col xs={24} xl={8}>
-                <LoanPortfolioSummary portfolio={summary?.loanPortfolio} loading={initialLoading} />
+                <LoanPortfolioSummary
+                  portfolio={summary?.loanPortfolio}
+                  loading={initialLoading}
+                />
               </Col>
             </Row>
           </section>
-          <section className="dashboard-section" aria-label="Operational attention and savings">
+          <section
+            className="dashboard-section"
+            aria-label="Operational attention and savings"
+          >
             <Row gutter={[16, 16]}>
               <Col xs={24} xl={12}>
-                <AttentionPanel attention={summary?.attention} loading={initialLoading} />
+                <AttentionPanel
+                  attention={summary?.attention}
+                  loading={initialLoading}
+                />
               </Col>
               <Col xs={24} xl={12}>
-                <SavingsOverview savings={summary?.savings} today={summary?.today} loading={initialLoading} />
+                <SavingsOverview
+                  savings={summary?.savings}
+                  today={summary?.today}
+                  loading={initialLoading}
+                />
               </Col>
             </Row>
           </section>

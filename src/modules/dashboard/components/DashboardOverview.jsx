@@ -29,9 +29,9 @@ export function DashboardOverview({ overview, loading = false }) {
   ];
 
   return (
-    <Row gutter={[16, 16]}>
+    <Row gutter={[12, 12]}>
       {cards.map((card) => (
-        <Col key={card.title} xs={24} sm={12} lg={8} xxl={6}>
+        <Col key={card.title} xs={12} sm={12} lg={8} xxl={6}>
           <StatCard {...card} loading={loading} />
         </Col>
       ))}

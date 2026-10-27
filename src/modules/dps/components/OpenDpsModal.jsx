@@ -314,27 +314,29 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
         <Form.Item
           label={`Preset ${isWeekly ? "Weekly" : "Monthly"} Deposit Amount`}
         >
-          <Radio.Group
-            value={
-              presetAmounts.includes(installmentAmount)
-                ? installmentAmount
-                : null
-            }
-            onChange={(e) => {
-              const val = e.target.value;
-              setInstallmentAmount(val);
-              form.setFieldsValue({ installmentAmount: val });
-            }}
-            optionType="button"
-            buttonStyle="solid"
-            size="small"
-          >
-            {presetAmounts.map((amt) => (
-              <Radio.Button key={amt} value={amt}>
-                ৳{amt.toLocaleString()}
-              </Radio.Button>
-            ))}
-          </Radio.Group>
+          <div className="overflow-x-auto max-w-full pb-1">
+            <Radio.Group
+              value={
+                presetAmounts.includes(installmentAmount)
+                  ? installmentAmount
+                  : null
+              }
+              onChange={(e) => {
+                const val = e.target.value;
+                setInstallmentAmount(val);
+                form.setFieldsValue({ installmentAmount: val });
+              }}
+              optionType="button"
+              buttonStyle="solid"
+              size="small"
+            >
+              {presetAmounts.map((amt) => (
+                <Radio.Button key={amt} value={amt}>
+                  ৳{amt.toLocaleString()}
+                </Radio.Button>
+              ))}
+            </Radio.Group>
+          </div>
         </Form.Item>
 
         <Row gutter={16}>

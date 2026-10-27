@@ -38,15 +38,17 @@ export function PrintableReportModal({
             justifyContent: "space-between",
             alignItems: "center",
             paddingRight: 24,
+            flexWrap: "wrap",
+            gap: 8,
           }}
         >
-          <Space>
+          <Space wrap>
             <PrinterOutlined style={{ fontSize: 18, color: "#1890ff" }} />
             <Typography.Text strong style={{ fontSize: 16 }}>
               Print Preview — {title}
             </Typography.Text>
           </Space>
-          <Space>
+          <Space className="hidden sm:inline-flex">
             <Button onClick={onClose}>Close</Button>
             <Button type="primary" icon={<PrinterOutlined />} onClick={handlePrint}>
               Print Report / Save PDF
@@ -144,6 +146,8 @@ export function PrintableReportModal({
           border-radius: 8px;
           max-height: 75vh;
           overflow-y: auto;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
         }
         .report-print-root {
           background: #fff;
@@ -151,6 +155,7 @@ export function PrintableReportModal({
           box-shadow: 0 1px 3px rgba(0,0,0,0.1);
           color: #111827;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+          min-width: 900px;
         }
         .report-table {
           width: 100%;

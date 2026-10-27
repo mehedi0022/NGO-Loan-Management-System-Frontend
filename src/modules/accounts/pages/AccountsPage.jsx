@@ -21,6 +21,7 @@ import {
 } from "antd";
 import { useState } from "react";
 import { useSelector } from "react-redux";
+import { PageContainer } from "../../../components/page-container/PageContainer.jsx";
 import { can, permissions } from "../../auth/permissions.js";
 import { useGetAccountsQuery } from "../accountsApi.js";
 import { CreateAccountModal } from "../components/CreateAccountModal.jsx";
@@ -89,7 +90,8 @@ export function AccountsPage() {
   };
 
   return (
-    <div className="accounts-page p-4 md:p-6 space-y-6">
+    <PageContainer>
+      <div className="accounts-page space-y-6">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -144,72 +146,72 @@ export function AccountsPage() {
       </div>
 
       {/* Top 4 Summary Cards */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="border-blue-100 bg-gradient-to-br from-blue-50 to-white shadow-sm">
-            <div className="flex justify-between items-center">
-              <div>
-                <Text type="secondary" className="text-xs font-semibold uppercase">Total Liquidity</Text>
-                <div className="text-2xl font-black text-blue-900 mt-1">
+      <Row gutter={[12, 12]}>
+        <Col xs={12} sm={12} lg={6}>
+          <Card className="border-blue-100 bg-gradient-to-br from-blue-50 to-white shadow-sm" styles={{ body: { padding: "12px 14px" } }}>
+            <div className="flex justify-between items-center gap-2">
+              <div className="min-w-0">
+                <Text type="secondary" className="text-[10px] sm:text-xs font-semibold uppercase truncate block">Total Liquidity</Text>
+                <div className="text-base sm:text-2xl font-black text-blue-900 mt-0.5 truncate">
                   ৳{totalBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </div>
-                <Text type="secondary" className="text-xs">Across {accounts.length} active accounts</Text>
+                <Text type="secondary" className="text-[10px] sm:text-xs truncate block">Across {accounts.length} accounts</Text>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
-                <WalletOutlined className="text-xl" />
+              <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-blue-100 flex-shrink-0 flex items-center justify-center text-blue-600">
+                <WalletOutlined className="text-base sm:text-xl" />
               </div>
             </div>
           </Card>
         </Col>
 
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="border-emerald-100 bg-gradient-to-br from-emerald-50 to-white shadow-sm">
-            <div className="flex justify-between items-center">
-              <div>
-                <Text type="secondary" className="text-xs font-semibold uppercase">Main Cash In Hand</Text>
-                <div className="text-2xl font-black text-emerald-900 mt-1">
+        <Col xs={12} sm={12} lg={6}>
+          <Card className="border-emerald-100 bg-gradient-to-br from-emerald-50 to-white shadow-sm" styles={{ body: { padding: "12px 14px" } }}>
+            <div className="flex justify-between items-center gap-2">
+              <div className="min-w-0">
+                <Text type="secondary" className="text-[10px] sm:text-xs font-semibold uppercase truncate block">Main Cash In Hand</Text>
+                <div className="text-base sm:text-2xl font-black text-emerald-900 mt-0.5 truncate">
                   ৳{defaultBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </div>
-                <Text type="secondary" className="text-xs">
-                  {defaultAccount?.accountName || "Default Cash Account"}
+                <Text type="secondary" className="text-[10px] sm:text-xs truncate block">
+                  {defaultAccount?.accountName || "Default Cash"}
                 </Text>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
-                <BankOutlined className="text-xl" />
+              <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-emerald-100 flex-shrink-0 flex items-center justify-center text-emerald-600">
+                <BankOutlined className="text-base sm:text-xl" />
               </div>
             </div>
           </Card>
         </Col>
 
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="border-purple-100 bg-gradient-to-br from-purple-50 to-white shadow-sm">
-            <div className="flex justify-between items-center">
-              <div>
-                <Text type="secondary" className="text-xs font-semibold uppercase">Bank & Mobile Banking</Text>
-                <div className="text-2xl font-black text-purple-900 mt-1">
+        <Col xs={12} sm={12} lg={6}>
+          <Card className="border-purple-100 bg-gradient-to-br from-purple-50 to-white shadow-sm" styles={{ body: { padding: "12px 14px" } }}>
+            <div className="flex justify-between items-center gap-2">
+              <div className="min-w-0">
+                <Text type="secondary" className="text-[10px] sm:text-xs font-semibold uppercase truncate block">Bank & Mobile</Text>
+                <div className="text-base sm:text-2xl font-black text-purple-900 mt-0.5 truncate">
                   ৳{bankAndMobileBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </div>
-                <Text type="secondary" className="text-xs">Liquid institutional funds</Text>
+                <Text type="secondary" className="text-[10px] sm:text-xs truncate block">Liquid funds</Text>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600">
-                <CreditCardOutlined className="text-xl" />
+              <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-purple-100 flex-shrink-0 flex items-center justify-center text-purple-600">
+                <CreditCardOutlined className="text-base sm:text-xl" />
               </div>
             </div>
           </Card>
         </Col>
 
-        <Col xs={24} sm={12} lg={6}>
-          <Card className="border-slate-100 bg-gradient-to-br from-slate-50 to-white shadow-sm">
-            <div className="flex justify-between items-center">
-              <div>
-                <Text type="secondary" className="text-xs font-semibold uppercase">Account Status</Text>
-                <div className="text-2xl font-black text-slate-800 mt-1">
+        <Col xs={12} sm={12} lg={6}>
+          <Card className="border-slate-100 bg-gradient-to-br from-slate-50 to-white shadow-sm" styles={{ body: { padding: "12px 14px" } }}>
+            <div className="flex justify-between items-center gap-2">
+              <div className="min-w-0">
+                <Text type="secondary" className="text-[10px] sm:text-xs font-semibold uppercase truncate block">Account Status</Text>
+                <div className="text-base sm:text-2xl font-black text-slate-800 mt-0.5 truncate">
                   {accounts.filter((a) => a.isActive).length} / {accounts.length}
                 </div>
-                <Text type="secondary" className="text-xs">Active and operational</Text>
+                <Text type="secondary" className="text-[10px] sm:text-xs truncate block">Active accounts</Text>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
-                <CheckCircleOutlined className="text-xl" />
+              <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-slate-100 flex-shrink-0 flex items-center justify-center text-slate-600">
+                <CheckCircleOutlined className="text-base sm:text-xl" />
               </div>
             </div>
           </Card>
@@ -396,7 +398,8 @@ export function AccountsPage() {
           setSelectedAccountForInject(null);
         }}
       />
-    </div>
+      </div>
+    </PageContainer>
   );
 }
 export default AccountsPage;

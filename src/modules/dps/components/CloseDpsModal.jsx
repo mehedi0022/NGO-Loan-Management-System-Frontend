@@ -320,6 +320,7 @@ export function CloseDpsModal({ open, onClose, dps, initialMode, onSuccess }) {
               marginTop: 20,
               borderTop: "1px solid #f1f5f9",
               paddingTop: 16,
+              flexWrap: "wrap",
             }}
           >
             <Button onClick={onClose} disabled={isLoading}>

@@ -179,27 +179,21 @@ export function CategoryManagementModal({ open, onClose }) {
         ]}
         width={800}
         title={
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              paddingRight: 32,
-            }}
-          >
-            <span>Manage Income & Expense Categories</span>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenAdd}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pr-8">
+            <span className="text-sm sm:text-base font-semibold">Manage Categories</span>
+            <Button type="primary" size="small" icon={<PlusOutlined />} onClick={handleOpenAdd} className="w-fit">
               New Category
             </Button>
           </div>
         }
         destroyOnClose
       >
-        <div style={{ marginBottom: 16, marginTop: 12 }}>
+        <div className="mb-4 mt-3 overflow-x-auto">
           <Radio.Group
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
             buttonStyle="solid"
+            size="small"
           >
             <Radio.Button value="ALL">All Categories</Radio.Button>
             <Radio.Button value="INCOME">Income Categories</Radio.Button>
@@ -214,6 +208,7 @@ export function CategoryManagementModal({ open, onClose }) {
           loading={isLoading || isDeleting}
           pagination={{ pageSize: 8, showSizeChanger: false }}
           size="middle"
+          scroll={{ x: 600 }}
         />
       </Modal>
 

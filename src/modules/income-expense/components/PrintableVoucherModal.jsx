@@ -66,22 +66,14 @@ export function PrintableVoucherModal({ open, onClose, voucher }) {
       width={780}
       style={{ top: 20 }}
       title={
-        <div
-          className="no-print"
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            paddingRight: 24,
-          }}
-        >
+        <div className="no-print flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pr-6">
           <Space>
             <PrinterOutlined style={{ fontSize: 18, color: isIncome ? "#16a34a" : "#dc2626" }} />
-            <Typography.Text strong style={{ fontSize: 16 }}>
+            <Typography.Text strong className="text-sm sm:text-base">
               Voucher Preview — {voucher.voucherNo}
             </Typography.Text>
           </Space>
-          <Space>
+          <Space className="hidden sm:inline-flex">
             <Button onClick={onClose}>Close</Button>
             <Button type="primary" icon={<PrinterOutlined />} onClick={handlePrint}>
               Print Voucher / PDF
@@ -90,13 +82,11 @@ export function PrintableVoucherModal({ open, onClose, voucher }) {
         </div>
       }
       footer={
-        <div className="no-print" style={{ display: "flex", justifyContent: "flex-end" }}>
-          <Space>
-            <Button onClick={onClose}>Close</Button>
-            <Button type="primary" icon={<PrinterOutlined />} onClick={handlePrint}>
-              Print Voucher / PDF
-            </Button>
-          </Space>
+        <div className="no-print flex justify-end gap-2">
+          <Button onClick={onClose}>Close</Button>
+          <Button type="primary" icon={<PrinterOutlined />} onClick={handlePrint}>
+            Print Voucher / PDF
+          </Button>
         </div>
       }
       destroyOnClose
@@ -159,6 +149,7 @@ export function PrintableVoucherModal({ open, onClose, voucher }) {
           .voucher-print-root {
             position: static !important;
             width: 100% !important;
+            min-width: 0 !important;
             margin: 0 !important;
             padding: 0 !important;
             background: #fff !important;
@@ -170,18 +161,21 @@ export function PrintableVoucherModal({ open, onClose, voucher }) {
 
         .preview-container {
           background: #f8fafc;
-          padding: 16px;
+          padding: 12px;
           border-radius: 8px;
           max-height: 80vh;
           overflow-y: auto;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
         }
         .voucher-print-root {
           background: #fff;
-          padding: 28px;
+          padding: 24px;
           box-shadow: 0 1px 3px rgba(0,0,0,0.1);
           color: #0f172a;
           border: 1px solid #cbd5e1;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+          min-width: 520px;
         }
         .voucher-table {
           width: 100%;

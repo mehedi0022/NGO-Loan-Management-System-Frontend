@@ -57,9 +57,9 @@ export function MemberFinancialSummary({ loans = [], savingsAccount, dpsAccounts
   return (
     <section className="mb-6">
       <Typography.Title level={4}>Financial Summary</Typography.Title>
-      <Row gutter={[16, 16]}>
+      <Row gutter={[12, 12]}>
         {summaries.map((summary) => (
-          <Col key={summary.title} xs={24} sm={12} lg={8} xl={4}>
+          <Col key={summary.title} xs={12} sm={12} lg={8} xl={4}>
             <StatCard
               title={summary.title}
               value={formatCurrency(summary.value)}

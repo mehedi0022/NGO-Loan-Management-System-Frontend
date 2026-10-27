@@ -326,29 +326,29 @@ export function DpsPage() {
       </div>
 
       {/* Overview Stat Cards */}
-      <Row gutter={[16, 16]} className="mb-5">
-        <Col xs={24} sm={12} lg={6}>
+      <Row gutter={[12, 12]} className="mb-5">
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title="Total DPS Accounts"
             value={totalAccounts}
             loading={isLoading}
           />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title="Active Accounts"
             value={activeCount}
             loading={isLoading}
           />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title="Total Deposited"
             value={formatCurrency(totalDeposited)}
             loading={isLoading}
           />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title="Total Maturity Liability"
             value={formatCurrency(totalMaturity)}
@@ -381,11 +381,12 @@ export function DpsPage() {
               }}
               optionType="button"
               buttonStyle="solid"
+              className="w-full sm:w-auto flex"
             >
-              <Radio.Button value="">All</Radio.Button>
-              <Radio.Button value="ACTIVE">Active</Radio.Button>
-              <Radio.Button value="MATURED">Matured</Radio.Button>
-              <Radio.Button value="CLOSED">Closed</Radio.Button>
+              <Radio.Button value="" className="flex-1 text-center">All</Radio.Button>
+              <Radio.Button value="ACTIVE" className="flex-1 text-center">Active</Radio.Button>
+              <Radio.Button value="MATURED" className="flex-1 text-center">Matured</Radio.Button>
+              <Radio.Button value="CLOSED" className="flex-1 text-center">Closed</Radio.Button>
             </Radio.Group>
           </Col>
         </Row>

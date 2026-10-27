@@ -178,9 +178,9 @@ export function LedgerTransactionsTable() {
   return (
     <div className="space-y-4">
       {/* Filter Row */}
-      <Card className="border-gray-200 shadow-sm" bodyStyle={{ padding: "16px" }}>
-        <Row gutter={[16, 12]} align="middle">
-          <Col xs={24} sm={12} md={6}>
+      <Card className="border-gray-200 shadow-sm" bodyStyle={{ padding: "12px" }}>
+        <Row gutter={[12, 10]} align="middle">
+          <Col xs={12} sm={12} md={6}>
             <div className="text-xs text-gray-500 mb-1">Account:</div>
             <Select
               className="w-full"
@@ -193,7 +193,7 @@ export function LedgerTransactionsTable() {
             />
           </Col>
 
-          <Col xs={24} sm={12} md={6}>
+          <Col xs={12} sm={12} md={6}>
             <div className="text-xs text-gray-500 mb-1">Module / Source:</div>
             <Select
               className="w-full"
@@ -206,7 +206,7 @@ export function LedgerTransactionsTable() {
             />
           </Col>
 
-          <Col xs={24} sm={12} md={4}>
+          <Col xs={12} sm={12} md={4}>
             <div className="text-xs text-gray-500 mb-1">Type:</div>
             <Select
               className="w-full"
@@ -238,7 +238,7 @@ export function LedgerTransactionsTable() {
       </Card>
 
       {/* Table */}
-      <Card className="border-gray-200 shadow-sm" bodyStyle={{ padding: 0 }}>
+      <Card className="border-gray-200 shadow-sm" styles={{ body: { padding: 0 } }}>
         <Table
           dataSource={transactions}
           columns={columns}

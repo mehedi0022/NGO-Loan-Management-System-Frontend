@@ -199,17 +199,17 @@ export function SettingsPage() {
                         <Input placeholder="e.g. Purbasha Financial Development Organization" />
                       </Form.Item>
                     </Col>
-                    <Col xs={12} md={8}>
+                    <Col xs={24} sm={12} md={8}>
                       <Form.Item name="orgShortName" label="Short Name / Acronym">
                         <Input placeholder="e.g. PFDO" />
                       </Form.Item>
                     </Col>
-                    <Col xs={12} md={12}>
+                    <Col xs={24} sm={12} md={12}>
                       <Form.Item name="registrationNo" label="Govt. Registration No.">
                         <Input placeholder="e.g. REG-NGO-2024-001" />
                       </Form.Item>
                     </Col>
-                    <Col xs={12} md={12}>
+                    <Col xs={24} sm={12} md={12}>
                       <Form.Item name="establishedYear" label="Established Year">
                         <Input placeholder="e.g. 2018" />
                       </Form.Item>
@@ -305,7 +305,7 @@ export function SettingsPage() {
                     Currency & Units
                   </Typography.Title>
                   <Row gutter={16}>
-                    <Col xs={12} sm={6}>
+                    <Col xs={24} sm={12} md={6}>
                       <Form.Item
                         name="currencySymbol"
                         label="Currency Symbol"
@@ -314,7 +314,7 @@ export function SettingsPage() {
                         <Input placeholder="৳" />
                       </Form.Item>
                     </Col>
-                    <Col xs={12} sm={6}>
+                    <Col xs={24} sm={12} md={6}>
                       <Form.Item
                         name="currencyCode"
                         label="Currency Code"
@@ -343,7 +343,7 @@ export function SettingsPage() {
                         </Radio.Group>
                       </Form.Item>
                     </Col>
-                    <Col xs={12} sm={6} md={8}>
+                    <Col xs={24} sm={12} md={8}>
                       <Form.Item
                         name="defaultLoanChargeValue"
                         label="Default Charge Rate/Value"
@@ -352,7 +352,7 @@ export function SettingsPage() {
                         <InputNumber style={{ width: "100%" }} min={0} />
                       </Form.Item>
                     </Col>
-                    <Col xs={12} sm={6} md={8}>
+                    <Col xs={24} sm={12} md={8}>
                       <Form.Item
                         name="defaultLoanFrequency"
                         label="Default Repayment Frequency"
@@ -366,7 +366,7 @@ export function SettingsPage() {
                         />
                       </Form.Item>
                     </Col>
-                    <Col xs={12} sm={6} md={8}>
+                    <Col xs={24} sm={12} md={8}>
                       <Form.Item
                         name="defaultGraceDays"
                         label="Default Grace Period (Days)"
@@ -375,7 +375,7 @@ export function SettingsPage() {
                         <InputNumber style={{ width: "100%" }} min={0} max={365} />
                       </Form.Item>
                     </Col>
-                    <Col xs={12} sm={6} md={8}>
+                    <Col xs={24} sm={12} md={8}>
                       <Form.Item
                         name="latePenaltyPercentage"
                         label="Late Fine / Penalty (%)"
@@ -392,7 +392,7 @@ export function SettingsPage() {
                     Savings Policy Defaults
                   </Typography.Title>
                   <Row gutter={16}>
-                    <Col xs={12} sm={12} md={8}>
+                    <Col xs={24} sm={12} md={8}>
                       <Form.Item
                         name="minGeneralSavingsDeposit"
                         label="Minimum General Savings Deposit (৳)"
@@ -400,7 +400,7 @@ export function SettingsPage() {
                         <InputNumber style={{ width: "100%" }} min={0} prefix="৳" />
                       </Form.Item>
                     </Col>
-                    <Col xs={12} sm={12} md={8}>
+                    <Col xs={24} sm={12} md={8}>
                       <Form.Item
                         name="minSpecialSavingsDeposit"
                         label="Minimum Special Savings Deposit (৳)"

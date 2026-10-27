@@ -3,6 +3,7 @@ import { CloseOutlined } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMemo } from "react";
 import { useSelector } from "react-redux";
+import { useAppTheme } from "../../app/providers/ThemeContext.js";
 import { navigationItems } from "../../constants/navigation.jsx";
 import { can } from "../../modules/auth/permissions.js";
 
@@ -24,6 +25,7 @@ export function DashboardSidebar({
   isMobile,
   onBreakpointChange,
 }) {
+  const { isDark } = useAppTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const user = useSelector((state) => state.auth.user);
@@ -48,16 +50,15 @@ export function DashboardSidebar({
         onCollapse(broken);
       }}
       trigger={null}
-      className="app-sider"
+      theme={isDark ? "dark" : "light"}
+      className={`app-sider ${isDark ? "app-sider-dark" : "app-sider-light"}`}
     >
       <div className="brand-lockup">
         <div className="brand-mark">
           <img src="/favicon.png" alt="Logo" />
         </div>
         <div className="brand-info">
-          <Typography.Text className="brand-name">
-            Purbasha Financial NGO
-          </Typography.Text>
+          <Typography.Text className="brand-name">Purbasha NGO</Typography.Text>
           <Typography.Text className="brand-caption">
             Microfinance & Savings System
           </Typography.Text>
@@ -74,7 +75,7 @@ export function DashboardSidebar({
       </div>
       <Menu
         mode="inline"
-        theme="dark"
+        theme={isDark ? "dark" : "light"}
         items={visibleNavigationItems}
         selectedKeys={[selectedKey]}
         defaultOpenKeys={openKeys}

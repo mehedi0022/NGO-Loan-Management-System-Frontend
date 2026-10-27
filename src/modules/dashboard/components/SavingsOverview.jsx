@@ -12,9 +12,9 @@ export function SavingsOverview({ savings, today, loading = false }) {
         <Skeleton active paragraph={{ rows: 4 }} />
       ) : (
         <>
-          <Row gutter={[16, 20]}>
-            <Col xs={24} sm={8}><Statistic title="General Savings" value={formatCurrency(savings?.generalBalance ?? 0)} /></Col>
-            <Col xs={24} sm={8}><Statistic title="Special Savings" value={formatCurrency(savings?.specialBalance ?? 0)} /></Col>
+          <Row gutter={[12, 12]}>
+            <Col xs={12} sm={8}><Statistic title="General Savings" value={formatCurrency(savings?.generalBalance ?? 0)} /></Col>
+            <Col xs={12} sm={8}><Statistic title="Special Savings" value={formatCurrency(savings?.specialBalance ?? 0)} /></Col>
             <Col xs={24} sm={8}><Statistic title="Total Savings" value={formatCurrency(savings?.totalBalance ?? 0)} /></Col>
           </Row>
           <div className="dashboard-savings-today">

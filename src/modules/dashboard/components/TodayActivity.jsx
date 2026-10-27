@@ -20,9 +20,9 @@ export function TodayActivity({ today, loading = false }) {
       <Typography.Title level={4} id="today-activity-title" className="dashboard-section-heading">
         Today&apos;s Activity
       </Typography.Title>
-      <Row gutter={[16, 16]}>
+      <Row gutter={[12, 12]}>
         {cards.map((card) => (
-          <Col key={card.title} xs={24} sm={12} xl={6}>
+          <Col key={card.title} xs={12} sm={12} xl={6}>
             <StatCard {...card} loading={loading} />
           </Col>
         ))}
