@@ -4,6 +4,8 @@
 @import "@fontsource/tiro-bangla/bengali.css";
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));
+
 :root {
   --app-bg: #f4f3ee;
   --surface: #ffffff;

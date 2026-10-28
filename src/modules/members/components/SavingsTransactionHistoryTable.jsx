@@ -1,11 +1,15 @@
-import { RollbackOutlined } from "@ant-design/icons";
-import { Button, Empty, Table, Tooltip, Typography, message } from "antd";
+import {
+  ArrowDownOutlined,
+  ArrowUpOutlined,
+  RollbackOutlined,
+} from "@ant-design/icons";
+import { Button, Empty, Table, Tag, Tooltip, Typography, message } from "antd";
+import dayjs from "dayjs";
 import { useState } from "react";
 import { useSelector } from "react-redux";
 
 import { ReverseTransactionModal } from "../../../components/reverse-modal/ReverseTransactionModal.jsx";
-import { StatusTag } from "../../../components/status-tag/StatusTag.jsx";
-import { formatCurrency, formatDate, formatEnum } from "../../loans/loanFormatters.js";
+import { formatCurrency, formatEnum } from "../../loans/loanFormatters.js";
 import { useReverseSavingsTransactionMutation } from "../../savings/savingsApi.js";
 
 export function SavingsTransactionHistoryTable({
@@ -50,40 +54,123 @@ export function SavingsTransactionHistoryTable({
 
   const columns = [
     {
-      title: "Transaction ID",
-      dataIndex: "transactionId",
-      width: 160,
-      render: (value, transaction) => (
-        <Typography.Text strong>{value || `#${transaction.id}`}</Typography.Text>
-      ),
+      title: "Date & Time",
+      dataIndex: "transactionDate",
+      width: 140,
+      render: (date, record) => {
+        const timeSource = record.createdAt || date;
+        return (
+          <div>
+            <div className="font-semibold text-xs text-slate-900 dark:text-slate-100">
+              {dayjs(date || timeSource).format("DD MMM YYYY")}
+            </div>
+            <div className="text-slate-500 dark:text-slate-400 text-xs">
+              {dayjs(timeSource).format("hh:mm A")}
+            </div>
+          </div>
+        );
+      },
     },
-    { title: "Date", dataIndex: "transactionDate", width: 140, render: formatDate },
     {
       title: "Savings Type",
       dataIndex: "savingsType",
-      width: 140,
-      render: (value) => <StatusTag status={value} label={formatEnum(value)} />,
+      width: 110,
+      render: (value) => (
+        <Tag color={value === "GENERAL" ? "blue" : "purple"}>
+          {value === "GENERAL" ? "General" : "Special"}
+        </Tag>
+      ),
     },
-    { title: "Transaction Type", dataIndex: "type", width: 150, render: formatEnum },
-    { title: "Amount", dataIndex: "amount", align: "right", width: 130, render: formatCurrency },
-    { title: "Balance Before", dataIndex: "balanceBefore", align: "right", width: 150, render: formatCurrency },
-    { title: "Balance After", dataIndex: "balanceAfter", align: "right", width: 150, render: formatCurrency },
-    { title: "Method", dataIndex: "paymentMethod", width: 150, render: formatEnum },
+    {
+      title: "Type",
+      dataIndex: "type",
+      width: 110,
+      render: (type) =>
+        type === "DEPOSIT" ? (
+          <Tag color="success" icon={<ArrowDownOutlined />}>
+            Deposit
+          </Tag>
+        ) : (
+          <Tag color="error" icon={<ArrowUpOutlined />}>
+            Withdrawal
+          </Tag>
+        ),
+    },
+    {
+      title: "Amount",
+      dataIndex: "amount",
+      align: "right",
+      width: 120,
+      render: (amt, record) => (
+        <span
+          className={`font-bold ${
+            record.type === "DEPOSIT"
+              ? "text-emerald-600 dark:text-emerald-400"
+              : "text-rose-600 dark:text-rose-400"
+          }`}
+        >
+          {record.type === "DEPOSIT" ? "+" : "-"}
+          {formatCurrency(amt)}
+        </span>
+      ),
+    },
+    {
+      title: "Balance Before",
+      dataIndex: "balanceBefore",
+      align: "right",
+      width: 115,
+      render: (bal) => (
+        <span className="text-xs text-slate-500 dark:text-slate-400">
+          {formatCurrency(bal)}
+        </span>
+      ),
+    },
+    {
+      title: "Balance After",
+      dataIndex: "balanceAfter",
+      align: "right",
+      width: 115,
+      render: (bal) => (
+        <span className="font-bold text-slate-900 dark:text-slate-100">
+          {formatCurrency(bal)}
+        </span>
+      ),
+    },
+    {
+      title: "Method",
+      dataIndex: "paymentMethod",
+      width: 90,
+      render: (m) => <Tag>{formatEnum(m)}</Tag>,
+    },
     {
       title: "Processed By",
       dataIndex: "processedBy",
-      width: 170,
-      render: (value) => value?.fullName || value?.userName || "—",
+      width: 130,
+      ellipsis: true,
+      render: (value) => (
+        <span className="text-xs text-slate-700 dark:text-slate-300">
+          {value?.fullName || value?.userName || "—"}
+        </span>
+      ),
     },
-    { title: "Reference", dataIndex: "reference", width: 180, ellipsis: true, render: (value) => value || "—" },
+    {
+      title: "Reference",
+      dataIndex: "reference",
+      width: 110,
+      ellipsis: true,
+      render: (value, record) => (
+        <span className="text-xs text-slate-500 dark:text-slate-400" title={record.notes}>
+          {value || record.notes || "—"}
+        </span>
+      ),
+    },
     ...(isAdmin
       ? [
           {
             title: "Action",
             key: "action",
             align: "center",
-            width: 100,
-            fixed: "right",
+            width: 95,
             render: (_, record) => (
               <Tooltip title="Reverse this savings transaction">
                 <Button
@@ -107,7 +194,7 @@ export function SavingsTransactionHistoryTable({
         rowKey="id"
         loading={loading}
         dataSource={transactions}
-        scroll={{ x: 1300 }}
+        scroll={{ x: "max-content" }}
         pagination={{
           current: pagination?.current ?? 1,
           pageSize: pagination?.pageSize ?? 20,
@@ -116,7 +203,7 @@ export function SavingsTransactionHistoryTable({
           showTotal: (total) => `${total} transaction${total === 1 ? "" : "s"}`,
         }}
         onChange={(nextPagination) => onPaginationChange?.(nextPagination)}
-        locale={{ emptyText: <Empty description="No savings transactions yet" /> }}
+        locale={{ emptyText: <Empty description="No savings transactions recorded yet" /> }}
         columns={columns}
       />
 

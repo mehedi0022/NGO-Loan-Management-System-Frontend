@@ -21,10 +21,11 @@ import {
   WalletOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { formatCurrency } from "../../loans/loanFormatters.js";
-import { useWithdrawSavingsMutation } from "../savingsApi.js";
+import { useGetMemberSavingsQuery, useWithdrawSavingsMutation } from "../savingsApi.js";
+import { MemberSavingsSelector } from "./MemberSavingsSelector.jsx";
 
 const paymentMethods = [
   { value: "CASH", label: "Cash" },
@@ -41,11 +42,18 @@ const toAmount = (value) => {
 
 export function SavingsWithdrawalModal({
   open,
-  member,
-  account,
+  member: memberProp,
+  account: accountProp,
   onClose,
   onSuccess,
 }) {
+  const [selectedMemberId, setSelectedMemberId] = useState(null);
+  const { data: memberSavingsData } = useGetMemberSavingsQuery(selectedMemberId, {
+    skip: !selectedMemberId || Boolean(memberProp),
+  });
+
+  const member = memberProp || memberSavingsData?.data;
+  const account = accountProp || member?.savingsAccount;
   const { token } = theme.useToken();
   const [form] = Form.useForm();
 
@@ -98,6 +106,7 @@ export function SavingsWithdrawalModal({
     if (isLoading) return;
 
     form.resetFields();
+    setSelectedMemberId(null);
     onClose?.();
   };
 
@@ -161,42 +170,61 @@ export function SavingsWithdrawalModal({
       maskClosable={!isLoading}
       keyboard={!isLoading}
     >
-      {/* Member */}
-      <div
-        className="mt-5 flex items-center gap-3 rounded-lg border p-3"
-        style={{
-          backgroundColor: token.colorFillAlter,
-          borderColor: token.colorBorderSecondary,
-        }}
-      >
-        <Avatar
-          size={44}
-          icon={<UserOutlined />}
-          style={{
-            backgroundColor: token.colorPrimaryBg,
-            color: token.colorPrimary,
-          }}
-        />
-
-        <div className="min-w-0 flex-1">
-          <Typography.Text strong className="block">
-            {member?.fullName || "Unknown Member"}
-          </Typography.Text>
-
-          <Typography.Text type="secondary" className="text-sm">
-            {member?.memberId || (member?.id ? `Member #${member.id}` : "—")}
-          </Typography.Text>
+      {/* Member Selection if not pre-provided */}
+      {!memberProp && (
+        <div className="mt-4">
+          <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            Select Member <span className="text-rose-500">*</span>
+          </div>
+          <MemberSavingsSelector
+            value={selectedMemberId}
+            onChange={(id) => {
+              setSelectedMemberId(id);
+              form.setFieldValue("amount", undefined);
+            }}
+            placeholder="Search member to process savings withdrawal..."
+          />
         </div>
+      )}
 
-        {account?.status && (
-          <Typography.Text
-            type={account.status === "ACTIVE" ? "success" : "secondary"}
-            strong
-          >
-            {account.status}
-          </Typography.Text>
-        )}
-      </div>
+      {/* Member Info */}
+      {member ? (
+        <div
+          className="mt-4 flex items-center gap-3 rounded-lg border p-3"
+          style={{
+            backgroundColor: token.colorFillAlter,
+            borderColor: token.colorBorderSecondary,
+          }}
+        >
+          <Avatar
+            size={44}
+            icon={<UserOutlined />}
+            style={{
+              backgroundColor: token.colorPrimaryBg,
+              color: token.colorPrimary,
+            }}
+          />
+
+          <div className="min-w-0 flex-1">
+            <Typography.Text strong className="block">
+              {member.fullName}
+            </Typography.Text>
+
+            <Typography.Text type="secondary" className="text-sm">
+              {member.memberId || `Member #${member.id}`} · {member.mobileNumber}
+            </Typography.Text>
+          </div>
+
+          {account?.status && (
+            <Typography.Text
+              type={account.status === "ACTIVE" ? "success" : "secondary"}
+              strong
+            >
+              {account.status}
+            </Typography.Text>
+          )}
+        </div>
+      ) : null}
 
       {unavailable && (
         <Alert

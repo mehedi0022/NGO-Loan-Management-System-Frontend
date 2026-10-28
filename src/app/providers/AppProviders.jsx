@@ -14,6 +14,11 @@ export function AppProviders({ children }) {
 
   useEffect(() => {
     document.documentElement.dataset.theme = mode;
+    if (mode === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
     localStorage.setItem("nuru-theme", mode);
   }, [mode]);
 

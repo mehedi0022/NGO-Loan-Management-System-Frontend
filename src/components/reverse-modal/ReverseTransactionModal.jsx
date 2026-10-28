@@ -36,8 +36,8 @@ export function ReverseTransactionModal({
   return (
     <Modal
       title={
-        <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
-          <ExclamationCircleOutlined />
+        <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 text-base font-semibold">
+          <ExclamationCircleOutlined className="text-lg" />
           <span>{title}</span>
         </div>
       }
@@ -48,35 +48,51 @@ export function ReverseTransactionModal({
       okButtonProps={{ danger: true, loading: confirmLoading }}
       cancelButtonProps={{ disabled: confirmLoading }}
       destroyOnClose
-      width={480}
+      width={500}
     >
-      <div className="py-2">
+      <div className="py-1">
         <Alert
           type="warning"
           showIcon
-          className="mb-3"
-          message="Reversing this transaction will restore member balances, revert installment statuses, and adjust the financial cash ledger."
+          description="Reversing this transaction will restore member balances, revert installment statuses, and adjust the financial cash ledger."
+          style={{
+            marginBottom: 16,
+            borderRadius: 12,
+            backgroundColor: "rgba(254, 243, 199, 0.3)",
+          }}
+          className="mb-4 text-xs sm:text-sm"
         />
 
         {(transactionCode || amount !== undefined || detailsText) && (
-          <div className="mb-4 rounded-lg bg-gray-50 dark:bg-gray-800/60 p-3 text-sm">
+          <div className="mb-4 rounded-xl border border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/60 p-3.5 text-sm space-y-2">
             {transactionCode && (
-              <div className="flex justify-between py-0.5">
-                <span className="text-gray-500 dark:text-gray-400">Transaction:</span>
-                <span className="font-semibold">{transactionCode}</span>
+              <div className="flex justify-between items-center py-0.5 border-b border-slate-200/80 dark:border-slate-700/60 pb-2">
+                <span className="text-slate-600 dark:text-slate-300 font-medium text-xs sm:text-sm">
+                  Transaction:
+                </span>
+                <span className="font-mono font-semibold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-700 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600 text-xs sm:text-sm">
+                  {transactionCode}
+                </span>
               </div>
             )}
             {amount !== undefined && (
-              <div className="flex justify-between py-0.5">
-                <span className="text-gray-500 dark:text-gray-400">Amount:</span>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                  {amount}
+              <div className="flex justify-between items-center py-0.5 border-b border-slate-200/80 dark:border-slate-700/60 pb-2">
+                <span className="text-slate-600 dark:text-slate-300 font-medium text-xs sm:text-sm">
+                  Reversal Amount:
+                </span>
+                <span className="font-bold text-base text-rose-600 dark:text-rose-400">
+                  {typeof amount === "number"
+                    ? `৳${amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+                    : String(amount).startsWith("৳")
+                      ? amount
+                      : `৳${amount}`}
                 </span>
               </div>
             )}
             {detailsText && (
-              <div className="mt-1 pt-1 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
-                {detailsText}
+              <div className="pt-1 text-xs text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                <span className="text-slate-400 font-bold">•</span>
+                <span>{detailsText}</span>
               </div>
             )}
           </div>
@@ -86,12 +102,15 @@ export function ReverseTransactionModal({
           <Form.Item
             name="reason"
             label={
-              <Typography.Text strong>
-                Reason for Reversal / Cancellation <span className="text-rose-500">*</span>
-              </Typography.Text>
+              <span className="text-slate-800 dark:text-slate-200 font-semibold text-sm">
+                Reason for Reversal / Cancellation
+              </span>
             }
             rules={[
-              { required: true, message: "Please provide a reason for reversal" },
+              {
+                required: true,
+                message: "Please provide a reason for reversal",
+              },
               { min: 3, message: "Reason must be at least 3 characters" },
               { max: 500, message: "Reason cannot exceed 500 characters" },
             ]}
@@ -101,6 +120,7 @@ export function ReverseTransactionModal({
               placeholder="e.g. Wrong amount entered by field officer / Member mistyped"
               maxLength={500}
               showCount
+              className="rounded-lg"
             />
           </Form.Item>
         </Form>

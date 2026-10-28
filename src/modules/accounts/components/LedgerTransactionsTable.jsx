@@ -83,10 +83,10 @@ export function LedgerTransactionsTable() {
         const timeSource = record.createdAt || date;
         return (
           <div>
-            <div className="font-semibold text-xs text-slate-800 dark:text-slate-200">
+            <div className="font-semibold text-xs text-slate-900 dark:text-slate-100">
               {dayjs(date || timeSource).format("DD MMM YYYY")}
             </div>
-            <div className="text-gray-400 text-xs">
+            <div className="text-slate-500 dark:text-slate-400 text-xs">
               {dayjs(timeSource).format("hh:mm A")}
             </div>
           </div>
@@ -103,7 +103,7 @@ export function LedgerTransactionsTable() {
         <div>
           <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">{txId}</span>
           {record.referenceId && (
-            <div className="text-gray-400 text-xs">Ref: #{record.referenceId}</div>
+            <div className="text-slate-500 dark:text-slate-400 text-xs">Ref: #{record.referenceId}</div>
           )}
         </div>
       ),
@@ -115,8 +115,8 @@ export function LedgerTransactionsTable() {
       width: 180,
       render: (account) => (
         <div>
-          <div className="font-medium text-slate-900 dark:text-slate-100">{account?.accountName}</div>
-          <div className="text-xs text-gray-400 capitalize">{account?.accountType?.toLowerCase()}</div>
+          <div className="font-semibold text-sm text-slate-900 dark:text-slate-100">{account?.accountName}</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 capitalize">{account?.accountType?.toLowerCase()}</div>
         </div>
       ),
     },
@@ -176,7 +176,7 @@ export function LedgerTransactionsTable() {
       align: "right",
       sorter: (a, b) => Number(a.balanceAfter || 0) - Number(b.balanceAfter || 0),
       render: (bal) => (
-        <span className="font-semibold text-slate-800 dark:text-slate-100">
+        <span className="font-bold text-slate-900 dark:text-slate-100">
           ৳{Number(bal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
         </span>
       ),
@@ -186,17 +186,21 @@ export function LedgerTransactionsTable() {
       dataIndex: "description",
       key: "description",
       ellipsis: true,
-      render: (desc) => <Text type="secondary" className="text-xs">{desc || "—"}</Text>,
+      render: (desc) => (
+        <span className="text-xs text-slate-600 dark:text-slate-300">
+          {desc || "—"}
+        </span>
+      ),
     },
   ];
 
   return (
     <div className="space-y-4">
       {/* Filter Row */}
-      <Card className="border-gray-200 dark:border-gray-700 shadow-sm" bodyStyle={{ padding: "12px" }}>
+      <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl" bodyStyle={{ padding: "14px" }}>
         <Row gutter={[12, 10]} align="middle">
           <Col xs={12} sm={12} md={6}>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Account:</div>
+            <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Account:</div>
             <Select
               className="w-full"
               value={accountId}
@@ -209,7 +213,7 @@ export function LedgerTransactionsTable() {
           </Col>
 
           <Col xs={12} sm={12} md={6}>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Module / Source:</div>
+            <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Module / Source:</div>
             <Select
               className="w-full"
               value={sourceModule}
@@ -222,7 +226,7 @@ export function LedgerTransactionsTable() {
           </Col>
 
           <Col xs={12} sm={12} md={4}>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Type:</div>
+            <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Type:</div>
             <Select
               className="w-full"
               value={type}
@@ -236,7 +240,7 @@ export function LedgerTransactionsTable() {
           </Col>
 
           <Col xs={24} sm={12} md={8}>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Date Range:</div>
+            <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Date Range:</div>
             <RangePicker
               className="w-full"
               format="DD MMM YYYY"
@@ -253,7 +257,7 @@ export function LedgerTransactionsTable() {
       </Card>
 
       {/* Table */}
-      <Card className="border-gray-200 dark:border-gray-700 shadow-sm" styles={{ body: { padding: 0 } }}>
+      <Card className="border border-slate-200 dark:border-slate-800 shadow-sm rounded-xl overflow-hidden" styles={{ body: { padding: 0 } }}>
         <Table
           dataSource={transactions}
           columns={columns}
