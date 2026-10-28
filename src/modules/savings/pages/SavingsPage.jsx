@@ -175,40 +175,17 @@ export function SavingsPage() {
       title: "Actions",
       key: "actions",
       align: "right",
-      width: 260,
+      width: 160,
       render: (_, record) => (
-        <Space size={6}>
-          <Button
-            type="primary"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => selectMember(record.id)}
-            className="bg-emerald-600 hover:bg-emerald-700 font-medium"
-          >
-            View Ledger
-          </Button>
-          <Button
-            size="small"
-            icon={<PlusCircleOutlined />}
-            onClick={() => {
-              setModalMember(record);
-              setDepositOpen(true);
-            }}
-          >
-            Collect
-          </Button>
-          <Button
-            danger
-            size="small"
-            icon={<MinusCircleOutlined />}
-            onClick={() => {
-              setModalMember(record);
-              setWithdrawalOpen(true);
-            }}
-          >
-            Withdraw
-          </Button>
-        </Space>
+        <Button
+          type="primary"
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={() => selectMember(record.id)}
+          className="bg-emerald-600 hover:bg-emerald-700 font-medium"
+        >
+          View Savings Ledger
+        </Button>
       ),
     },
   ];
@@ -216,47 +193,17 @@ export function SavingsPage() {
   return (
     <PageContainer>
       {/* Page Header */}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <Title
-            level={2}
-            className="m-0! text-slate-900 dark:text-slate-50 font-bold"
-          >
-            Savings Management
-          </Title>
-          <Text type="secondary" className="text-sm">
-            Collect savings, process member withdrawals, and audit savings
-            transaction ledgers.
-          </Text>
-        </div>
-
-        {/* Global Action Buttons */}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="primary"
-            icon={<PlusCircleOutlined />}
-            onClick={() => {
-              setModalMember(member || null);
-              setDepositOpen(true);
-            }}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm"
-            style={{ backgroundColor: "#059669", borderColor: "#059669" }}
-          >
-            Collect Savings
-          </Button>
-
-          <Button
-            danger
-            icon={<MinusCircleOutlined />}
-            onClick={() => {
-              setModalMember(member || null);
-              setWithdrawalOpen(true);
-            }}
-            className="font-medium"
-          >
-            Withdraw Savings
-          </Button>
-        </div>
+      <div className="mb-5">
+        <Title
+          level={2}
+          className="m-0! text-slate-900 dark:text-slate-50 font-bold"
+        >
+          Savings Management
+        </Title>
+        <Text type="secondary" className="text-sm">
+          Collect savings, process member withdrawals, and audit savings
+          transaction ledgers.
+        </Text>
       </div>
 
       {/* 1. Directory View (when NO member is selected) */}
