@@ -892,15 +892,14 @@ function DailyCollectionsTab({
           <Card
             size="small"
             bordered={false}
-            className="shadow-sm"
-            style={{ background: "#ecfdf5", border: "1px solid #a7f3d0" }}
+            className="shadow-sm card-tint-emerald"
           >
             <Statistic
-              title={<span style={{ color: "#065f46" }}>Grand Total Collected</span>}
+              title={<span className="text-emerald-800 font-medium">Grand Total Collected</span>}
               value={summary.totalCollectedAmount ?? 0}
               precision={2}
               formatter={(v) => formatCurrency(v)}
-              styles={{ content: { color: "#047857", fontWeight: 700, fontSize: 18 } }}
+              styles={{ content: { fontWeight: 700, fontSize: 18 } }}
             />
           </Card>
         </Col>
@@ -1144,15 +1143,14 @@ function LoanPortfolioTab({
           <Card
             size="small"
             bordered={false}
-            className="shadow-sm"
-            style={{ background: "#fef2f2", border: "1px solid #fecaca" }}
+            className="shadow-sm card-tint-rose"
           >
             <Statistic
-              title={<span style={{ color: "#991b1b" }}>Outstanding Portfolio</span>}
+              title={<span className="text-rose-800 font-medium">Outstanding Portfolio</span>}
               value={summary.totalOutstanding ?? 0}
               precision={2}
               formatter={(v) => formatCurrency(v)}
-              styles={{ content: { color: "#dc2626", fontWeight: 700, fontSize: 18 } }}
+              styles={{ content: { fontWeight: 700, fontSize: 18 } }}
             />
           </Card>
         </Col>
@@ -1382,15 +1380,14 @@ function OverdueTab({
           <Card
             size="small"
             bordered={false}
-            className="shadow-sm"
-            style={{ background: "#fef2f2", border: "1px solid #fecaca" }}
+            className="shadow-sm card-tint-rose"
           >
             <Statistic
-              title={<span style={{ color: "#991b1b" }}>Total Overdue Amount</span>}
+              title={<span className="text-rose-800 font-medium">Total Overdue Amount</span>}
               value={summary.totalOverdueAmount ?? 0}
               precision={2}
               formatter={(v) => formatCurrency(v)}
-              styles={{ content: { color: "#dc2626", fontWeight: 700, fontSize: 20 } }}
+              styles={{ content: { fontWeight: 700, fontSize: 20 } }}
             />
           </Card>
         </Col>
@@ -1613,15 +1610,14 @@ function SavingsSummaryTab({
           <Card
             size="small"
             bordered={false}
-            className="shadow-sm"
-            style={{ background: "#ecfdf5", border: "1px solid #a7f3d0" }}
+            className="shadow-sm card-tint-emerald"
           >
             <Statistic
-              title={<span style={{ color: "#065f46" }}>Total Savings Liability</span>}
+              title={<span className="text-emerald-800 font-medium">Total Savings Liability</span>}
               value={summary.totalSavingsBalance ?? 0}
               precision={2}
               formatter={(v) => formatCurrency(v)}
-              styles={{ content: { color: "#047857", fontWeight: 700, fontSize: 18 } }}
+              styles={{ content: { fontWeight: 700, fontSize: 18 } }}
             />
           </Card>
         </Col>
@@ -1885,15 +1881,14 @@ function DpsSummaryTab({
           <Card
             size="small"
             bordered={false}
-            className="shadow-sm"
-            style={{ background: "#eff6ff", border: "1px solid #bfdbfe" }}
+            className="shadow-sm card-tint-blue"
           >
             <Statistic
-              title={<span style={{ color: "#1e40af" }}>Total Maturity Liability</span>}
+              title={<span className="text-blue-800 font-medium">Total Maturity Liability</span>}
               value={summary.totalMaturityLiability ?? 0}
               precision={2}
               formatter={(v) => formatCurrency(v)}
-              styles={{ content: { color: "#1d4ed8", fontWeight: 700, fontSize: 18 } }}
+              styles={{ content: { fontWeight: 700, fontSize: 18 } }}
             />
           </Card>
         </Col>

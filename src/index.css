@@ -1723,14 +1723,14 @@ select {
   --surface: #182722;
   --surface-muted: #20332c;
   --border: #2d443b;
-  --text: #edf4f0;
+  --text: #f1f5f3;
   --text-muted: #a9beb5;
   --sidebar: #0d382e;
   --sidebar-hover: #1e5747;
-  --accent: #58a88b;
+  --accent: #20b286;
   --accent-soft: #23483a;
-  --warning: #e0ac45;
-  --danger: #e07373;
+  --warning: #fbbf24;
+  --danger: #f87171;
 }
 
 [data-theme="dark"] .app-header,
@@ -1758,6 +1758,318 @@ select {
 
 [data-theme="dark"] .login-help {
   border-color: var(--border);
+}
+
+/* ========================================================
+   DARK MODE COMPONENT CONTRAST & THEME INTEGRATION
+   ======================================================== */
+
+/* Cards, Panels, Modals and Print Containers */
+[data-theme="dark"] .ant-card,
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .dashboard-stat-card,
+[data-theme="dark"] .dashboard-panel-card,
+[data-theme="dark"] .members-table-card,
+[data-theme="dark"] .loans-table-card,
+[data-theme="dark"] .collection-table-card,
+[data-theme="dark"] .collection-filter-card,
+[data-theme="dark"] .users-filter-card,
+[data-theme="dark"] .users-table-card,
+[data-theme="dark"] .approval-table-card,
+[data-theme="dark"] .member-profile-card,
+[data-theme="dark"] .print-area {
+  background-color: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+[data-theme="dark"] .ant-card-head {
+  border-bottom: 1px solid var(--border) !important;
+}
+
+[data-theme="dark"] .ant-card-head-title {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="dark"] .stat-card-icon {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Override hardcoded light/white Tailwind backgrounds */
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] .bg-slate-50,
+[data-theme="dark"] .bg-gray-50 {
+  background-color: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+[data-theme="dark"] .bg-gradient-to-br {
+  background-image: none !important;
+  background-color: var(--surface) !important;
+}
+
+[data-theme="dark"] .border-gray-100,
+[data-theme="dark"] .border-gray-200,
+[data-theme="dark"] .border-slate-100,
+[data-theme="dark"] .border-slate-200,
+[data-theme="dark"] .border-blue-100,
+[data-theme="dark"] .border-emerald-100,
+[data-theme="dark"] .border-purple-100,
+[data-theme="dark"] .border-rose-100,
+[data-theme="dark"] .border-rose-200 {
+  border-color: var(--border) !important;
+}
+
+/* KPI Card & Metric Card Tinting in Dark Mode */
+[data-theme="dark"] .bg-emerald-50,
+[data-theme="dark"] .bg-emerald-100,
+[data-theme="dark"] .card-tint-emerald {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.28) !important;
+}
+
+[data-theme="dark"] .bg-rose-50,
+[data-theme="dark"] .bg-red-50,
+[data-theme="dark"] .bg-rose-100,
+[data-theme="dark"] .bg-red-100,
+[data-theme="dark"] .card-tint-rose {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.28) !important;
+}
+
+[data-theme="dark"] .bg-blue-50,
+[data-theme="dark"] .bg-blue-100,
+[data-theme="dark"] .card-tint-blue {
+  background-color: rgba(59, 130, 246, 0.12) !important;
+  border-color: rgba(59, 130, 246, 0.28) !important;
+}
+
+.card-tint-emerald {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.card-tint-rose {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.card-tint-blue {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+.card-tint-purple {
+  background: #faf5ff;
+  border: 1px solid #e9d5ff;
+}
+
+.card-tint-slate {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="dark"] .bg-purple-50,
+[data-theme="dark"] .bg-purple-100,
+[data-theme="dark"] .card-tint-purple {
+  background-color: rgba(168, 85, 247, 0.12) !important;
+  border-color: rgba(168, 85, 247, 0.28) !important;
+}
+
+[data-theme="dark"] .card-tint-slate {
+  background-color: rgba(148, 163, 184, 0.1) !important;
+  border-color: rgba(148, 163, 184, 0.25) !important;
+}
+
+/* Typography Contrast Overrides in Dark Mode */
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] .ant-typography-title,
+[data-theme="dark"] .ant-statistic-content {
+  color: #f1f5f3 !important;
+}
+
+[data-theme="dark"] .ant-typography-secondary,
+[data-theme="dark"] .ant-statistic-title,
+[data-theme="dark"] .stat-card-note {
+  color: #a9beb5 !important;
+}
+
+[data-theme="dark"] .text-blue-900,
+[data-theme="dark"] .text-blue-800,
+[data-theme="dark"] .text-blue-700,
+[data-theme="dark"] .text-blue-600 {
+  color: #93c5fd !important;
+}
+
+[data-theme="dark"] .text-emerald-900,
+[data-theme="dark"] .text-emerald-800,
+[data-theme="dark"] .text-emerald-700,
+[data-theme="dark"] .text-emerald-600 {
+  color: #6ee7b7 !important;
+}
+
+[data-theme="dark"] .text-purple-900,
+[data-theme="dark"] .text-purple-800,
+[data-theme="dark"] .text-purple-700,
+[data-theme="dark"] .text-purple-600 {
+  color: #d8b4fe !important;
+}
+
+[data-theme="dark"] .text-rose-900,
+[data-theme="dark"] .text-rose-800,
+[data-theme="dark"] .text-rose-700,
+[data-theme="dark"] .text-rose-600,
+[data-theme="dark"] .text-red-800,
+[data-theme="dark"] .text-red-700 {
+  color: #fca5a5 !important;
+}
+
+[data-theme="dark"] .text-slate-800,
+[data-theme="dark"] .text-slate-900,
+[data-theme="dark"] .text-gray-800,
+[data-theme="dark"] .text-gray-900 {
+  color: #f1f5f3 !important;
+}
+
+[data-theme="dark"] .text-gray-600,
+[data-theme="dark"] .text-gray-500,
+[data-theme="dark"] .text-slate-500 {
+  color: #a9beb5 !important;
+}
+
+/* High-Contrast Buttons in Dark Mode */
+[data-theme="dark"] .ant-btn-primary:not(.ant-btn-dangerous) {
+  background-color: #20b286 !important;
+  border-color: #20b286 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(32, 178, 134, 0.3) !important;
+}
+
+[data-theme="dark"] .ant-btn-primary:not(.ant-btn-dangerous):hover {
+  background-color: #28c797 !important;
+  border-color: #28c797 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .ant-btn-default:not(.ant-btn-dangerous) {
+  background-color: #1c2e28 !important;
+  border-color: #355346 !important;
+  color: #edf4f0 !important;
+}
+
+[data-theme="dark"] .ant-btn-default:not(.ant-btn-dangerous):hover {
+  background-color: #243d34 !important;
+  border-color: #20b286 !important;
+  color: #20b286 !important;
+}
+
+[data-theme="dark"] .user-action-button {
+  background-color: #1c2e28 !important;
+  border-color: #355346 !important;
+  color: #edf4f0 !important;
+}
+
+[data-theme="dark"] .user-action-button:hover {
+  background-color: #243d34 !important;
+  border-color: #20b286 !important;
+  color: #20b286 !important;
+}
+
+[data-theme="dark"] .ant-btn-link {
+  color: #34d399 !important;
+}
+
+[data-theme="dark"] .ant-btn-link:hover {
+  color: #6ee7b7 !important;
+}
+
+/* Custom Tailwind Buttons */
+[data-theme="dark"] .bg-indigo-50 {
+  background-color: #1e1b4b !important;
+  color: #a5b4fc !important;
+  border-color: #3730a3 !important;
+}
+
+[data-theme="dark"] .bg-indigo-50:hover {
+  background-color: #2e287a !important;
+}
+
+/* Status Tags and Badges in Dark Mode */
+[data-theme="dark"] .loan-status-tag.active,
+[data-theme="dark"] .loan-status-tag.completed,
+[data-theme="dark"] .loan-status-tag.approved,
+[data-theme="dark"] .approval-status.approved {
+  color: #6ee7b7 !important;
+  background-color: rgba(16, 185, 129, 0.16) !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+}
+
+[data-theme="dark"] .loan-status-tag.pending,
+[data-theme="dark"] .approval-status.pending {
+  color: #fde047 !important;
+  background-color: rgba(234, 179, 8, 0.16) !important;
+  border: 1px solid rgba(234, 179, 8, 0.35) !important;
+}
+
+[data-theme="dark"] .loan-status-tag.overdue,
+[data-theme="dark"] .approval-status.rejected {
+  color: #fca5a5 !important;
+  background-color: rgba(239, 68, 68, 0.16) !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+}
+
+[data-theme="dark"] .loan-status-tag.cancelled {
+  color: #cbd5e1 !important;
+  background-color: rgba(148, 163, 184, 0.16) !important;
+  border: 1px solid rgba(148, 163, 184, 0.35) !important;
+}
+
+/* Inputs & Form Controls in Dark Mode */
+[data-theme="dark"] .ant-input,
+[data-theme="dark"] .ant-input-affix-wrapper,
+[data-theme="dark"] .ant-select-selector,
+[data-theme="dark"] .ant-picker,
+[data-theme="dark"] .ant-input-number {
+  background-color: #182722 !important;
+  border-color: #2d443b !important;
+  color: #edf4f0 !important;
+}
+
+[data-theme="dark"] .ant-input-affix-wrapper input.ant-input {
+  background-color: transparent !important;
+}
+
+[data-theme="dark"] .ant-radio-button-wrapper {
+  background-color: #1c2e28 !important;
+  border-color: #355346 !important;
+  color: #a9beb5 !important;
+}
+
+[data-theme="dark"] .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled) {
+  background-color: #20b286 !important;
+  border-color: #20b286 !important;
+  color: #ffffff !important;
+}
+
+/* Printable Sheet paper documents remain crisp white sheet in modals */
+.print-report-sheet,
+.printable-voucher-container,
+.printable-document {
+  background: #ffffff !important;
+  color: #111827 !important;
+}
+
+.print-report-sheet *,
+.printable-voucher-container *,
+.printable-document * {
+  color: #111827;
 }
 
 .login-page {
@@ -2687,5 +2999,15 @@ select {
   }
   .ant-statistic-content-value {
     font-size: 15px !important;
+  }
+}
+
+/* Ensure sticky columns don't block mobile screen on collection table */
+@media (max-width: 767px) {
+  .collection-table-card .ant-table-cell-fix-left,
+  .collection-table-card .ant-table-cell-fix-left-last,
+  .collection-table-card .ant-table-cell-fix-right,
+  .collection-table-card .ant-table-cell-fix-right-first {
+    position: static !important;
   }
 }

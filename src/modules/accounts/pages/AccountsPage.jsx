@@ -148,7 +148,7 @@ export function AccountsPage() {
       {/* Top 4 Summary Cards */}
       <Row gutter={[12, 12]}>
         <Col xs={12} sm={12} lg={6}>
-          <Card className="border-blue-100 bg-gradient-to-br from-blue-50 to-white shadow-sm" styles={{ body: { padding: "12px 14px" } }}>
+          <Card className="border-blue-100 bg-gradient-to-br from-blue-50 to-white card-tint-blue shadow-sm" styles={{ body: { padding: "12px 14px" } }}>
             <div className="flex justify-between items-center gap-2">
               <div className="min-w-0">
                 <Text type="secondary" className="text-[10px] sm:text-xs font-semibold uppercase truncate block">Total Liquidity</Text>
@@ -165,7 +165,7 @@ export function AccountsPage() {
         </Col>
 
         <Col xs={12} sm={12} lg={6}>
-          <Card className="border-emerald-100 bg-gradient-to-br from-emerald-50 to-white shadow-sm" styles={{ body: { padding: "12px 14px" } }}>
+          <Card className="border-emerald-100 bg-gradient-to-br from-emerald-50 to-white card-tint-emerald shadow-sm" styles={{ body: { padding: "12px 14px" } }}>
             <div className="flex justify-between items-center gap-2">
               <div className="min-w-0">
                 <Text type="secondary" className="text-[10px] sm:text-xs font-semibold uppercase truncate block">Main Cash In Hand</Text>
@@ -184,7 +184,7 @@ export function AccountsPage() {
         </Col>
 
         <Col xs={12} sm={12} lg={6}>
-          <Card className="border-purple-100 bg-gradient-to-br from-purple-50 to-white shadow-sm" styles={{ body: { padding: "12px 14px" } }}>
+          <Card className="border-purple-100 bg-gradient-to-br from-purple-50 to-white card-tint-purple shadow-sm" styles={{ body: { padding: "12px 14px" } }}>
             <div className="flex justify-between items-center gap-2">
               <div className="min-w-0">
                 <Text type="secondary" className="text-[10px] sm:text-xs font-semibold uppercase truncate block">Bank & Mobile</Text>
@@ -201,7 +201,7 @@ export function AccountsPage() {
         </Col>
 
         <Col xs={12} sm={12} lg={6}>
-          <Card className="border-slate-100 bg-gradient-to-br from-slate-50 to-white shadow-sm" styles={{ body: { padding: "12px 14px" } }}>
+          <Card className="border-slate-100 bg-gradient-to-br from-slate-50 to-white card-tint-slate shadow-sm" styles={{ body: { padding: "12px 14px" } }}>
             <div className="flex justify-between items-center gap-2">
               <div className="min-w-0">
                 <Text type="secondary" className="text-[10px] sm:text-xs font-semibold uppercase truncate block">Account Status</Text>

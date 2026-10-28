@@ -423,16 +423,15 @@ export function LoanDisbursementPage() {
           <Card
             size="small"
             bordered={false}
-            className="shadow-sm"
-            style={{ background: "#f0fdf4", border: "1px solid #bbf7d0" }}
+            className="shadow-sm card-tint-emerald"
           >
             <Statistic
-              title={<span style={{ color: "#166534" }}>Ready for Disbursement</span>}
+              title={<span className="text-emerald-800 font-medium">Ready for Disbursement</span>}
               value={summary.totalCount}
-              styles={{ content: { color: "#16a34a", fontWeight: 700, fontSize: 18 } }}
-              prefix={<ClockCircleOutlined style={{ color: "#16a34a" }} />}
+              styles={{ content: { fontWeight: 700, fontSize: 18 } }}
+              prefix={<ClockCircleOutlined className="text-emerald-600" />}
             />
-            <div style={{ fontSize: 11, color: "#15803d", marginTop: 4 }}>
+            <div className="text-xs text-emerald-700 mt-1">
               Approved loans waiting for cash handover
             </div>
           </Card>
@@ -442,18 +441,17 @@ export function LoanDisbursementPage() {
           <Card
             size="small"
             bordered={false}
-            className="shadow-sm"
-            style={{ background: "#ecfdf5", border: "1px solid #a7f3d0" }}
+            className="shadow-sm card-tint-emerald"
           >
             <Statistic
-              title={<span style={{ color: "#065f46" }}>Total Capital to Disburse</span>}
+              title={<span className="text-emerald-800 font-medium">Total Capital to Disburse</span>}
               value={summary.totalPrincipal}
               precision={2}
               formatter={(v) => formatCurrency(v)}
-              styles={{ content: { color: "#059669", fontWeight: 700, fontSize: 18 } }}
-              prefix={<DollarCircleOutlined style={{ color: "#059669" }} />}
+              styles={{ content: { fontWeight: 700, fontSize: 18 } }}
+              prefix={<DollarCircleOutlined className="text-emerald-600" />}
             />
-            <div style={{ fontSize: 11, color: "#047857", marginTop: 4 }}>
+            <div className="text-xs text-emerald-700 mt-1">
               Total required for all waiting loans
             </div>
           </Card>
@@ -463,15 +461,11 @@ export function LoanDisbursementPage() {
           <Card
             size="small"
             bordered={false}
-            className="shadow-sm"
-            style={{
-              background: mainCashBalance >= summary.totalPrincipal ? "#eff6ff" : "#fffbeb",
-              border: `1px solid ${mainCashBalance >= summary.totalPrincipal ? "#bfdbfe" : "#fde68a"}`,
-            }}
+            className={`shadow-sm ${mainCashBalance >= summary.totalPrincipal ? "card-tint-blue" : "card-tint-rose"}`}
           >
             <Statistic
               title={
-                <span style={{ color: mainCashBalance >= summary.totalPrincipal ? "#1e40af" : "#92400e" }}>
+                <span className={mainCashBalance >= summary.totalPrincipal ? "text-blue-800 font-medium" : "text-rose-800 font-medium"}>
                   Available in {defaultAccount?.accountName || "Main Cash"}
                 </span>
               }
@@ -480,19 +474,14 @@ export function LoanDisbursementPage() {
               formatter={(v) => formatCurrency(v)}
               styles={{
                 content: {
-                  color: mainCashBalance >= summary.totalPrincipal ? "#2563eb" : "#d97706",
                   fontWeight: 700,
-                  fontSize: 22,
+                  fontSize: 20,
                 },
               }}
-              prefix={<WalletOutlined style={{ color: mainCashBalance >= summary.totalPrincipal ? "#2563eb" : "#d97706" }} />}
+              prefix={<WalletOutlined className={mainCashBalance >= summary.totalPrincipal ? "text-blue-600" : "text-rose-600"} />}
             />
             <div
-              style={{
-                fontSize: 11,
-                color: mainCashBalance >= summary.totalPrincipal ? "#1d4ed8" : "#b45309",
-                marginTop: 4,
-              }}
+              className={`text-xs mt-1 ${mainCashBalance >= summary.totalPrincipal ? "text-blue-700" : "text-rose-700 font-semibold"}`}
             >
               {mainCashBalance >= summary.totalPrincipal
                 ? "Sufficient physical cash in hand"

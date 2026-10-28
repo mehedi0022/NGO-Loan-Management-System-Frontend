@@ -1,4 +1,6 @@
 import {
+  AppstoreOutlined,
+  BarsOutlined,
   CalendarOutlined,
   CheckOutlined,
   PrinterOutlined,
@@ -16,6 +18,8 @@ import {
   Input,
   InputNumber,
   Modal,
+  Pagination,
+  Segmented,
   Select,
   Space,
   Statistic,
@@ -26,7 +30,7 @@ import {
   message,
 } from "antd";
 import dayjs from "dayjs";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
@@ -87,6 +91,28 @@ export function CollectionPage() {
 
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [collectionValues, setCollectionValues] = useState({});
+
+  const [isMobile, setIsMobile] = useState(
+    () => (typeof window !== "undefined" ? window.innerWidth < 768 : false),
+  );
+  const [viewMode, setViewMode] = useState(() =>
+    typeof window !== "undefined" && window.innerWidth < 768 ? "card" : "table",
+  );
+  const [cardPage, setCardPage] = useState(1);
+  const [cardPageSize, setCardPageSize] = useState(10);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    setCardPage(1);
+  }, [dueDate, selectedSomitiId, search]);
 
   const [batchOpen, setBatchOpen] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState(null);
@@ -338,6 +364,53 @@ export function CollectionPage() {
       .startOf("day")
       .isAfter(collectionDate.startOf("day"));
 
+  const paginatedCardItems = useMemo(() => {
+    const start = (cardPage - 1) * cardPageSize;
+    return filteredInstallments.slice(start, start + cardPageSize);
+  }, [filteredInstallments, cardPage, cardPageSize]);
+
+  const selectableItems = useMemo(
+    () =>
+      filteredInstallments.filter((item) => {
+        if (item.isDpsOnly) return true;
+        return (
+          getRemainingAmount(item) > 0 && (!isUpcoming(item) || allowAdvance)
+        );
+      }),
+    [filteredInstallments, allowAdvance, collectionDate],
+  );
+
+  const allSelectableKeys = useMemo(
+    () => selectableItems.map((item) => item.id),
+    [selectableItems],
+  );
+
+  const isAllSelected =
+    allSelectableKeys.length > 0 &&
+    allSelectableKeys.every((key) => selectedRowKeys.includes(key));
+
+  const isIndeterminate =
+    selectedRowKeys.length > 0 && !isAllSelected;
+
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedRowKeys(
+        Array.from(new Set([...selectedRowKeys, ...allSelectableKeys])),
+      );
+    } else {
+      setSelectedRowKeys(
+        selectedRowKeys.filter((key) => !allSelectableKeys.includes(key)),
+      );
+    }
+  };
+
+  const toggleSelectItem = (id, disabled) => {
+    if (disabled) return;
+    setSelectedRowKeys((prev) =>
+      prev.includes(id) ? prev.filter((k) => k !== id) : [...prev, id],
+    );
+  };
+
   const resetSelection = () => {
     setSelectedRowKeys([]);
     setCollectionValues({});
@@ -570,8 +643,8 @@ export function CollectionPage() {
     {
       title: "Member",
       key: "member",
-      fixed: "left",
-      width: 240,
+      fixed: isMobile ? false : "left",
+      width: isMobile ? 180 : 240,
 
       render: (_, item) => {
         const member = getMember(item);
@@ -879,10 +952,10 @@ export function CollectionPage() {
                 <div
                   key={dps.id}
                   style={{
-                    background: "#f8fafc",
+                    background: "var(--surface-muted)",
                     padding: "4px 6px",
                     borderRadius: 4,
-                    border: "1px solid #e2e8f0",
+                    border: "1px solid var(--border)",
                   }}
                 >
                   <div
@@ -975,7 +1048,7 @@ export function CollectionPage() {
     {
       title: "Action",
       key: "action",
-      fixed: "right",
+      fixed: isMobile ? false : "right",
       width: 100,
 
       render: (_, item) => (
@@ -1016,7 +1089,7 @@ export function CollectionPage() {
         </Space>
       </div>
 
-      <Card className="mb-4 border-[#deded7] shadow-none">
+      <Card className="mb-4 shadow-none">
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-[170px_170px_220px_1fr_170px] gap-3 sm:gap-4">
           <div>
             <Typography.Text strong className="mb-1.5 block text-xs sm:text-sm">
@@ -1182,15 +1255,33 @@ export function CollectionPage() {
       )}
 
       <Card
-        title={`Installments due on ${dueDate.format("DD MMM YYYY")}`}
-        className="border-[#deded7] shadow-none"
+        className="collection-table-card border-[#deded7] shadow-none"
+        title={
+          <div className="flex flex-wrap items-center justify-between gap-2 py-1">
+            <span className="text-sm sm:text-base font-semibold">
+              Installments due on {dueDate.format("DD MMM YYYY")}
+            </span>
+            <Segmented
+              size="small"
+              value={viewMode}
+              onChange={setViewMode}
+              options={[
+                { value: "card", label: "Cards", icon: <AppstoreOutlined /> },
+                { value: "table", label: "Table", icon: <BarsOutlined /> },
+              ]}
+            />
+          </div>
+        }
         extra={
           selectedRowKeys.length > 0 ? (
-            <Space>
-              <Button onClick={resetSelection}>Clear</Button>
+            <Space wrap size="small">
+              <Button size="small" onClick={resetSelection}>
+                Clear
+              </Button>
 
               <Button
                 type="primary"
+                size="small"
                 icon={<CheckOutlined />}
                 onClick={openBatchConfirmation}
               >
@@ -1200,34 +1291,377 @@ export function CollectionPage() {
           ) : null
         }
       >
-        <Table
-          rowKey="id"
-          loading={isLoading || isFetching}
-          dataSource={filteredInstallments}
-          columns={columns}
-          rowSelection={{
-            selectedRowKeys,
+        {viewMode === "card" ? (
+          <div>
+            {/* Card Select All Bar */}
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 p-2.5">
+              <Checkbox
+                checked={isAllSelected}
+                indeterminate={isIndeterminate}
+                onChange={(e) => handleSelectAll(e.target.checked)}
+                disabled={allSelectableKeys.length === 0}
+              >
+                <span className="text-xs sm:text-sm font-medium">
+                  Select All ({allSelectableKeys.length})
+                </span>
+              </Checkbox>
 
-            onChange: (keys) => setSelectedRowKeys(keys),
+              {selectedRowKeys.length > 0 && (
+                <Space size="small">
+                  <Button size="small" onClick={resetSelection}>
+                    Clear
+                  </Button>
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<CheckOutlined />}
+                    onClick={openBatchConfirmation}
+                  >
+                    Collect ({selectedRowKeys.length})
+                  </Button>
+                </Space>
+              )}
+            </div>
 
-            getCheckboxProps: (item) => ({
-              disabled:
-                !item.isDpsOnly &&
-                (getRemainingAmount(item) <= 0 ||
-                  (isUpcoming(item) && !allowAdvance)),
-            }),
-          }}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-          }}
-          scroll={{ x: 1875 }}
-          locale={{
-            emptyText: (
+            {paginatedCardItems.length === 0 ? (
               <Empty description="No payable installments found for this date" />
-            ),
-          }}
-        />
+            ) : (
+              <div className="flex flex-col gap-3">
+                {paginatedCardItems.map((item) => {
+                  const member = getMember(item);
+                  const values = getRowValues(item);
+                  const mId = member?.id;
+                  const isFirstForMember =
+                    !mId || firstInstallmentIdByMember.get(mId) === item.id;
+                  const remaining = getRemainingAmount(item);
+                  const isSelectable = !item.isDpsOnly
+                    ? remaining > 0 && (!isUpcoming(item) || allowAdvance)
+                    : true;
+                  const isSelected = selectedRowKeys.includes(item.id);
+                  const activeDpsList = (member?.dpsAccounts || []).filter(
+                    (d) => d.status === "ACTIVE",
+                  );
+                  const hasDps = activeDpsList.length > 0;
+
+                  return (
+                    <Card
+                      key={item.id}
+                      size="small"
+                      className={`border transition-all ${
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/20"
+                          : "border-gray-200 dark:border-gray-700"
+                      }`}
+                      styles={{ body: { padding: "12px" } }}
+                    >
+                      {/* Top Header */}
+                      <div className="flex items-start justify-between gap-2 mb-2 pb-2 border-b border-gray-100 dark:border-gray-800">
+                        <div className="flex items-start gap-2.5">
+                          <Checkbox
+                            checked={isSelected}
+                            disabled={!isSelectable}
+                            onChange={() => toggleSelectItem(item.id, !isSelectable)}
+                            className="mt-1"
+                          />
+                          <Avatar
+                            src={resolveUploadUrl(member?.photoUrl)}
+                            icon={<UserOutlined />}
+                            size="default"
+                          />
+                          <div>
+                            <Typography.Text strong className="block text-sm leading-snug">
+                              {member?.fullName || "—"}
+                            </Typography.Text>
+                            <Typography.Text type="secondary" className="block text-xs">
+                              {member?.memberId || "—"}
+                              {member?.mobileNumber ? ` · ${member.mobileNumber}` : ""}
+                            </Typography.Text>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          {item.isDpsOnly || !item.loanId ? (
+                            <Tag color="cyan" className="mr-0">DPS Only</Tag>
+                          ) : (
+                            <div className="flex flex-col items-end gap-1">
+                              <Button
+                                type="link"
+                                className="p-0! h-auto text-xs font-semibold"
+                                onClick={() => navigate(`/loans/${item.loanId}`)}
+                              >
+                                {item.loan?.loanId || `#${item.loanId}`}
+                              </Button>
+                              <StatusTag status={item.status} label={formatEnum(item.status)} />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Loan summary info bar */}
+                      {!item.isDpsOnly && item.loanId && (
+                        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-1 text-xs px-2 py-1.5 rounded bg-gray-50 dark:bg-gray-800/60">
+                          <span className="text-gray-500 dark:text-gray-400">
+                            Inst: <span className="font-semibold text-gray-700 dark:text-gray-200">#{item.installmentNo || "—"}</span>
+                          </span>
+                          <span className="text-gray-500 dark:text-gray-400">
+                            Due: <span className="font-semibold text-gray-700 dark:text-gray-200">{item.dueDate ? formatDate(item.dueDate) : "—"}</span>
+                          </span>
+                          <span className="text-gray-500 dark:text-gray-400">
+                            Remaining: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(remaining)}</span>
+                          </span>
+                        </div>
+                      )}
+
+                      {/* 2-Column Inputs Grid */}
+                      <div className="grid grid-cols-2 gap-2.5 mb-3">
+                        {/* Loan Collection */}
+                        <div>
+                          <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1">
+                            Loan Collection
+                          </div>
+                          {item.isDpsOnly || !item.loanId ? (
+                            <InputNumber
+                              size="small"
+                              className="w-full"
+                              disabled
+                              placeholder="No loan"
+                              value={0}
+                            />
+                          ) : (
+                            <InputNumber
+                              size="small"
+                              className="w-full"
+                              min={0}
+                              max={remaining}
+                              precision={2}
+                              prefix="৳"
+                              value={values.loanCollectionAmount}
+                              onChange={(val) =>
+                                updateRowValue(item.id, "loanCollectionAmount", val)
+                              }
+                            />
+                          )}
+                        </div>
+
+                        {/* General Savings */}
+                        <div>
+                          <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1">
+                            General Savings
+                          </div>
+                          {!isFirstForMember ? (
+                            <Tooltip title="General Savings is collected on 1st loan row">
+                              <div className="text-xs text-gray-400 pt-1">Incl in 1st loan</div>
+                            </Tooltip>
+                          ) : (
+                            <InputNumber
+                              size="small"
+                              className="w-full"
+                              min={0}
+                              precision={2}
+                              prefix="৳"
+                              value={values.generalSavingsAmount}
+                              onChange={(val) =>
+                                updateRowValue(item.id, "generalSavingsAmount", val)
+                              }
+                            />
+                          )}
+                        </div>
+
+                        {/* Special Savings */}
+                        <div>
+                          <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1">
+                            Special Savings
+                          </div>
+                          {!isFirstForMember ? (
+                            <Tooltip title="Special Savings is collected on 1st loan row">
+                              <div className="text-xs text-gray-400 pt-1">Incl in 1st loan</div>
+                            </Tooltip>
+                          ) : (
+                            <InputNumber
+                              size="small"
+                              className="w-full"
+                              min={0}
+                              precision={2}
+                              prefix="৳"
+                              value={values.specialSavingsAmount}
+                              onChange={(val) =>
+                                updateRowValue(item.id, "specialSavingsAmount", val)
+                              }
+                            />
+                          )}
+                        </div>
+
+                        {/* DPS Deposit */}
+                        <div>
+                          <div className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1">
+                            DPS Deposit
+                          </div>
+                          {!isFirstForMember ? (
+                            <Tooltip title="DPS is collected on 1st loan row">
+                              <div className="text-xs text-gray-400 pt-1">Incl in 1st loan</div>
+                            </Tooltip>
+                          ) : !hasDps ? (
+                            <InputNumber
+                              size="small"
+                              className="w-full"
+                              disabled
+                              placeholder="No DPS"
+                              value={0}
+                            />
+                          ) : activeDpsList.length === 1 ? (
+                            (() => {
+                              const activeDps = activeDpsList[0];
+                              const activeDpsTarget = Number(activeDps?.installmentAmount || 0);
+                              const activeDpsTotalPaid = Number(activeDps?.totalPaidAmount || 0);
+                              const activeDpsPartial =
+                                activeDpsTarget > 0 ? activeDpsTotalPaid % activeDpsTarget : 0;
+                              const activeDpsDue =
+                                activeDpsPartial > 0
+                                  ? activeDpsTarget - activeDpsPartial
+                                  : activeDpsTarget;
+                              const currentVal =
+                                values.dpsAmounts?.[activeDps.id] !== undefined
+                                  ? values.dpsAmounts[activeDps.id]
+                                  : values.dpsAmount;
+
+                              return (
+                                <div>
+                                  <InputNumber
+                                    size="small"
+                                    className="w-full"
+                                    min={0}
+                                    precision={2}
+                                    prefix="৳"
+                                    placeholder={String(activeDpsDue)}
+                                    value={currentVal}
+                                    onChange={(val) =>
+                                      updateRowDpsAmount(item.id, activeDps.id, val)
+                                    }
+                                  />
+                                  <div className="text-[10px] text-blue-600 dark:text-blue-400 truncate mt-0.5 font-medium">
+                                    Due: ৳{activeDpsDue}
+                                  </div>
+                                </div>
+                              );
+                            })()
+                          ) : (
+                            <div className="flex flex-col gap-1">
+                              {activeDpsList.map((dps) => {
+                                const dTarget = Number(dps.installmentAmount || 0);
+                                const dPaid = Number(dps.totalPaidAmount || 0);
+                                const dPartial = dTarget > 0 ? dPaid % dTarget : 0;
+                                const dDue = dPartial > 0 ? dTarget - dPartial : dTarget;
+                                const currentVal = values.dpsAmounts?.[dps.id] ?? 0;
+                                return (
+                                  <div key={dps.id} className="p-1 rounded bg-gray-50 dark:bg-gray-800 text-[10px]">
+                                    <div className="flex justify-between font-semibold text-blue-600 dark:text-blue-400">
+                                      <span>{dps.dpsNumber || `DPS-${dps.id}`}</span>
+                                      <span>Due: ৳{dDue}</span>
+                                    </div>
+                                    <InputNumber
+                                      size="small"
+                                      className="w-full mt-0.5"
+                                      min={0}
+                                      precision={2}
+                                      prefix="৳"
+                                      value={currentVal}
+                                      onChange={(val) =>
+                                        updateRowDpsAmount(item.id, dps.id, val)
+                                      }
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Footer: Payment Method, Total, Collect Button */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-gray-500">Method:</span>
+                          <Select
+                            size="small"
+                            className="w-28 sm:w-36"
+                            value={values.paymentMethod}
+                            options={paymentMethods}
+                            onChange={(val) => updateRowPaymentMethod(item.id, val)}
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <div className="text-right">
+                            <span className="text-[10px] text-gray-400 block -mb-1">Total</span>
+                            <span className="font-bold text-sm sm:text-base text-emerald-600 dark:text-emerald-400">
+                              {formatCurrency(getRowTotal(item))}
+                            </span>
+                          </div>
+                          <Button
+                            type="primary"
+                            size="small"
+                            onClick={() => setSelectedInstallment(item)}
+                          >
+                            Collect
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Pagination for Card View */}
+            {filteredInstallments.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-4 mt-3 border-t border-gray-100 dark:border-gray-800">
+                <Typography.Text type="secondary" className="text-xs">
+                  Showing {(cardPage - 1) * cardPageSize + 1} to{" "}
+                  {Math.min(cardPage * cardPageSize, filteredInstallments.length)} of {filteredInstallments.length} members
+                </Typography.Text>
+                <Pagination
+                  size="small"
+                  current={cardPage}
+                  pageSize={cardPageSize}
+                  total={filteredInstallments.length}
+                  showSizeChanger
+                  pageSizeOptions={["10", "20", "50"]}
+                  onChange={(page, size) => {
+                    setCardPage(page);
+                    setCardPageSize(size);
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        ) : (
+          <Table
+            rowKey="id"
+            loading={isLoading || isFetching}
+            dataSource={filteredInstallments}
+            columns={columns}
+            rowSelection={{
+              selectedRowKeys,
+              onChange: (keys) => setSelectedRowKeys(keys),
+              getCheckboxProps: (item) => ({
+                disabled:
+                  !item.isDpsOnly &&
+                  (getRemainingAmount(item) <= 0 ||
+                    (isUpcoming(item) && !allowAdvance)),
+              }),
+            }}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+            }}
+            scroll={{ x: isMobile ? 1200 : 1875 }}
+            locale={{
+              emptyText: (
+                <Empty description="No payable installments found for this date" />
+              ),
+            }}
+          />
+        )}
       </Card>
 
       <Modal

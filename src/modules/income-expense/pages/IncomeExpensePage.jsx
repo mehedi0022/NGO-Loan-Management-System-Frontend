@@ -403,18 +403,17 @@ export function IncomeExpensePage() {
           <Card
             size="small"
             bordered={false}
-            className="shadow-sm"
-            style={{ background: "#f0fdf4", border: "1px solid #bbf7d0" }}
+            className="shadow-sm card-tint-emerald"
           >
             <Statistic
-              title={<span style={{ color: "#166534" }}>Total Income</span>}
+              title={<span className="text-emerald-800 font-medium">Total Income</span>}
               value={summary.totalIncome ?? 0}
               precision={2}
               formatter={(v) => formatCurrency(v)}
-              styles={{ content: { color: "#16a34a", fontWeight: 700, fontSize: 18 } }}
-              prefix={<PlusCircleOutlined style={{ color: "#16a34a" }} />}
+              styles={{ content: { fontWeight: 700, fontSize: 18 } }}
+              prefix={<PlusCircleOutlined className="text-emerald-600" />}
             />
-            <div style={{ fontSize: 11, color: "#15803d", marginTop: 4 }}>
+            <div className="text-xs text-emerald-700 mt-1">
               {summary.incomeCount ?? 0} income vouchers
             </div>
           </Card>
@@ -424,18 +423,17 @@ export function IncomeExpensePage() {
           <Card
             size="small"
             bordered={false}
-            className="shadow-sm"
-            style={{ background: "#fef2f2", border: "1px solid #fecaca" }}
+            className="shadow-sm card-tint-rose"
           >
             <Statistic
-              title={<span style={{ color: "#991b1b" }}>Total Expenses</span>}
+              title={<span className="text-rose-800 font-medium">Total Expenses</span>}
               value={summary.totalExpense ?? 0}
               precision={2}
               formatter={(v) => formatCurrency(v)}
-              styles={{ content: { color: "#dc2626", fontWeight: 700, fontSize: 18 } }}
-              prefix={<MinusCircleOutlined style={{ color: "#dc2626" }} />}
+              styles={{ content: { fontWeight: 700, fontSize: 18 } }}
+              prefix={<MinusCircleOutlined className="text-rose-600" />}
             />
-            <div style={{ fontSize: 11, color: "#b91c1c", marginTop: 4 }}>
+            <div className="text-xs text-rose-700 mt-1">
               {summary.expenseCount ?? 0} expense vouchers
             </div>
           </Card>
