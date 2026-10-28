@@ -117,6 +117,48 @@ export const collectionsApi = baseApi.injectEndpoints({
         },
       ],
     }),
+
+    /**
+     * POST /collections/:collectionId/reverse
+     *
+     * Reverse/Cancel an entire collection.
+     */
+    reverseCollection: builder.mutation({
+      query: ({ collectionId, reason }) => ({
+        url: `/collections/${collectionId}/reverse`,
+        method: "POST",
+        body: { reason },
+      }),
+      invalidatesTags: [
+        "Collections",
+        "Loans",
+        "Savings",
+        "Dps",
+        "Member",
+        "Dashboard",
+        "Accounts",
+      ],
+    }),
+
+    /**
+     * POST /collections/payments/:paymentId/reverse
+     *
+     * Reverse an individual loan payment.
+     */
+    reverseLoanPayment: builder.mutation({
+      query: ({ paymentId, reason }) => ({
+        url: `/collections/payments/${paymentId}/reverse`,
+        method: "POST",
+        body: { reason },
+      }),
+      invalidatesTags: [
+        "Collections",
+        "Loans",
+        "Member",
+        "Dashboard",
+        "Accounts",
+      ],
+    }),
   }),
 });
 
@@ -126,4 +168,6 @@ export const {
   useCreateBatchCollectionsMutation,
   useGetCollectionsQuery,
   useGetCollectionByIdQuery,
+  useReverseCollectionMutation,
+  useReverseLoanPaymentMutation,
 } = collectionsApi;

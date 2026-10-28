@@ -152,7 +152,7 @@ export function AccountsPage() {
             <div className="flex justify-between items-center gap-2">
               <div className="min-w-0">
                 <Text type="secondary" className="text-[10px] sm:text-xs font-semibold uppercase truncate block">Total Liquidity</Text>
-                <div className="text-base sm:text-2xl font-black text-blue-900 mt-0.5 truncate">
+                <div className="text-base sm:text-2xl font-black text-blue-900 dark:text-blue-200 mt-0.5 truncate">
                   ৳{totalBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </div>
                 <Text type="secondary" className="text-[10px] sm:text-xs truncate block">Across {accounts.length} accounts</Text>
@@ -169,7 +169,7 @@ export function AccountsPage() {
             <div className="flex justify-between items-center gap-2">
               <div className="min-w-0">
                 <Text type="secondary" className="text-[10px] sm:text-xs font-semibold uppercase truncate block">Main Cash In Hand</Text>
-                <div className="text-base sm:text-2xl font-black text-emerald-900 mt-0.5 truncate">
+                <div className="text-base sm:text-2xl font-black text-emerald-900 dark:text-emerald-200 mt-0.5 truncate">
                   ৳{defaultBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </div>
                 <Text type="secondary" className="text-[10px] sm:text-xs truncate block">
@@ -188,7 +188,7 @@ export function AccountsPage() {
             <div className="flex justify-between items-center gap-2">
               <div className="min-w-0">
                 <Text type="secondary" className="text-[10px] sm:text-xs font-semibold uppercase truncate block">Bank & Mobile</Text>
-                <div className="text-base sm:text-2xl font-black text-purple-900 mt-0.5 truncate">
+                <div className="text-base sm:text-2xl font-black text-purple-900 dark:text-purple-200 mt-0.5 truncate">
                   ৳{bankAndMobileBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </div>
                 <Text type="secondary" className="text-[10px] sm:text-xs truncate block">Liquid funds</Text>
@@ -205,7 +205,7 @@ export function AccountsPage() {
             <div className="flex justify-between items-center gap-2">
               <div className="min-w-0">
                 <Text type="secondary" className="text-[10px] sm:text-xs font-semibold uppercase truncate block">Account Status</Text>
-                <div className="text-base sm:text-2xl font-black text-slate-800 mt-0.5 truncate">
+                <div className="text-base sm:text-2xl font-black text-slate-800 dark:text-slate-100 mt-0.5 truncate">
                   {accounts.filter((a) => a.isActive).length} / {accounts.length}
                 </div>
                 <Text type="secondary" className="text-[10px] sm:text-xs truncate block">Active accounts</Text>
@@ -287,14 +287,14 @@ export function AccountsPage() {
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center border">
+                              <div className="w-12 h-12 rounded-xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center border dark:border-gray-700">
                                 {getAccountIcon(acc.accountType)}
                               </div>
                               <div>
-                                <div className="font-bold text-base text-slate-900">
+                                <div className="font-bold text-base text-slate-900 dark:text-slate-100">
                                   {acc.accountName}
                                 </div>
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
                                   {acc.accountType} {acc.accountNumber ? `• ${acc.accountNumber}` : ""}
                                 </div>
                               </div>
@@ -306,12 +306,12 @@ export function AccountsPage() {
                             )}
                           </div>
 
-                          <div className="mt-6 pt-4 border-t border-gray-100 flex justify-between items-end">
+                          <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800 flex justify-between items-end">
                             <div>
                               <Text type="secondary" className="text-xs font-semibold uppercase">
                                 Available Balance
                               </Text>
-                              <div className="text-2xl font-black text-slate-800">
+                              <div className="text-2xl font-black text-slate-800 dark:text-slate-100">
                                 ৳{Number(acc.currentBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                               </div>
                             </div>

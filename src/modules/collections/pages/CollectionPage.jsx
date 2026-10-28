@@ -45,6 +45,7 @@ import {
 import { CollectionModal } from "../components/CollectionModal.jsx";
 import { QuickSavingsCollectionModal } from "../../savings/components/QuickSavingsCollectionModal.jsx";
 import { PrintableCollectionSheetModal } from "../components/PrintableCollectionSheetModal.jsx";
+import { CollectionHistoryTable } from "../components/CollectionHistoryTable.jsx";
 import {
   useCreateBatchCollectionsMutation,
   useCreateCollectionMutation,
@@ -118,8 +119,11 @@ export function CollectionPage() {
   const [selectedInstallment, setSelectedInstallment] = useState(null);
   const [savingsCollectionOpen, setSavingsCollectionOpen] = useState(false);
   const [printModalOpen, setPrintModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("sheet");
 
   const currentUser = useSelector((state) => state.auth.user);
+  const isAdmin =
+    currentUser?.role === "SUPER_ADMIN" || currentUser?.role === "ADMIN";
 
   const dueDateValue = dueDate.format("YYYY-MM-DD");
 
@@ -1089,7 +1093,26 @@ export function CollectionPage() {
         </Space>
       </div>
 
-      <Card className="mb-4 shadow-none">
+      <div className="mb-4">
+        <Segmented
+          size="middle"
+          value={activeTab}
+          onChange={setActiveTab}
+          options={[
+            { value: "sheet", label: "Daily Collection Sheet" },
+            { value: "history", label: "Collection History & Reversal" },
+          ]}
+        />
+      </div>
+
+      {activeTab === "history" ? (
+        <CollectionHistoryTable
+          somitiOptions={somitiOptions}
+          isAdmin={isAdmin}
+        />
+      ) : (
+        <>
+          <Card className="mb-4 shadow-none">
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-[170px_170px_220px_1fr_170px] gap-3 sm:gap-4">
           <div>
             <Typography.Text strong className="mb-1.5 block text-xs sm:text-sm">
@@ -1663,6 +1686,8 @@ export function CollectionPage() {
           />
         )}
       </Card>
+      </>
+      )}
 
       <Modal
         title="Confirm Batch Collection"

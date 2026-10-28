@@ -24,7 +24,24 @@ export const savingsApi = baseApi.injectEndpoints({
         { type: "Member", id: memberId },
       ],
     }),
+    reverseSavingsTransaction: builder.mutation({
+      query: ({ transactionId, reason }) => ({
+        url: `/savings/transactions/${transactionId}/reverse`,
+        method: "POST",
+        body: { reason },
+      }),
+      invalidatesTags: [
+        "Savings",
+        "Member",
+        "Dashboard",
+        "Accounts",
+      ],
+    }),
   }),
 });
 
-export const { useGetMemberSavingsQuery, useWithdrawSavingsMutation } = savingsApi;
+export const {
+  useGetMemberSavingsQuery,
+  useWithdrawSavingsMutation,
+  useReverseSavingsTransactionMutation,
+} = savingsApi;

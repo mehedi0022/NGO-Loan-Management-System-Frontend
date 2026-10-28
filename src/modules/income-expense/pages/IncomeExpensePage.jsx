@@ -3,11 +3,11 @@ import {
   ClearOutlined,
   DeleteOutlined,
   DownloadOutlined,
-  EditOutlined,
   FilterOutlined,
   MinusCircleOutlined,
   PlusCircleOutlined,
   PrinterOutlined,
+  RollbackOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
 import {
@@ -23,6 +23,7 @@ import {
   Statistic,
   Table,
   Tag,
+  Tooltip,
   Typography,
   message,
 } from "antd";
@@ -31,6 +32,7 @@ import { useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 
 import { PageContainer } from "../../../components/page-container/PageContainer.jsx";
+import { ReverseTransactionModal } from "../../../components/reverse-modal/ReverseTransactionModal.jsx";
 import { formatCurrency, formatDate } from "../../loans/loanFormatters.js";
 import { useGetActiveSomitiesQuery } from "../../somities/somitiesApi.js";
 import { CategoryManagementModal } from "../components/CategoryManagementModal.jsx";
@@ -59,14 +61,15 @@ const paymentMethodOptions = [
 
 export function IncomeExpensePage() {
   const currentUser = useSelector((state) => state.auth.user);
+  const isAdmin = ["SUPER_ADMIN", "ADMIN"].includes(currentUser?.role);
 
   // Modal States
   const [voucherModalOpen, setVoucherModalOpen] = useState(false);
   const [voucherModalType, setVoucherModalType] = useState("INCOME");
-  const [editingVoucher, setEditingVoucher] = useState(null);
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [selectedVoucherForPrint, setSelectedVoucherForPrint] = useState(null);
   const [categoriesModalOpen, setCategoriesModalOpen] = useState(false);
+  const [reversingVoucher, setReversingVoucher] = useState(null);
 
   // Filters State
   const [filters, setFilters] = useState({
@@ -150,14 +153,7 @@ export function IncomeExpensePage() {
   };
 
   const handleOpenAdd = (type) => {
-    setEditingVoucher(null);
     setVoucherModalType(type);
-    setVoucherModalOpen(true);
-  };
-
-  const handleOpenEdit = (record) => {
-    setEditingVoucher(record);
-    setVoucherModalType(record.type);
     setVoucherModalOpen(true);
   };
 
@@ -166,12 +162,14 @@ export function IncomeExpensePage() {
     setPrintModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
+  const handleConfirmReverse = async (reason) => {
+    if (!reversingVoucher) return;
     try {
-      await deleteVoucher(id).unwrap();
-      message.success("Voucher deleted successfully");
+      await deleteVoucher({ id: reversingVoucher.id, reason }).unwrap();
+      message.success("Voucher reversed and ledger updated successfully");
+      setReversingVoucher(null);
     } catch (err) {
-      message.error(err?.data?.message || "Failed to delete voucher");
+      message.error(err?.data?.message || "Failed to reverse voucher");
     }
   };
 
@@ -305,39 +303,29 @@ export function IncomeExpensePage() {
     {
       title: "Actions",
       key: "actions",
-      width: 110,
+      width: 100,
       align: "center",
       render: (_, record) => (
         <Space size="small">
-          <Button
-            size="small"
-            type="text"
-            icon={<PrinterOutlined />}
-            title="Print Voucher"
-            onClick={() => handleOpenPrint(record)}
-          />
-          <Button
-            size="small"
-            type="text"
-            icon={<EditOutlined />}
-            title="Edit Voucher"
-            onClick={() => handleOpenEdit(record)}
-          />
-          <Popconfirm
-            title="Delete Voucher"
-            description="Are you sure you want to delete this voucher?"
-            onConfirm={() => handleDelete(record.id)}
-            okText="Yes, Delete"
-            cancelText="Cancel"
-          >
+          <Tooltip title="Print Voucher">
             <Button
               size="small"
               type="text"
-              danger
-              icon={<DeleteOutlined />}
-              title="Delete Voucher"
+              icon={<PrinterOutlined />}
+              onClick={() => handleOpenPrint(record)}
             />
-          </Popconfirm>
+          </Tooltip>
+          {isAdmin && (
+            <Tooltip title="Reverse / Cancel Voucher">
+              <Button
+                size="small"
+                type="text"
+                danger
+                icon={<RollbackOutlined />}
+                onClick={() => setReversingVoucher(record)}
+              />
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -578,7 +566,6 @@ export function IncomeExpensePage() {
         open={voucherModalOpen}
         onClose={() => setVoucherModalOpen(false)}
         initialType={voucherModalType}
-        voucher={editingVoucher}
       />
 
       {/* Print Voucher Modal */}
@@ -592,6 +579,22 @@ export function IncomeExpensePage() {
       <CategoryManagementModal
         open={categoriesModalOpen}
         onClose={() => setCategoriesModalOpen(false)}
+      />
+
+      {/* Reverse Voucher Modal */}
+      <ReverseTransactionModal
+        open={Boolean(reversingVoucher)}
+        onClose={() => setReversingVoucher(null)}
+        onConfirm={handleConfirmReverse}
+        confirmLoading={isDeleting}
+        title="Reverse Voucher"
+        transactionCode={reversingVoucher?.voucherNo}
+        amount={reversingVoucher?.amount}
+        detailsText={
+          reversingVoucher
+            ? `Type: ${reversingVoucher.type === "INCOME" ? "Income" : "Expense"} | Category: ${reversingVoucher.category?.name || "General"} | Date: ${formatDate(reversingVoucher.date)}`
+            : ""
+        }
       />
     </PageContainer>
   );

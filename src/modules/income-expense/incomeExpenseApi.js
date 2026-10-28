@@ -38,24 +38,26 @@ export const incomeExpenseApi = baseApi.injectEndpoints({
       invalidatesTags: ["IncomeExpense"],
     }),
 
-    updateIncomeExpense: builder.mutation({
-      query: ({ id, ...body }) => ({
-        url: `/income-expense/${id}`,
-        method: "PATCH",
-        body,
-      }),
-      invalidatesTags: (_result, _error, { id }) => [
-        "IncomeExpense",
-        { type: "IncomeExpense", id },
-      ],
+    deleteIncomeExpense: builder.mutation({
+      query: (arg) => {
+        const id = typeof arg === "object" ? arg.id : arg;
+        const body = typeof arg === "object" && arg.reason ? { reason: arg.reason } : undefined;
+        return {
+          url: `/income-expense/${id}/reverse`,
+          method: "POST",
+          body,
+        };
+      },
+      invalidatesTags: ["IncomeExpense", "Accounts"],
     }),
 
-    deleteIncomeExpense: builder.mutation({
-      query: (id) => ({
-        url: `/income-expense/${id}`,
-        method: "DELETE",
+    reverseIncomeExpense: builder.mutation({
+      query: ({ id, reason }) => ({
+        url: `/income-expense/${id}/reverse`,
+        method: "POST",
+        body: { reason },
       }),
-      invalidatesTags: ["IncomeExpense"],
+      invalidatesTags: ["IncomeExpense", "Accounts"],
     }),
 
     // Category Endpoints
@@ -103,8 +105,8 @@ export const {
   useGetIncomeExpensesQuery,
   useGetIncomeExpenseByIdQuery,
   useCreateIncomeExpenseMutation,
-  useUpdateIncomeExpenseMutation,
   useDeleteIncomeExpenseMutation,
+  useReverseIncomeExpenseMutation,
   useGetCategoriesQuery,
   useCreateCategoryMutation,
   useUpdateCategoryMutation,

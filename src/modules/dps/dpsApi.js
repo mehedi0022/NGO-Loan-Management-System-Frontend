@@ -76,6 +76,21 @@ export const dpsApi = baseApi.injectEndpoints({
         "Dashboard",
       ],
     }),
+
+    reverseDpsTransaction: builder.mutation({
+      query: ({ transactionId, reason }) => ({
+        url: `/dps/transactions/${transactionId}/reverse`,
+        method: "POST",
+        body: { reason },
+      }),
+      invalidatesTags: [
+        { type: "DPS", id: "LIST" },
+        { type: "Member" },
+        "Member",
+        "Dashboard",
+        "Accounts",
+      ],
+    }),
   }),
 });
 
@@ -86,4 +101,5 @@ export const {
   useCreateDpsAccountMutation,
   useDepositDpsInstallmentMutation,
   useCloseDpsAccountMutation,
+  useReverseDpsTransactionMutation,
 } = dpsApi;

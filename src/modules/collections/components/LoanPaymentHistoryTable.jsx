@@ -1,10 +1,15 @@
-import { Empty, Table, Typography } from "antd";
+import { RollbackOutlined } from "@ant-design/icons";
+import { Button, Empty, Table, Tooltip, Typography, message } from "antd";
+import { useState } from "react";
+import { useSelector } from "react-redux";
 
+import { ReverseTransactionModal } from "../../../components/reverse-modal/ReverseTransactionModal.jsx";
 import {
   formatCurrency,
   formatDate,
   formatEnum,
 } from "../../loans/loanFormatters.js";
+import { useReverseLoanPaymentMutation } from "../collectionsApi.js";
 
 export function LoanPaymentHistoryTable({
   payments = [],
@@ -13,6 +18,40 @@ export function LoanPaymentHistoryTable({
   pagination,
   onPaginationChange,
 }) {
+  const currentUser = useSelector((state) => state.auth.user);
+  const isAdmin =
+    currentUser?.role === "SUPER_ADMIN" || currentUser?.role === "ADMIN";
+
+  const [selectedPayment, setSelectedPayment] = useState(null);
+  const [reverseModalOpen, setReverseModalOpen] = useState(false);
+
+  const [reverseLoanPayment, { isLoading: reversing }] =
+    useReverseLoanPaymentMutation();
+
+  const handleOpenReverse = (record) => {
+    setSelectedPayment(record);
+    setReverseModalOpen(true);
+  };
+
+  const handleConfirmReverse = async (reason) => {
+    if (!selectedPayment) return;
+    try {
+      await reverseLoanPayment({
+        paymentId: selectedPayment.id,
+        reason,
+      }).unwrap();
+      message.success(
+        `Loan payment ${selectedPayment.paymentId || `#${selectedPayment.id}`} reversed successfully.`,
+      );
+      setReverseModalOpen(false);
+      setSelectedPayment(null);
+    } catch (err) {
+      message.error(
+        err?.data?.message || "Failed to reverse loan payment. Please try again.",
+      );
+    }
+  };
+
   const columns = [
     {
       title: "Payment ID",
@@ -24,13 +63,15 @@ export function LoanPaymentHistoryTable({
       ),
     },
     ...(showLoan
-      ? [{
-          title: "Loan ID",
-          dataIndex: ["loan", "loanId"],
-          key: "loan",
-          width: 140,
-          render: (value, payment) => value || `Loan #${payment.loanId}`,
-        }]
+      ? [
+          {
+            title: "Loan ID",
+            dataIndex: ["loan", "loanId"],
+            key: "loan",
+            width: 140,
+            render: (value, payment) => value || `Loan #${payment.loanId}`,
+          },
+        ]
       : []),
     {
       title: "Installment",
@@ -81,38 +122,83 @@ export function LoanPaymentHistoryTable({
       title: "Notes",
       dataIndex: "notes",
       key: "notes",
-      width: 220,
+      width: 200,
       ellipsis: true,
       render: (value) => value || "—",
     },
+    ...(isAdmin
+      ? [
+          {
+            title: "Action",
+            key: "action",
+            align: "center",
+            width: 100,
+            fixed: "right",
+            render: (_, record) => (
+              <Tooltip title="Reverse this loan payment">
+                <Button
+                  danger
+                  size="small"
+                  icon={<RollbackOutlined />}
+                  onClick={() => handleOpenReverse(record)}
+                >
+                  Reverse
+                </Button>
+              </Tooltip>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (
-    <Table
-      rowKey="id"
-      loading={loading}
-      dataSource={payments}
-      columns={columns}
-      pagination={
-        pagination
-          ? {
-              current: pagination.current,
-              pageSize: pagination.pageSize,
-              total: pagination.total,
-              showSizeChanger: true,
-              showTotal: (total) => `${total} payment${total === 1 ? "" : "s"}`,
-            }
-          : {
-              pageSize: 10,
-              hideOnSinglePage: true,
-              showSizeChanger: false,
-            }
-      }
-      onChange={(nextPagination) => onPaginationChange?.(nextPagination)}
-      scroll={{ x: 1100 }}
-      locale={{
-        emptyText: <Empty description="No loan payments collected yet" />,
-      }}
-    />
+    <>
+      <Table
+        rowKey="id"
+        loading={loading}
+        dataSource={payments}
+        columns={columns}
+        pagination={
+          pagination
+            ? {
+                current: pagination.current,
+                pageSize: pagination.pageSize,
+                total: pagination.total,
+                showSizeChanger: true,
+                showTotal: (total) => `${total} payment${total === 1 ? "" : "s"}`,
+              }
+            : {
+                pageSize: 10,
+                hideOnSinglePage: true,
+                showSizeChanger: false,
+              }
+        }
+        onChange={(nextPagination) => onPaginationChange?.(nextPagination)}
+        scroll={{ x: 1200 }}
+        locale={{
+          emptyText: <Empty description="No loan payments collected yet" />,
+        }}
+      />
+
+      <ReverseTransactionModal
+        open={reverseModalOpen}
+        onClose={() => {
+          setReverseModalOpen(false);
+          setSelectedPayment(null);
+        }}
+        onConfirm={handleConfirmReverse}
+        confirmLoading={reversing}
+        title="Reverse Loan Payment"
+        transactionCode={
+          selectedPayment?.paymentId || (selectedPayment ? `#${selectedPayment.id}` : "")
+        }
+        amount={selectedPayment ? formatCurrency(selectedPayment.amount) : ""}
+        detailsText={
+          selectedPayment
+            ? `Installment #${selectedPayment.installment?.installmentNo || "—"} will be restored.`
+            : ""
+        }
+      />
+    </>
   );
 }

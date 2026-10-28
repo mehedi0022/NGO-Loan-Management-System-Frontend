@@ -1,4 +1,5 @@
 import {
+  Alert,
   Col,
   DatePicker,
   Form,
@@ -11,11 +12,11 @@ import {
   message,
 } from "antd";
 import dayjs from "dayjs";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { useGetAccountsQuery } from "../../accounts/accountsApi.js";
 import {
   useCreateIncomeExpenseMutation,
   useGetCategoriesQuery,
-  useUpdateIncomeExpenseMutation,
 } from "../incomeExpenseApi.js";
 import { useGetActiveSomitiesQuery } from "../../somities/somitiesApi.js";
 
@@ -31,21 +32,54 @@ export function IncomeExpenseModal({
   open,
   onClose,
   initialType = "INCOME",
-  voucher = null,
 }) {
   const [form] = Form.useForm();
-  const isEditing = Boolean(voucher);
   const selectedType = Form.useWatch("type", form) || initialType;
+  const selectedPaymentMethod = Form.useWatch("paymentMethod", form) || "CASH";
+  const enteredAmount = Form.useWatch("amount", form) || 0;
 
   const [createVoucher, { isLoading: isCreating }] =
     useCreateIncomeExpenseMutation();
-  const [updateVoucher, { isLoading: isUpdating }] =
-    useUpdateIncomeExpenseMutation();
 
   const { data: categoriesData, isLoading: categoriesLoading } =
     useGetCategoriesQuery({ isActive: true });
   const { data: somitiesData, isLoading: somitiesLoading } =
     useGetActiveSomitiesQuery();
+  const { data: accountsData } = useGetAccountsQuery();
+
+  const accounts = useMemo(() => {
+    if (Array.isArray(accountsData?.data)) return accountsData.data;
+    if (Array.isArray(accountsData?.data?.accounts))
+      return accountsData.data.accounts;
+    return [];
+  }, [accountsData]);
+
+  // Resolve target account for this transaction
+  const targetAccount = useMemo(() => {
+    if (selectedPaymentMethod === "BANK_TRANSFER") {
+      return (
+        accounts.find((a) => a.accountType === "BANK" && a.isActive) ||
+        accounts.find((a) => a.isDefault && a.isActive) ||
+        accounts[0]
+      );
+    }
+    if (selectedPaymentMethod === "MOBILE_PAYMENT") {
+      return (
+        accounts.find((a) => a.accountType === "MOBILE_BANKING" && a.isActive) ||
+        accounts.find((a) => a.isDefault && a.isActive) ||
+        accounts[0]
+      );
+    }
+    return (
+      accounts.find((a) => a.isDefault && a.isActive) ||
+      accounts.find((a) => a.accountType === "CASH" && a.isActive) ||
+      accounts[0]
+    );
+  }, [accounts, selectedPaymentMethod]);
+
+  const availableBalance = Number(targetAccount?.currentBalance) || 0;
+  const isShortage = selectedType === "EXPENSE" && Number(enteredAmount) > availableBalance;
+  const shortageAmount = isShortage ? Number(enteredAmount) - availableBalance : 0;
 
   // Filter categories by selected voucher type
   const categoryOptions = (categoriesData?.data ?? [])
@@ -66,27 +100,14 @@ export function IncomeExpenseModal({
   useEffect(() => {
     if (!open) return;
 
-    if (voucher) {
-      form.setFieldsValue({
-        type: voucher.type,
-        categoryId: voucher.categoryId || voucher.category?.id,
-        amount: voucher.amount,
-        date: voucher.date ? dayjs(voucher.date) : dayjs(),
-        paymentMethod: voucher.paymentMethod || "CASH",
-        reference: voucher.reference || "",
-        description: voucher.description || "",
-        somitiId: voucher.somitiId || voucher.somiti?.id || null,
-      });
-    } else {
-      form.resetFields();
-      form.setFieldsValue({
-        type: initialType,
-        date: dayjs(),
-        paymentMethod: "CASH",
-        somitiId: null,
-      });
-    }
-  }, [open, voucher, initialType, form]);
+    form.resetFields();
+    form.setFieldsValue({
+      type: initialType,
+      date: dayjs(),
+      paymentMethod: "CASH",
+      somitiId: null,
+    });
+  }, [open, initialType, form]);
 
   const handleSubmit = async () => {
     try {
@@ -102,15 +123,10 @@ export function IncomeExpenseModal({
         somitiId: values.somitiId || undefined,
       };
 
-      if (isEditing) {
-        await updateVoucher({ id: voucher.id, ...payload }).unwrap();
-        message.success("Voucher transaction updated successfully");
-      } else {
-        await createVoucher(payload).unwrap();
-        message.success(
-          `${values.type === "INCOME" ? "Income" : "Expense"} voucher created successfully`,
-        );
-      }
+      await createVoucher(payload).unwrap();
+      message.success(
+        `${values.type === "INCOME" ? "Income" : "Expense"} voucher created successfully`,
+      );
 
       onClose();
     } catch (err) {
@@ -124,15 +140,14 @@ export function IncomeExpenseModal({
       open={open}
       onCancel={onClose}
       onOk={handleSubmit}
-      confirmLoading={isCreating || isUpdating}
+      confirmLoading={isCreating}
+      okButtonProps={{ disabled: isShortage }}
       title={
-        isEditing
-          ? `Edit Voucher — ${voucher?.voucherNo}`
-          : selectedType === "INCOME"
-            ? "+ Add Income Voucher (Credit)"
-            : "+ Add Expense Voucher (Debit)"
+        selectedType === "INCOME"
+          ? "+ Add Income Voucher (Credit)"
+          : "+ Add Expense Voucher (Debit)"
       }
-      okText={isEditing ? "Save Changes" : "Create Voucher"}
+      okText="Create Voucher"
       width={640}
       destroyOnClose
     >
@@ -145,7 +160,6 @@ export function IncomeExpenseModal({
               rules={[{ required: true }]}
             >
               <Radio.Group
-                disabled={isEditing}
                 buttonStyle="solid"
                 onChange={() => form.setFieldValue("categoryId", undefined)}
               >
@@ -154,6 +168,33 @@ export function IncomeExpenseModal({
               </Radio.Group>
             </Form.Item>
           </Col>
+
+          {selectedType === "EXPENSE" && targetAccount && (
+            <Col span={24} style={{ marginBottom: 16 }}>
+              <Alert
+                type={isShortage ? "error" : "info"}
+                showIcon
+                message={
+                  <div className="flex justify-between items-center flex-wrap gap-2 text-xs sm:text-sm">
+                    <span>
+                      Account: <strong>{targetAccount.accountName}</strong>
+                    </span>
+                    <span>
+                      Available Balance:{" "}
+                      <strong className={isShortage ? "text-rose-600 font-bold" : "text-emerald-600 font-bold"}>
+                        ৳{availableBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      </strong>
+                    </span>
+                    {isShortage && (
+                      <span className="text-rose-600 font-semibold w-full mt-1">
+                        ⚠️ Shortage: ৳{shortageAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })} (Cannot create expense voucher exceeding available balance)
+                      </span>
+                    )}
+                  </div>
+                }
+              />
+            </Col>
+          )}
 
           <Col xs={24} sm={12}>
             <Form.Item
@@ -183,6 +224,18 @@ export function IncomeExpenseModal({
                   type: "number",
                   min: 1,
                   message: "Amount must be at least 1 Tk",
+                },
+                {
+                  validator: (_, val) => {
+                    if (selectedType === "EXPENSE" && val && Number(val) > availableBalance) {
+                      return Promise.reject(
+                        new Error(
+                          `Insufficient balance in ${targetAccount?.accountName || "account"} (Available: ৳${availableBalance.toLocaleString("en-IN")})`
+                        )
+                      );
+                    }
+                    return Promise.resolve();
+                  },
                 },
               ]}
             >
