@@ -24,7 +24,7 @@ import { useGetActiveSomitiesQuery } from "../../somities/somitiesApi.js";
 
 const { TextArea } = Input;
 
-const occupationOptions = [
+export const occupationOptions = [
   { value: "Housewife", label: "Housewife" },
   { value: "Farmer", label: "Farmer" },
   { value: "Day Laborer", label: "Day Laborer" },
@@ -78,7 +78,7 @@ const occupationOptions = [
   { value: "Other", label: "Other" },
 ];
 
-const relationshipOptions = [
+export const relationshipOptions = [
   { value: "Father", label: "Father" },
   { value: "Mother", label: "Mother" },
   { value: "Husband", label: "Husband" },

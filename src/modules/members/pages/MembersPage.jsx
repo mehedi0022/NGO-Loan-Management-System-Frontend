@@ -1,6 +1,7 @@
 import {
   EditOutlined,
   EyeOutlined,
+  ImportOutlined,
   PlusOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
@@ -107,9 +108,18 @@ export function MembersPage() {
           <Typography.Title level={2}>Members</Typography.Title>
           <Typography.Text type="secondary">{meta?.total ?? 0} members registered</Typography.Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/members/new")}>
-          Add Member
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            icon={<ImportOutlined />}
+            onClick={() => navigate("/members/migration")}
+            className="font-medium"
+          >
+            Migrate Legacy Members
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/members/new")}>
+            Add Member
+          </Button>
+        </div>
       </div>
 
       <div className="members-toolbar">

@@ -19,7 +19,7 @@ const cleanOptionalString = (value) => {
   return trimmed || undefined;
 };
 
-const transformAddress = (address, type) => {
+export const transformAddress = (address, type) => {
   if (!address) return null;
 
   return {
@@ -35,7 +35,7 @@ const transformAddress = (address, type) => {
   };
 };
 
-const transformGuarantor = (guarantor) => {
+export const transformGuarantor = (guarantor) => {
   if (!guarantor) return null;
 
   const address = guarantor.address;

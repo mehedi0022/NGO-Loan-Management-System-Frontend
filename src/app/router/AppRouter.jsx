@@ -27,6 +27,7 @@ import { ReportsPage } from "../../modules/reports/pages/ReportsPage.jsx";
 import { AccountsPage } from "../../modules/accounts/pages/AccountsPage.jsx";
 import { IncomeExpensePage } from "../../modules/income-expense/pages/IncomeExpensePage.jsx";
 import { SettingsPage } from "../../modules/settings/pages/SettingsPage.jsx";
+import { MemberMigrationPage } from "../../modules/migration/pages/MemberMigrationPage.jsx";
 
 export function AppRouter() {
   return (
@@ -49,6 +50,7 @@ export function AppRouter() {
             }
           />
           <Route path="/members/new" element={<CreateMemberPage />} />
+          <Route path="/members/migration" element={<MemberMigrationPage />} />
           <Route path="/members/:id" element={<MemberProfilePage />} />
           <Route path="/members/:id/edit" element={<EditMemberPage />} />
           <Route path="members" element={<MembersPage />} />
