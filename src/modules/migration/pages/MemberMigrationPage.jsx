@@ -1,5 +1,6 @@
 import {
   BankOutlined,
+  CalendarOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   CloudUploadOutlined,
@@ -11,7 +12,9 @@ import {
   InfoCircleOutlined,
   PlusCircleOutlined,
   SafetyCertificateOutlined,
+  SettingOutlined,
   SwapOutlined,
+  TableOutlined,
   TeamOutlined,
   UserAddOutlined,
   WalletOutlined,
@@ -27,6 +30,7 @@ import {
   Form,
   Input,
   InputNumber,
+  Modal,
   Radio,
   Row,
   Select,
@@ -50,6 +54,8 @@ import {
   relationshipOptions,
 } from "../../members/components/MemberForm.jsx";
 import { useGetActiveSomitiesQuery } from "../../somities/somitiesApi.js";
+import { calculateLoanPreview } from "../../loans/loanCalculation.js";
+import { formatCurrency } from "../../loans/loanFormatters.js";
 import {
   transformAddress,
   transformGuarantor,
@@ -62,10 +68,10 @@ import {
 const { Title, Text, Paragraph } = Typography;
 
 const CSV_HEADER_ROW =
-  "MemberID,FullName,FatherName,MotherName,MobileNumber,NidNumber,SomitiID,JoinDate,Village,PostOffice,Upazila,District,GeneralSavings,SpecialSavings,LoanPrincipal,LoanChargePercent,LoanInstallments,LoanFrequency,LoanDisburseDate,LoanFirstDueDate,LoanPaidInstallments,DpsMonthlyAmount,DpsDurationMonths,DpsInterestRate,DpsStartDate,DpsPaidInstallments";
+  "MemberID,FullName,FatherName,MotherName,MobileNumber,NidNumber,SomitiID,JoinDate,Village,PostOffice,Upazila,District,GeneralSavings,SpecialSavings,LoanPrincipal,LoanChargePercent,LoanInstallments,LoanInstallmentAmount,LoanFrequency,LoanDisburseDate,LoanFirstDueDate,LoanPaidInstallments,DpsMonthlyAmount,DpsDurationMonths,DpsInterestRate,DpsStartDate,DpsPaidInstallments";
 
 const CSV_SAMPLE_ROW =
-  "M-1001,Md. Rafiqul Islam,Abdul Gafur,Rahima Begum,01712345678,19851234567890123,,2024-01-15,Bhatpara,Bhatpara,Kushtia Sadar,Kushtia,5000,1000,50000,10,46,WEEKLY,2025-06-01,2025-06-08,20,500,36,8,2025-01-01,10";
+  "M-1001,Md. Rafiqul Islam,Abdul Gafur,Rahima Begum,01712345678,19851234567890123,,2024-01-15,Bhatpara,Bhatpara,Kushtia Sadar,Kushtia,5000,1000,50000,10,46,1200,WEEKLY,2025-06-01,2025-06-08,20,500,36,8,2025-01-01,10";
 
 export function MemberMigrationPage() {
   const navigate = useNavigate();
@@ -73,6 +79,8 @@ export function MemberMigrationPage() {
   const [singleForm] = Form.useForm();
   const [hasFatherAddress, setHasFatherAddress] = useState(false);
   const [hasGuarantor, setHasGuarantor] = useState(false);
+  const [isCustomInstallment, setIsCustomInstallment] = useState(false);
+  const [loanScheduleModalOpen, setLoanScheduleModalOpen] = useState(false);
 
   // Watchers for single form calculations
   const includeSavings = Form.useWatch("includeSavings", singleForm);
@@ -87,6 +95,13 @@ export function MemberMigrationPage() {
     Form.useWatch(["loan", "installmentCount"], singleForm) || 1;
   const loanPaidCount =
     Form.useWatch(["loan", "paidInstallments"], singleForm) || 0;
+  const customInstallmentAmount = Form.useWatch(
+    ["loan", "customInstallmentAmount"],
+    singleForm,
+  );
+  const loanFrequency =
+    Form.useWatch(["loan", "frequency"], singleForm) || "WEEKLY";
+  const loanFirstDueDate = Form.useWatch(["loan", "firstDueDate"], singleForm);
 
   const dpsInstallmentAmount =
     Form.useWatch(["dps", "installmentAmount"], singleForm) || 0;
@@ -112,33 +127,52 @@ export function MemberMigrationPage() {
   const [parsedRows, setParsedRows] = useState([]);
   const [batchResults, setBatchResults] = useState(null);
 
-  // Live Loan calculation preview
+  // Live Loan calculation preview with support for Auto / Manual Installment Mode
   const loanCalc = useMemo(() => {
     if (!includeLoan || loanPrincipal <= 0) return null;
-    const charge =
-      Math.round(((loanPrincipal * loanChargeValue) / 100) * 100) / 100;
-    const totalPayable = loanPrincipal + charge;
-    const instAmount =
-      loanInstallmentCount > 1
-        ? Math.floor((totalPayable * 100) / loanInstallmentCount / 1000) * 10
-        : totalPayable;
-    const paidSoFar =
-      Math.min(loanPaidCount, loanInstallmentCount) * instAmount;
-    const remaining = Math.max(0, totalPayable - paidSoFar);
+    const calc = calculateLoanPreview({
+      principalAmount: loanPrincipal,
+      chargeType: "PERCENTAGE",
+      chargeValue: loanChargeValue,
+      installmentCount: loanInstallmentCount,
+      isCustomInstallment,
+      customInstallmentAmount,
+      frequency: loanFrequency,
+      firstDueDate: loanFirstDueDate,
+    });
+    if (!calc) return null;
+
+    const paidCount = Math.min(
+      Number(loanPaidCount) || 0,
+      calc.installmentCount,
+    );
+    let paidAmount = 0;
+    if (paidCount === calc.installmentCount) {
+      paidAmount = calc.totalPayable;
+    } else {
+      paidAmount = paidCount * calc.regularInstallmentAmount;
+    }
+    const remainingAmount = Math.max(
+      0,
+      Math.round((calc.totalPayable - paidAmount) * 100) / 100,
+    );
+
     return {
-      principal: loanPrincipal,
-      charge,
-      totalPayable,
-      installmentAmount: instAmount,
-      paidAmount: paidSoFar,
-      remainingAmount: remaining,
-      remainingInstallments: Math.max(0, loanInstallmentCount - loanPaidCount),
+      ...calc,
+      paidCount,
+      paidAmount,
+      remainingAmount,
+      remainingInstallments: Math.max(0, calc.installmentCount - paidCount),
     };
   }, [
     includeLoan,
     loanPrincipal,
     loanChargeValue,
     loanInstallmentCount,
+    isCustomInstallment,
+    customInstallmentAmount,
+    loanFrequency,
+    loanFirstDueDate,
     loanPaidCount,
   ]);
 
@@ -155,6 +189,19 @@ export function MemberMigrationPage() {
 
   // Handle Single Form Submit
   const handleSingleSubmit = async (values) => {
+    if (
+      values.includeLoan &&
+      isCustomInstallment &&
+      loanCalc &&
+      !loanCalc.isValidCustomAmount
+    ) {
+      message.error(
+        loanCalc.customAmountError ||
+          "Please enter a valid regular installment amount",
+      );
+      return;
+    }
+
     try {
       const addresses = [];
       const presentAddr = transformAddress(values.presentAddress, "PRESENT");
@@ -219,6 +266,10 @@ export function MemberMigrationPage() {
               chargeType: "PERCENTAGE",
               chargeValue: Number(values.loan?.chargeValue || 0),
               installmentCount: Number(values.loan?.installmentCount),
+              installmentAmount:
+                isCustomInstallment && loanCalc?.regularInstallmentAmount
+                  ? loanCalc.regularInstallmentAmount
+                  : undefined,
               frequency: values.loan?.frequency || "WEEKLY",
               disbursementDate:
                 values.loan?.disbursementDate.format("YYYY-MM-DD"),
@@ -247,6 +298,7 @@ export function MemberMigrationPage() {
       singleForm.resetFields();
       setHasFatherAddress(false);
       setHasGuarantor(false);
+      setIsCustomInstallment(false);
     } catch (err) {
       message.error(
         err?.data?.message || err.message || "Failed to migrate member",
@@ -290,8 +342,7 @@ export function MemberMigrationPage() {
         const cols = lines[i].split(",").map((c) => c.trim());
         if (cols.length < 5) continue;
 
-        const [
-          memberId,
+        let memberId,
           fullName,
           fatherName,
           motherName,
@@ -308,6 +359,7 @@ export function MemberMigrationPage() {
           loanPrincipal,
           loanChargePercent,
           loanInstallments,
+          loanInstallmentAmount,
           loanFrequency,
           loanDisburseDate,
           loanFirstDueDate,
@@ -316,8 +368,69 @@ export function MemberMigrationPage() {
           dpsDurationMonths,
           dpsInterestRate,
           dpsStartDate,
-          dpsPaidInstallments,
-        ] = cols;
+          dpsPaidInstallments;
+
+        if (cols.length >= 27) {
+          [
+            memberId,
+            fullName,
+            fatherName,
+            motherName,
+            mobileNumber,
+            nidNumber,
+            somitiId,
+            joinDate,
+            village,
+            postOffice,
+            upazila,
+            district,
+            generalSavings,
+            specialSavings,
+            loanPrincipal,
+            loanChargePercent,
+            loanInstallments,
+            loanInstallmentAmount,
+            loanFrequency,
+            loanDisburseDate,
+            loanFirstDueDate,
+            loanPaidInstallments,
+            dpsMonthlyAmount,
+            dpsDurationMonths,
+            dpsInterestRate,
+            dpsStartDate,
+            dpsPaidInstallments,
+          ] = cols;
+        } else {
+          [
+            memberId,
+            fullName,
+            fatherName,
+            motherName,
+            mobileNumber,
+            nidNumber,
+            somitiId,
+            joinDate,
+            village,
+            postOffice,
+            upazila,
+            district,
+            generalSavings,
+            specialSavings,
+            loanPrincipal,
+            loanChargePercent,
+            loanInstallments,
+            loanFrequency,
+            loanDisburseDate,
+            loanFirstDueDate,
+            loanPaidInstallments,
+            dpsMonthlyAmount,
+            dpsDurationMonths,
+            dpsInterestRate,
+            dpsStartDate,
+            dpsPaidInstallments,
+          ] = cols;
+          loanInstallmentAmount = undefined;
+        }
 
         const isValid = Boolean(
           fullName &&
@@ -349,6 +462,7 @@ export function MemberMigrationPage() {
           loanPrincipal: Number(loanPrincipal || 0),
           loanChargePercent: Number(loanChargePercent || 10),
           loanInstallments: Number(loanInstallments || 46),
+          loanInstallmentAmount: Number(loanInstallmentAmount || 0),
           loanFrequency: loanFrequency || "WEEKLY",
           loanDisburseDate: loanDisburseDate || undefined,
           loanFirstDueDate: loanFirstDueDate || undefined,
@@ -418,6 +532,10 @@ export function MemberMigrationPage() {
                 chargeType: "PERCENTAGE",
                 chargeValue: r.loanChargePercent,
                 installmentCount: r.loanInstallments,
+                installmentAmount:
+                  r.loanInstallmentAmount > 0
+                    ? r.loanInstallmentAmount
+                    : undefined,
                 frequency: r.loanFrequency,
                 disbursementDate:
                   r.loanDisburseDate || r.joinDate || "2025-01-01",
@@ -535,6 +653,86 @@ export function MemberMigrationPage() {
         ) : (
           <span className="text-slate-400 text-xs">—</span>
         ),
+    },
+  ];
+
+  const scheduleColumns = [
+    {
+      title: "No.",
+      dataIndex: "installmentNo",
+      key: "installmentNo",
+      width: 65,
+      render: (num) => (
+        <strong className="text-slate-700 dark:text-slate-200">#{num}</strong>
+      ),
+    },
+    {
+      title: "Due Date",
+      dataIndex: "dueDate",
+      key: "dueDate",
+      render: (date) => (
+        <span className="text-slate-600 dark:text-slate-300 text-xs">
+          <CalendarOutlined className="mr-1 text-slate-400" />
+          {date}
+        </span>
+      ),
+    },
+    {
+      title: "Amount",
+      dataIndex: "amount",
+      key: "amount",
+      render: (amount, row) => (
+        <Space>
+          <strong
+            className={
+              row.isFinal
+                ? "text-purple-600 dark:text-purple-400"
+                : "text-emerald-700 dark:text-emerald-400"
+            }
+          >
+            {formatCurrency(amount)}
+          </strong>
+          {row.isFinal && (
+            <Tag color="purple" className="text-[10px] font-semibold">
+              Final Adjustment
+            </Tag>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: "Status",
+      key: "status",
+      render: (_, row) => {
+        const isPaid = row.installmentNo <= (loanPaidCount || 0);
+        return isPaid ? (
+          <Tag color="green" className="text-[11px] font-semibold">
+            PAID (Historical)
+          </Tag>
+        ) : (
+          <Tag color="orange" className="text-[11px]">
+            PENDING
+          </Tag>
+        );
+      },
+    },
+    {
+      title: "Cumulative Paid",
+      dataIndex: "cumulative",
+      key: "cumulative",
+      render: (val) => (
+        <span className="text-xs text-slate-500">{formatCurrency(val)}</span>
+      ),
+    },
+    {
+      title: "Remaining",
+      dataIndex: "remaining",
+      key: "remaining",
+      render: (val) => (
+        <span className="text-xs text-slate-500 font-mono">
+          {formatCurrency(val)}
+        </span>
+      ),
     },
   ];
 
@@ -658,6 +856,8 @@ export function MemberMigrationPage() {
                   form={singleForm}
                   layout="vertical"
                   onFinish={handleSingleSubmit}
+                  className="flex flex-col gap-6"
+                  style={{ display: "flex", flexDirection: "column", gap: 24 }}
                   initialValues={{
                     admissionFee: 0,
                     joinDate: dayjs(),
@@ -1392,49 +1592,259 @@ export function MemberMigrationPage() {
                               <InputNumber
                                 min={0}
                                 max={loanInstallmentCount}
+                                style={{ width: "100%" }}
                                 className="w-full rounded-lg"
                               />
                             </Form.Item>
+                          </Col>
+
+                          {/* Custom Installment Control Panel */}
+                          <Col xs={24}>
+                            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 mt-1 mb-2">
+                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                <div className="flex items-center gap-2">
+                                  <SettingOutlined className="text-blue-600 text-base" />
+                                  <div>
+                                    <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
+                                      Custom Installment Amount
+                                    </span>
+                                    <Tag
+                                      color={
+                                        isCustomInstallment ? "blue" : "default"
+                                      }
+                                      className="ml-2 text-[10px] font-semibold"
+                                    >
+                                      {isCustomInstallment
+                                        ? "Manual Mode"
+                                        : "Auto Mode"}
+                                    </Tag>
+                                  </div>
+                                </div>
+                                <Switch
+                                  checked={isCustomInstallment}
+                                  onChange={(checked) => {
+                                    setIsCustomInstallment(checked);
+                                    if (
+                                      checked &&
+                                      loanCalc?.autoInstallmentAmount
+                                    ) {
+                                      singleForm.setFieldsValue({
+                                        loan: {
+                                          ...singleForm.getFieldValue("loan"),
+                                          customInstallmentAmount:
+                                            loanCalc.autoInstallmentAmount,
+                                        },
+                                      });
+                                    }
+                                  }}
+                                  checkedChildren="Manual"
+                                  unCheckedChildren="Auto"
+                                />
+                              </div>
+                              <div className="text-[11px] text-slate-500 mt-1">
+                                {isCustomInstallment
+                                  ? `Specify regular installments (1 to ${Math.max(
+                                      1,
+                                      (loanInstallmentCount || 1) - 1,
+                                    )}). The final installment auto-adjusts to cover the remaining balance.`
+                                  : "Regular installments are auto-calculated using the standard lower-10s rule. Toggle ON to manually specify regular installments."}
+                              </div>
+
+                              {isCustomInstallment && (
+                                <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                                  <Row gutter={[16, 12]} align="middle">
+                                    <Col xs={24} sm={14}>
+                                      <Form.Item
+                                        label={
+                                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                            Regular Installment (1st to{" "}
+                                            {Math.max(
+                                              1,
+                                              (loanInstallmentCount || 1) - 1,
+                                            )}
+                                            th):
+                                          </span>
+                                        }
+                                        name={["loan", "customInstallmentAmount"]}
+                                        style={{ marginBottom: 0 }}
+                                      >
+                                        <InputNumber
+                                          style={{ width: "100%" }}
+                                          className="rounded-lg text-base font-semibold"
+                                          prefix="৳"
+                                          min={1}
+                                          precision={2}
+                                          placeholder="e.g. 1200"
+                                        />
+                                      </Form.Item>
+                                      {loanCalc?.autoInstallmentAmount ? (
+                                        <div className="text-[11px] text-slate-500 mt-1">
+                                          System auto amount was:{" "}
+                                          <button
+                                            type="button"
+                                            className="text-blue-600 underline font-medium cursor-pointer"
+                                            onClick={() =>
+                                              singleForm.setFieldsValue({
+                                                loan: {
+                                                  ...singleForm.getFieldValue(
+                                                    "loan",
+                                                  ),
+                                                  customInstallmentAmount:
+                                                    loanCalc.autoInstallmentAmount,
+                                                },
+                                              })
+                                            }
+                                          >
+                                            {formatCurrency(
+                                              loanCalc.autoInstallmentAmount,
+                                            )}
+                                          </button>
+                                        </div>
+                                      ) : null}
+                                    </Col>
+
+                                    <Col xs={24} sm={10}>
+                                      <div className="p-3 rounded-lg border border-purple-200 bg-purple-50 dark:bg-purple-950/30">
+                                        <div className="text-[11px] text-purple-700 dark:text-purple-300 font-semibold">
+                                          Final ({loanInstallmentCount || 1}th)
+                                          Installment:
+                                        </div>
+                                        <div className="text-xl font-bold text-purple-900 dark:text-purple-200 mt-0.5">
+                                          {loanCalc
+                                            ? formatCurrency(
+                                                loanCalc.lastInstallmentAmount,
+                                              )
+                                            : "৳0.00"}
+                                        </div>
+                                        <div className="text-[10px] text-purple-600 dark:text-purple-400">
+                                          Remainder auto-adjusted
+                                        </div>
+                                      </div>
+                                    </Col>
+                                  </Row>
+
+                                  {loanCalc && !loanCalc.isValidCustomAmount && (
+                                    <Alert
+                                      type="error"
+                                      showIcon
+                                      message="Invalid Installment Amount"
+                                      description={loanCalc.customAmountError}
+                                      className="mt-3 rounded-lg"
+                                    />
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </Col>
                         </Row>
 
                         {/* Live Calculation Preview Banner */}
                         {loanCalc && (
-                          <div className="mt-3 p-3.5 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/20 text-xs sm:text-sm">
-                            <div className="font-semibold text-amber-900 dark:text-amber-200 mb-1 flex items-center gap-1.5">
-                              <InfoCircleOutlined /> Loan Schedule Live
-                              Calculation:
+                          <div className="mt-3 p-4 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/20 text-xs sm:text-sm">
+                            <div className="flex items-center justify-between flex-wrap gap-2 mb-2.5">
+                              <div className="font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                                <InfoCircleOutlined /> Loan Schedule Live Calculation Preview:
+                              </div>
+                              <Button
+                                size="small"
+                                icon={<TableOutlined />}
+                                onClick={() => setLoanScheduleModalOpen(true)}
+                              >
+                                View Schedule Breakdown ({loanCalc.installmentCount} Inst)
+                              </Button>
                             </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-slate-800 dark:text-slate-200">
+                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-slate-800 dark:text-slate-200">
                               <div>
-                                Total Payable:{" "}
-                                <strong>
-                                  ৳{loanCalc.totalPayable.toLocaleString()}
+                                <div className="text-[11px] text-slate-500">
+                                  Total Payable:
+                                </div>
+                                <strong className="text-sm font-semibold">
+                                  {formatCurrency(loanCalc.totalPayable)}
                                 </strong>
                               </div>
                               <div>
-                                Each Installment:{" "}
-                                <strong>
-                                  ৳{loanCalc.installmentAmount.toLocaleString()}
+                                <div className="text-[11px] text-slate-500">
+                                  Regular (1 to {loanCalc.regularInstallmentCount}):
+                                </div>
+                                <strong className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                                  {formatCurrency(loanCalc.regularInstallmentAmount)}
                                 </strong>
                               </div>
                               <div>
-                                Historical Paid:{" "}
-                                <span className="text-emerald-700 font-bold">
-                                  ৳{loanCalc.paidAmount.toLocaleString()} (
-                                  {loanPaidCount} inst)
-                                </span>
+                                <div className="text-[11px] text-slate-500">
+                                  Final ({loanCalc.installmentCount}th):
+                                </div>
+                                <strong className="text-sm font-semibold text-purple-700 dark:text-purple-300">
+                                  {formatCurrency(loanCalc.lastInstallmentAmount)}
+                                </strong>
                               </div>
                               <div>
-                                Remaining Balance:{" "}
-                                <span className="text-rose-600 font-bold">
-                                  ৳{loanCalc.remainingAmount.toLocaleString()} (
-                                  {loanCalc.remainingInstallments} inst)
-                                </span>
+                                <div className="text-[11px] text-slate-500">
+                                  Historical Paid:
+                                </div>
+                                <strong className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                                  {formatCurrency(loanCalc.paidAmount)}{" "}
+                                  <span className="text-[10px] font-normal text-slate-500">
+                                    ({loanPaidCount} inst)
+                                  </span>
+                                </strong>
+                              </div>
+                              <div>
+                                <div className="text-[11px] text-slate-500">
+                                  Remaining Balance:
+                                </div>
+                                <strong className="text-sm font-semibold text-rose-600 dark:text-rose-400">
+                                  {formatCurrency(loanCalc.remainingAmount)}{" "}
+                                  <span className="text-[10px] font-normal text-slate-500">
+                                    ({loanCalc.remainingInstallments} inst)
+                                  </span>
+                                </strong>
                               </div>
                             </div>
                           </div>
                         )}
+
+                        {/* Modal to preview schedule */}
+                        <Modal
+                          title={
+                            <div className="flex items-center gap-2">
+                              <TableOutlined className="text-blue-600" />
+                              <span>Migrated Loan Repayment Schedule Preview</span>
+                            </div>
+                          }
+                          open={loanScheduleModalOpen}
+                          onCancel={() => setLoanScheduleModalOpen(false)}
+                          width={750}
+                          footer={[
+                            <Button
+                              key="close"
+                              type="primary"
+                              onClick={() => setLoanScheduleModalOpen(false)}
+                            >
+                              Done
+                            </Button>,
+                          ]}
+                        >
+                          <div className="py-2">
+                            <div className="mb-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg text-xs flex justify-between items-center">
+                              <div>
+                                Total: <strong>{formatCurrency(loanCalc?.totalPayable || 0)}</strong> · Installments:{" "}
+                                <strong>{loanCalc?.installmentCount || 0}</strong>
+                              </div>
+                              <div className="text-emerald-700 font-semibold">
+                                {loanPaidCount} Paid · {loanCalc?.remainingInstallments || 0} Remaining
+                              </div>
+                            </div>
+                            <Table
+                              columns={scheduleColumns}
+                              dataSource={loanCalc?.schedule || []}
+                              rowKey="installmentNo"
+                              pagination={false}
+                              size="small"
+                              scroll={{ y: 350 }}
+                            />
+                          </div>
+                        </Modal>
                       </>
                     ) : (
                       <div className="text-xs text-slate-500 italic py-1">
@@ -1597,37 +2007,50 @@ export function MemberMigrationPage() {
                     )}
                   </Card>
 
-                  {/* Submit Button */}
-                  <div
-                    className="flex justify-end items-center gap-3"
-                    style={{ marginTop: 24, marginBottom: 40 }}
+                  {/* Submit Action Card */}
+                  <Card
+                    className="border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm bg-slate-50/70 dark:bg-slate-900/50"
+                    styles={{ body: { padding: "16px 24px" } }}
                   >
-                    <Button
-                      size="large"
-                      onClick={() => {
-                        singleForm.resetFields();
-                        setHasFatherAddress(false);
-                        setHasGuarantor(false);
-                      }}
-                      style={{ minWidth: 120 }}
-                    >
-                      Reset Form
-                    </Button>
-                    <Button
-                      type="primary"
-                      htmlType="submit"
-                      loading={isSubmittingSingle}
-                      size="large"
-                      className="bg-emerald-600 hover:bg-emerald-700 font-semibold px-8 shadow-md"
-                      style={{
-                        backgroundColor: "#059669",
-                        borderColor: "#059669",
-                        minWidth: 220,
-                      }}
-                    >
-                      Confirm & Migrate Member
-                    </Button>
-                  </div>
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div>
+                        <div className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
+                          Ready to Migrate Member
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          Please verify all historical balances and terms before confirming.
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          size="large"
+                          onClick={() => {
+                            singleForm.resetFields();
+                            setHasFatherAddress(false);
+                            setHasGuarantor(false);
+                            setIsCustomInstallment(false);
+                          }}
+                          style={{ minWidth: 120 }}
+                        >
+                          Reset Form
+                        </Button>
+                        <Button
+                          type="primary"
+                          htmlType="submit"
+                          loading={isSubmittingSingle}
+                          size="large"
+                          className="bg-emerald-600 hover:bg-emerald-700 font-semibold px-8 shadow-md"
+                          style={{
+                            backgroundColor: "#059669",
+                            borderColor: "#059669",
+                            minWidth: 220,
+                          }}
+                        >
+                          Confirm & Migrate Member
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
                 </Form>
               </div>
             ),

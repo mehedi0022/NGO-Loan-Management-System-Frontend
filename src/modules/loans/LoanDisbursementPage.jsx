@@ -10,6 +10,7 @@ import {
   SearchOutlined,
   SendOutlined,
   SwapOutlined,
+  TableOutlined,
   UserOutlined,
   WalletOutlined,
 } from "@ant-design/icons";
@@ -24,11 +25,13 @@ import {
   Divider,
   Form,
   Input,
+  InputNumber,
   Modal,
   Row,
   Select,
   Space,
   Statistic,
+  Switch,
   Table,
   Tag,
   Tooltip,
@@ -77,6 +80,10 @@ export function LoanDisbursementPage() {
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [selectedAccountId, setSelectedAccountId] = useState(undefined);
   const [confirmStep, setConfirmStep] = useState(false);
+  const [schedulePreviewOpen, setSchedulePreviewOpen] = useState(false);
+
+  // Watcher for firstDueDate
+  const formFirstDueDate = Form.useWatch("firstDueDate", form);
 
   // Fetch accounts list for cash balance checks & account selector
   const { data: accountsResponse, isFetching: accountsLoading } =
@@ -156,6 +163,63 @@ export function LoanDisbursementPage() {
   const hasSufficientBalance = activePayoutBalance >= principalNeeded;
   const balanceShortage = Math.max(0, principalNeeded - activePayoutBalance);
 
+  // Live schedule for the selected loan based on approved installment terms
+  const disbSchedule = useMemo(() => {
+    if (!selectedLoan) return null;
+    const totalPayable = Number(selectedLoan.totalPayable) || 0;
+    const count = Number(selectedLoan.installmentCount) || 1;
+    const regAmt = Number(selectedLoan.installmentAmount) || 0;
+    const regularCount = Math.max(0, count - 1);
+    const lastAmount =
+      count === 1
+        ? totalPayable
+        : Math.round(
+            (totalPayable - regAmt * regularCount + Number.EPSILON) * 100,
+          ) / 100;
+
+    const baseDate = formFirstDueDate
+      ? dayjs(formFirstDueDate)
+      : dayjs().add(7, "day");
+    const frequency = selectedLoan.frequency || "MONTHLY";
+
+    const schedule = [];
+    let cumulative = 0;
+
+    for (let i = 0; i < count; i++) {
+      const isFinal = i === regularCount && count > 1;
+      const amount = isFinal ? lastAmount : regAmt;
+      cumulative = Math.round((cumulative + amount) * 100) / 100;
+
+      const dueDate =
+        frequency === "WEEKLY"
+          ? baseDate.add(i, "week")
+          : baseDate.add(i, "month");
+
+      schedule.push({
+        installmentNo: i + 1,
+        dueDate: dueDate.format("DD MMM YYYY"),
+        amount,
+        isFinal,
+        cumulative,
+        remaining: Math.max(
+          0,
+          Math.round((totalPayable - cumulative) * 100) / 100,
+        ),
+      });
+    }
+
+    return {
+      principalAmount: Number(selectedLoan.principalAmount) || 0,
+      totalPayable,
+      installmentCount: count,
+      regularInstallmentAmount: regAmt,
+      regularInstallmentCount: regularCount,
+      lastInstallmentAmount: lastAmount,
+      frequency,
+      schedule,
+    };
+  }, [selectedLoan, formFirstDueDate]);
+
   // Set default dates & account when opening modal
   useEffect(() => {
     if (selectedLoan) {
@@ -182,6 +246,7 @@ export function LoanDisbursementPage() {
     setSelectedLoan(null);
     setSelectedAccountId(undefined);
     setConfirmStep(false);
+    setSchedulePreviewOpen(false);
   };
 
   const handleFormSubmit = async (values) => {
@@ -645,7 +710,13 @@ export function LoanDisbursementPage() {
                     {selectedLoan.installmentCount} installments ({selectedLoan.frequency})
                   </div>
                   <div style={{ fontSize: 11, color: "#6b7280" }}>
-                    {formatCurrency(selectedLoan.installmentAmount)} per installment
+                    Regular:{" "}
+                    {formatCurrency(
+                      disbSchedule
+                        ? disbSchedule.regularInstallmentAmount
+                        : selectedLoan.installmentAmount,
+                    )}{" "}
+                    per installment
                   </div>
                 </Col>
                 <Col xs={24} sm={12}>
@@ -654,10 +725,38 @@ export function LoanDisbursementPage() {
                     {formatCurrency(selectedLoan.totalPayable)}
                   </div>
                   <div style={{ fontSize: 11, color: "#6b7280" }}>
-                    Includes {selectedLoan.interestRate}% service charge
+                    Final installment:{" "}
+                    {formatCurrency(
+                      disbSchedule
+                        ? disbSchedule.lastInstallmentAmount
+                        : selectedLoan.installmentAmount,
+                    )}
                   </div>
                 </Col>
               </Row>
+
+              <Divider style={{ margin: "12px 0 10px 0" }} />
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 8,
+                }}
+              >
+                <span style={{ fontSize: 12, color: "#4b5563" }}>
+                  Repayment schedule will be generated according to approved terms.
+                </span>
+                <Button
+                  size="small"
+                  icon={<TableOutlined />}
+                  onClick={() => setSchedulePreviewOpen(true)}
+                >
+                  View Schedule Preview
+                </Button>
+              </div>
             </div>
 
             {/* Strict Insufficient Balance Blocking Alert */}
@@ -903,6 +1002,114 @@ export function LoanDisbursementPage() {
                 )}
               </div>
             </Form>
+          </div>
+        )}
+      </Modal>
+
+      {/* Schedule Preview Modal for Disbursement */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <TableOutlined className="text-emerald-600" />
+            <span>Disbursement Repayment Schedule Preview</span>
+            {selectedLoan && (
+              <Tag color="cyan">
+                {selectedLoan.loanId ? `#${selectedLoan.loanId}` : "New Loan"} ·{" "}
+                {selectedLoan.installmentCount} Installments
+              </Tag>
+            )}
+          </div>
+        }
+        open={schedulePreviewOpen}
+        onCancel={() => setSchedulePreviewOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setSchedulePreviewOpen(false)}>
+            Close
+          </Button>,
+        ]}
+        width={700}
+      >
+        {disbSchedule && (
+          <div>
+            <div className="mb-3 p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap justify-between gap-3 text-xs">
+              <div>
+                Principal:{" "}
+                <strong>{formatCurrency(disbSchedule.principalAmount)}</strong>
+              </div>
+              <div>
+                Total Payable:{" "}
+                <strong className="text-emerald-700 font-bold">
+                  {formatCurrency(disbSchedule.totalPayable)}
+                </strong>
+              </div>
+              <div>
+                Regular (1st–{disbSchedule.regularInstallmentCount}th):{" "}
+                <strong>
+                  {formatCurrency(disbSchedule.regularInstallmentAmount)}
+                </strong>
+              </div>
+              <div>
+                Final ({disbSchedule.installmentCount}th):{" "}
+                <strong className="text-purple-700 font-bold">
+                  {formatCurrency(disbSchedule.lastInstallmentAmount)}
+                </strong>
+              </div>
+            </div>
+
+            <Table
+              dataSource={disbSchedule.schedule}
+              rowKey="installmentNo"
+              pagination={{ pageSize: 12, showSizeChanger: false }}
+              size="small"
+              columns={[
+                {
+                  title: "No.",
+                  dataIndex: "installmentNo",
+                  key: "installmentNo",
+                  width: 60,
+                  render: (n) => <strong>#{n}</strong>,
+                },
+                {
+                  title: "Due Date",
+                  dataIndex: "dueDate",
+                  key: "dueDate",
+                  render: (d) => <span className="text-xs">{d}</span>,
+                },
+                {
+                  title: "Installment Amount",
+                  dataIndex: "amount",
+                  key: "amount",
+                  render: (amt, r) => (
+                    <Space>
+                      <strong
+                        className={
+                          r.isFinal
+                            ? "text-purple-600 font-bold"
+                            : "text-emerald-700"
+                        }
+                      >
+                        {formatCurrency(amt)}
+                      </strong>
+                      {r.isFinal && (
+                        <Tag color="purple" className="text-[10px]">
+                          Final Remainder
+                        </Tag>
+                      )}
+                    </Space>
+                  ),
+                },
+                {
+                  title: "Remaining",
+                  dataIndex: "remaining",
+                  key: "remaining",
+                  render: (rem) => (
+                    <span className="text-xs text-slate-500 font-mono">
+                      {formatCurrency(rem)}
+                    </span>
+                  ),
+                },
+              ]}
+            />
           </div>
         )}
       </Modal>
