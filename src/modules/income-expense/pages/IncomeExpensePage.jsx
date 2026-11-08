@@ -35,6 +35,7 @@ import { PageContainer } from "../../../components/page-container/PageContainer.
 import { ReverseTransactionModal } from "../../../components/reverse-modal/ReverseTransactionModal.jsx";
 import { formatCurrency, formatDate } from "../../loans/loanFormatters.js";
 import { useGetActiveSomitiesQuery } from "../../somities/somitiesApi.js";
+import { useGetActiveBusinessDayQuery } from "../../dayClosing/dayClosingApi.js";
 import { CategoryManagementModal } from "../components/CategoryManagementModal.jsx";
 import { IncomeExpenseModal } from "../components/IncomeExpenseModal.jsx";
 import { PrintableVoucherModal } from "../components/PrintableVoucherModal.jsx";
@@ -62,6 +63,8 @@ const paymentMethodOptions = [
 export function IncomeExpensePage() {
   const currentUser = useSelector((state) => state.auth.user);
   const isAdmin = ["SUPER_ADMIN", "ADMIN"].includes(currentUser?.role);
+  const { data: activeDayData } = useGetActiveBusinessDayQuery();
+  const activeBusinessDate = activeDayData?.data?.businessDate;
 
   // Modal States
   const [voucherModalOpen, setVoucherModalOpen] = useState(false);
@@ -315,17 +318,33 @@ export function IncomeExpensePage() {
               onClick={() => handleOpenPrint(record)}
             />
           </Tooltip>
-          {isAdmin && (
-            <Tooltip title="Reverse / Cancel Voucher">
-              <Button
-                size="small"
-                type="text"
-                danger
-                icon={<RollbackOutlined />}
-                onClick={() => setReversingVoucher(record)}
-              />
-            </Tooltip>
-          )}
+          {isAdmin && (() => {
+            const recordDate = (record.date || record.createdAt)
+              ? dayjs(record.date || record.createdAt).format("YYYY-MM-DD")
+              : null;
+            const isClosed = !activeBusinessDate || (recordDate && recordDate !== activeBusinessDate);
+
+            return (
+              <Tooltip
+                title={
+                  isClosed
+                    ? "Cannot reverse: This voucher belongs to a closed business day."
+                    : "Reverse / Cancel Voucher"
+                }
+              >
+                <span>
+                  <Button
+                    size="small"
+                    type="text"
+                    danger
+                    icon={<RollbackOutlined />}
+                    disabled={isClosed}
+                    onClick={() => setReversingVoucher(record)}
+                  />
+                </span>
+              </Tooltip>
+            );
+          })()}
         </Space>
       ),
     },

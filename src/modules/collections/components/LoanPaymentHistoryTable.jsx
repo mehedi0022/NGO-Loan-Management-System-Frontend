@@ -9,6 +9,7 @@ import {
   formatDate,
   formatEnum,
 } from "../../loans/loanFormatters.js";
+import { useGetActiveBusinessDayQuery } from "../../dayClosing/dayClosingApi.js";
 import { useReverseLoanPaymentMutation } from "../collectionsApi.js";
 
 export function LoanPaymentHistoryTable({
@@ -27,6 +28,8 @@ export function LoanPaymentHistoryTable({
 
   const [reverseLoanPayment, { isLoading: reversing }] =
     useReverseLoanPaymentMutation();
+  const { data: activeDayData } = useGetActiveBusinessDayQuery();
+  const activeBusinessDate = activeDayData?.data?.businessDate;
 
   const handleOpenReverse = (record) => {
     setSelectedPayment(record);
@@ -134,18 +137,34 @@ export function LoanPaymentHistoryTable({
             align: "center",
             width: 100,
             fixed: "right",
-            render: (_, record) => (
-              <Tooltip title="Reverse this loan payment">
-                <Button
-                  danger
-                  size="small"
-                  icon={<RollbackOutlined />}
-                  onClick={() => handleOpenReverse(record)}
+            render: (_, record) => {
+              const recordDate = record.paymentDate
+                ? dayjs(record.paymentDate).format("YYYY-MM-DD")
+                : null;
+              const isClosed = !activeBusinessDate || (recordDate && recordDate !== activeBusinessDate);
+
+              return (
+                <Tooltip
+                  title={
+                    isClosed
+                      ? "Cannot reverse: This loan payment belongs to a closed business day."
+                      : "Reverse this loan payment"
+                  }
                 >
-                  Reverse
-                </Button>
-              </Tooltip>
-            ),
+                  <span>
+                    <Button
+                      danger
+                      size="small"
+                      icon={<RollbackOutlined />}
+                      disabled={isClosed}
+                      onClick={() => handleOpenReverse(record)}
+                    >
+                      Reverse
+                    </Button>
+                  </span>
+                </Tooltip>
+              );
+            },
           },
         ]
       : []),

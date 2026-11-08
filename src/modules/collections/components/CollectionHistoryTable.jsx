@@ -24,6 +24,7 @@ import dayjs from "dayjs";
 import { useState } from "react";
 import { ReverseTransactionModal } from "../../../components/reverse-modal/ReverseTransactionModal.jsx";
 import { formatCurrency, formatDate, formatEnum } from "../../loans/loanFormatters.js";
+import { useGetActiveBusinessDayQuery } from "../../dayClosing/dayClosingApi.js";
 import {
   useGetCollectionsQuery,
   useReverseCollectionMutation,
@@ -46,6 +47,8 @@ export function CollectionHistoryTable({ somitiOptions = [], isAdmin = false }) 
 
   const [reverseCollection, { isLoading: reversing }] =
     useReverseCollectionMutation();
+  const { data: activeDayData } = useGetActiveBusinessDayQuery();
+  const activeBusinessDate = activeDayData?.data?.businessDate;
 
   const queryParams = {
     page,
@@ -230,18 +233,34 @@ export function CollectionHistoryTable({ somitiOptions = [], isAdmin = false }) 
             align: "center",
             width: 110,
             fixed: "right",
-            render: (_, record) => (
-              <Tooltip title="Reverse this collection (Revert installments, savings and cash)">
-                <Button
-                  danger
-                  size="small"
-                  icon={<RollbackOutlined />}
-                  onClick={() => handleOpenReverse(record)}
+            render: (_, record) => {
+              const recordDate = record.collectionDate
+                ? dayjs(record.collectionDate).format("YYYY-MM-DD")
+                : null;
+              const isClosed = !activeBusinessDate || (recordDate && recordDate !== activeBusinessDate);
+
+              return (
+                <Tooltip
+                  title={
+                    isClosed
+                      ? "Cannot reverse: This collection belongs to a closed business day."
+                      : "Reverse this collection (Revert installments, savings and cash)"
+                  }
                 >
-                  Reverse
-                </Button>
-              </Tooltip>
-            ),
+                  <span>
+                    <Button
+                      danger
+                      size="small"
+                      icon={<RollbackOutlined />}
+                      disabled={isClosed}
+                      onClick={() => handleOpenReverse(record)}
+                    >
+                      Reverse
+                    </Button>
+                  </span>
+                </Tooltip>
+              );
+            },
           },
         ]
       : []),
