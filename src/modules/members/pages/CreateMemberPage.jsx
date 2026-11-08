@@ -14,10 +14,13 @@ import {
   useCreateMemberMutation,
   useUploadMemberPhotoMutation,
 } from "../membersApi.js";
+import { useGetActiveBusinessDayQuery } from "../../dayClosing/dayClosingApi.js";
 
 export function CreateMemberPage() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
+  const { data: activeDayData } = useGetActiveBusinessDayQuery();
+  const activeBusinessDate = activeDayData?.data?.businessDate;
 
   const [hasFatherAddress, setHasFatherAddress] = useState(false);
 
@@ -116,7 +119,7 @@ export function CreateMemberPage() {
         onImageChange={setPhotoFile}
         onCancel={() => navigate("/members")}
         initialValues={{
-          joinDate: dayjs(),
+          joinDate: activeBusinessDate ? dayjs(activeBusinessDate) : dayjs(),
         }}
       />
     </PageContainer>

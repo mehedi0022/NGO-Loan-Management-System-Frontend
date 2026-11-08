@@ -44,6 +44,7 @@ import { useNavigate } from "react-router-dom";
 
 import { PageContainer } from "../../components/page-container/PageContainer.jsx";
 import { useGetAccountsQuery } from "../accounts/accountsApi.js";
+import { useGetActiveBusinessDayQuery } from "../dayClosing/dayClosingApi.js";
 import { formatCurrency, formatDate } from "./loanFormatters.js";
 import { useDisburseLoanMutation, useGetLoansQuery } from "./loansApi.js";
 
@@ -69,6 +70,9 @@ const getNextSomitiDay = (fromDate, targetDayIndex) => {
 export function LoanDisbursementPage() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
+
+  const { data: activeDayData } = useGetActiveBusinessDayQuery();
+  const activeBusinessDate = activeDayData?.data?.businessDate;
 
   // Filters & Pagination
   const [page, setPage] = useState(1);
@@ -223,18 +227,18 @@ export function LoanDisbursementPage() {
   // Set default dates & account when opening modal
   useEffect(() => {
     if (selectedLoan) {
-      const today = dayjs();
-      const nextSomiti = getNextSomitiDay(today, somitiDayIndex);
+      const bDay = activeBusinessDate ? dayjs(activeBusinessDate) : dayjs();
+      const nextSomiti = getNextSomitiDay(bDay, somitiDayIndex);
       const accId = defaultAccount?.id;
       setSelectedAccountId(accId);
       form.setFieldsValue({
         accountId: accId,
-        disbursementDate: today,
-        firstDueDate: nextSomiti || today.add(7, "day"),
+        disbursementDate: bDay,
+        firstDueDate: nextSomiti || bDay.add(7, "day"),
       });
       setConfirmStep(false);
     }
-  }, [selectedLoan, somitiDayIndex, defaultAccount, form]);
+  }, [selectedLoan, somitiDayIndex, defaultAccount, form, activeBusinessDate]);
 
   const handleOpenDisburse = (loan) => {
     setSelectedLoan(loan);
@@ -842,6 +846,12 @@ export function LoanDisbursementPage() {
                 <DatePicker
                   style={{ width: "100%" }}
                   format="DD MMM YYYY"
+                  allowClear={false}
+                  inputReadOnly
+                  disabledDate={(current) => {
+                    if (!current || !activeBusinessDate) return false;
+                    return current.format("YYYY-MM-DD") !== activeBusinessDate;
+                  }}
                   onChange={(val) => {
                     if (val && somitiDayIndex !== undefined) {
                       const nextSomiti = getNextSomitiDay(val, somitiDayIndex);

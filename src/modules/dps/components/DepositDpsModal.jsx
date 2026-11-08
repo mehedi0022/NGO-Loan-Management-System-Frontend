@@ -552,7 +552,16 @@ export function DepositDpsModal({
         </Form.Item>
 
         <Form.Item name="transactionDate" label="Deposit Date">
-          <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
+          <DatePicker
+            style={{ width: "100%" }}
+            format="DD MMM YYYY"
+            allowClear={false}
+            inputReadOnly
+            disabledDate={(current) => {
+              if (!current || !activeBusinessDate) return false;
+              return current.format("YYYY-MM-DD") !== activeBusinessDate;
+            }}
+          />
         </Form.Item>
 
         <Form.Item name="reference" label="Receipt / Voucher Number">

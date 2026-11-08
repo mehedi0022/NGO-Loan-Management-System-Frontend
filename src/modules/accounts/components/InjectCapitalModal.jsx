@@ -1,5 +1,7 @@
-import { Form, Input, InputNumber, Modal, Select, message } from "antd";
+import { DatePicker, Form, Input, InputNumber, Modal, Select, message } from "antd";
+import dayjs from "dayjs";
 import { useEffect } from "react";
+import { useGetActiveBusinessDayQuery } from "../../dayClosing/dayClosingApi.js";
 import { useGetAccountsQuery, useInjectCapitalMutation } from "../accountsApi.js";
 
 const capitalSources = [
@@ -15,6 +17,8 @@ export function InjectCapitalModal({ open, onClose, account = null }) {
   const [form] = Form.useForm();
   const { data: accountsData, isLoading: accountsLoading } = useGetAccountsQuery();
   const [injectCapital, { isLoading: isInjecting }] = useInjectCapitalMutation();
+  const { data: activeDayData } = useGetActiveBusinessDayQuery();
+  const activeBusinessDate = activeDayData?.data?.businessDate;
 
   const accounts = Array.isArray(accountsData?.data)
     ? accountsData.data
@@ -31,8 +35,12 @@ export function InjectCapitalModal({ open, onClose, account = null }) {
       if (targetId) {
         form.setFieldValue("accountId", targetId);
       }
+      form.setFieldValue(
+        "depositDate",
+        activeBusinessDate ? dayjs(activeBusinessDate) : dayjs()
+      );
     }
-  }, [open, account, defaultAccount, form]);
+  }, [open, account, defaultAccount, activeBusinessDate, form]);
 
   const handleSubmit = async () => {
     try {
@@ -41,6 +49,7 @@ export function InjectCapitalModal({ open, onClose, account = null }) {
         accountId: values.accountId,
         amount: values.amount,
         source: values.source,
+        depositDate: values.depositDate ? values.depositDate.format("YYYY-MM-DD") : undefined,
         notes: values.notes,
       }).unwrap();
       message.success("Capital deposited successfully");
@@ -94,6 +103,33 @@ export function InjectCapitalModal({ open, onClose, account = null }) {
             prefix="৳"
             placeholder="e.g. 500000"
             min={1}
+          />
+        </Form.Item>
+
+        <Form.Item
+          label={
+            <div className="flex items-center justify-between w-full">
+              <span>Deposit Date</span>
+              {activeBusinessDate && (
+                <span className="text-xs text-blue-600 font-normal">
+                  Active Business Day: {dayjs(activeBusinessDate).format("DD MMM YYYY")}
+                </span>
+              )}
+            </div>
+          }
+          name="depositDate"
+          rules={[{ required: true, message: "Please select deposit date" }]}
+        >
+          <DatePicker
+            className="w-full"
+            style={{ width: "100%" }}
+            format="DD MMMM YYYY"
+            allowClear={false}
+            inputReadOnly
+            disabledDate={(current) => {
+              if (!current || !activeBusinessDate) return false;
+              return current.format("YYYY-MM-DD") !== activeBusinessDate;
+            }}
           />
         </Form.Item>
 

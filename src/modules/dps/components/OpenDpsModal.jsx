@@ -21,6 +21,7 @@ import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { useCreateDpsAccountMutation } from "../dpsApi.js";
 import { useGetAllMembersQuery } from "../../members/membersApi.js";
+import { useGetActiveBusinessDayQuery } from "../../dayClosing/dayClosingApi.js";
 import { formatCurrency } from "../../loans/loanFormatters.js";
 
 const SOMITI_DAY_MAP = {
@@ -64,6 +65,9 @@ const MONTHLY_PRESET_AMOUNTS = [500, 1000, 1500, 2000, 2500, 3000, 5000];
 const WEEKLY_PRESET_AMOUNTS = [100, 200, 250, 500, 1000, 1500, 2000];
 
 export function OpenDpsModal({ open, onClose, member, onSuccess }) {
+  const { data: activeDayData } = useGetActiveBusinessDayQuery();
+  const activeBusinessDate = activeDayData?.data?.businessDate;
+
   const [form] = Form.useForm();
   const [createDps, { isLoading }] = useCreateDpsAccountMutation();
   const [memberSearch, setMemberSearch] = useState("");
@@ -102,10 +106,11 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
         ? SOMITI_DAY_MAP[initialMeetingDay]
         : undefined;
 
+      const baseDate = activeBusinessDate ? dayjs(activeBusinessDate) : dayjs();
       const initialStartDate =
         initialDayIndex !== undefined
-          ? getNextSomitiDay(dayjs(), initialDayIndex)
-          : dayjs();
+          ? getNextSomitiDay(baseDate, initialDayIndex)
+          : baseDate;
 
       form.setFieldsValue({
         memberId: member?.id,
@@ -121,7 +126,7 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
       setDurationMonths(60);
       setInterestRate(8.5);
     }
-  }, [open, form, member]);
+  }, [open, form, member, activeBusinessDate]);
 
   const handleMemberChange = (newMemberId) => {
     if (!newMemberId) return;
@@ -131,8 +136,9 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
     if (mem?.somiti?.meetingDay) {
       const dayIdx = SOMITI_DAY_MAP[mem.somiti.meetingDay];
       if (dayIdx !== undefined) {
+        const baseDate = activeBusinessDate ? dayjs(activeBusinessDate) : dayjs();
         form.setFieldsValue({
-          startDate: getNextSomitiDay(dayjs(), dayIdx),
+          startDate: getNextSomitiDay(baseDate, dayIdx),
         });
       }
     }
@@ -172,7 +178,7 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
         interestRate: Number(values.interestRate),
         startDate: values.startDate
           ? values.startDate.format("YYYY-MM-DD")
-          : dayjs().format("YYYY-MM-DD"),
+          : activeBusinessDate || dayjs().format("YYYY-MM-DD"),
         notes: values.notes,
       }).unwrap();
 
@@ -214,7 +220,7 @@ export function OpenDpsModal({ open, onClose, member, onSuccess }) {
           installmentAmount: 1000,
           durationMonths: 60,
           interestRate: 8.5,
-          startDate: dayjs(),
+          startDate: activeBusinessDate ? dayjs(activeBusinessDate) : dayjs(),
         }}
       >
         {member ? (

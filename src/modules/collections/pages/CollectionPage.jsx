@@ -1156,6 +1156,11 @@ export function CollectionPage() {
               onChange={handleCollectionDateChange}
               format="DD MMM YYYY"
               className="w-full"
+              inputReadOnly
+              disabledDate={(current) => {
+                if (!current || !activeBusinessDate) return false;
+                return current.format("YYYY-MM-DD") !== activeBusinessDate;
+              }}
             />
           </div>
 

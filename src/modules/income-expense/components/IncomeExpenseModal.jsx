@@ -286,7 +286,16 @@ export function IncomeExpenseModal({
               label="Voucher Date"
               rules={[{ required: true, message: "Please select voucher date" }]}
             >
-              <DatePicker style={{ width: "100%" }} />
+              <DatePicker
+                style={{ width: "100%" }}
+                format="DD MMM YYYY"
+                allowClear={false}
+                inputReadOnly
+                disabledDate={(current) => {
+                  if (!current || !activeBusinessDate) return false;
+                  return current.format("YYYY-MM-DD") !== activeBusinessDate;
+                }}
+              />
             </Form.Item>
           </Col>
 

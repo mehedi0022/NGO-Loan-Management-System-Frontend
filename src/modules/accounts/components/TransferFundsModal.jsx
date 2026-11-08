@@ -1,11 +1,15 @@
-import { Alert, Form, Input, InputNumber, Modal, Select, message } from "antd";
+import { Alert, DatePicker, Form, Input, InputNumber, Modal, Select, message } from "antd";
+import dayjs from "dayjs";
 import { useEffect } from "react";
+import { useGetActiveBusinessDayQuery } from "../../dayClosing/dayClosingApi.js";
 import { useGetAccountsQuery, useTransferFundsMutation } from "../accountsApi.js";
 
 export function TransferFundsModal({ open, onClose }) {
   const [form] = Form.useForm();
   const { data: accountsData, isLoading: accountsLoading } = useGetAccountsQuery();
   const [transferFunds, { isLoading: isTransferring }] = useTransferFundsMutation();
+  const { data: activeDayData } = useGetActiveBusinessDayQuery();
+  const activeBusinessDate = activeDayData?.data?.businessDate;
 
   const accounts = Array.isArray(accountsData?.data)
     ? accountsData.data
@@ -19,8 +23,12 @@ export function TransferFundsModal({ open, onClose }) {
   useEffect(() => {
     if (open) {
       form.resetFields();
+      form.setFieldValue(
+        "transferDate",
+        activeBusinessDate ? dayjs(activeBusinessDate) : dayjs()
+      );
     }
-  }, [open, form]);
+  }, [open, activeBusinessDate, form]);
 
   const handleSubmit = async () => {
     try {
@@ -29,6 +37,7 @@ export function TransferFundsModal({ open, onClose }) {
         fromAccountId: values.fromAccountId,
         toAccountId: values.toAccountId,
         amount: values.amount,
+        transferDate: values.transferDate ? values.transferDate.format("YYYY-MM-DD") : undefined,
         notes: values.notes,
       }).unwrap();
       message.success("Funds transferred successfully");
@@ -125,6 +134,33 @@ export function TransferFundsModal({ open, onClose }) {
             placeholder="Enter amount"
             min={1}
             max={selectedFromAccount ? Number(selectedFromAccount.currentBalance) : undefined}
+          />
+        </Form.Item>
+
+        <Form.Item
+          label={
+            <div className="flex items-center justify-between w-full">
+              <span>Transfer Date</span>
+              {activeBusinessDate && (
+                <span className="text-xs text-blue-600 font-normal">
+                  Active Business Day: {dayjs(activeBusinessDate).format("DD MMM YYYY")}
+                </span>
+              )}
+            </div>
+          }
+          name="transferDate"
+          rules={[{ required: true, message: "Please select transfer date" }]}
+        >
+          <DatePicker
+            className="w-full"
+            style={{ width: "100%" }}
+            format="DD MMMM YYYY"
+            allowClear={false}
+            inputReadOnly
+            disabledDate={(current) => {
+              if (!current || !activeBusinessDate) return false;
+              return current.format("YYYY-MM-DD") !== activeBusinessDate;
+            }}
           />
         </Form.Item>
 

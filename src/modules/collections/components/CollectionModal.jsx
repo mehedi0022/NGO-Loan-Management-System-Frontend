@@ -512,6 +512,11 @@ export function CollectionModal({
               className="w-full"
               format="DD MMM YYYY"
               allowClear={false}
+              inputReadOnly
+              disabledDate={(current) => {
+                if (!current || !activeBusinessDate) return false;
+                return current.format("YYYY-MM-DD") !== activeBusinessDate;
+              }}
             />
           </Form.Item>
 

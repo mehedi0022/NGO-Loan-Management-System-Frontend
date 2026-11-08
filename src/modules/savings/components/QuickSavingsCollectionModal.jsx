@@ -337,6 +337,11 @@ export function QuickSavingsCollectionModal({
               format="DD MMM YYYY"
               allowClear={false}
               suffixIcon={<CalendarOutlined />}
+              inputReadOnly
+              disabledDate={(current) => {
+                if (!current || !activeBusinessDate) return false;
+                return current.format("YYYY-MM-DD") !== activeBusinessDate;
+              }}
             />
           </Form.Item>
 

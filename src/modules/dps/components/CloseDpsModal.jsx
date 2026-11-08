@@ -305,7 +305,16 @@ export function CloseDpsModal({ open, onClose, dps, initialMode, onSuccess }) {
               label="Settlement Date"
               rules={[{ required: true, message: "Select settlement date" }]}
             >
-              <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
+              <DatePicker
+                style={{ width: "100%" }}
+                format="DD MMM YYYY"
+                allowClear={false}
+                inputReadOnly
+                disabledDate={(current) => {
+                  if (!current || !activeBusinessDate) return false;
+                  return current.format("YYYY-MM-DD") !== activeBusinessDate;
+                }}
+              />
             </Form.Item>
           </div>
 
