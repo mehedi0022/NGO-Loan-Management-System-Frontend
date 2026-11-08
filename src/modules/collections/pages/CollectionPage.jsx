@@ -1083,7 +1083,6 @@ export function CollectionPage() {
           <Button
             icon={<PrinterOutlined />}
             onClick={() => setPrintModalOpen(true)}
-            disabled={installments.length === 0}
           >
             Print Collection Sheet
           </Button>
@@ -1811,6 +1810,7 @@ export function CollectionPage() {
         dueDate={dueDate}
         selectedSomiti={selectedSomiti}
         currentUser={currentUser}
+        somities={somitiesData?.data || []}
       />
     </PageContainer>
   );

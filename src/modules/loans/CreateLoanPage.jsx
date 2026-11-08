@@ -56,6 +56,10 @@ export function CreateLoanPage() {
   const validMemberId =
     Number.isSafeInteger(memberIdFromQuery) && memberIdFromQuery > 0;
 
+  const watchedMemberId = Form.useWatch("memberId", form);
+  const currentMemberId =
+    watchedMemberId || (validMemberId ? memberIdFromQuery : undefined);
+
   const { data: membersResponse, isLoading: membersLoading } =
     useGetAllMembersQuery({
       page: 1,
@@ -64,17 +68,31 @@ export function CreateLoanPage() {
       sortBy: "fullName",
       sortOrder: "asc",
     });
-  const { data: selectedMemberResponse } = useGetMemberByIdQuery(
-    memberIdFromQuery,
+
+  const { data: currentMemberResponse } = useGetMemberByIdQuery(
+    currentMemberId,
     {
-      skip: !validMemberId,
+      skip: !currentMemberId,
     },
   );
+
+  const activeLoan = useMemo(() => {
+    return currentMemberResponse?.data?.loans?.find((l) => l.status === "ACTIVE");
+  }, [currentMemberResponse]);
+
+  const pendingOrApprovedLoan = useMemo(() => {
+    return currentMemberResponse?.data?.loans?.find(
+      (l) => l.status === "PENDING" || l.status === "APPROVED",
+    );
+  }, [currentMemberResponse]);
+
+  const hasExistingLoan = Boolean(activeLoan || pendingOrApprovedLoan);
+
   const [createLoan, { isLoading: isCreating }] = useCreateLoanMutation();
 
   const memberOptions = useMemo(() => {
     const members = [...(membersResponse?.data ?? [])];
-    const selectedMember = selectedMemberResponse?.data;
+    const selectedMember = currentMemberResponse?.data;
 
     if (
       selectedMember &&
@@ -87,7 +105,7 @@ export function CreateLoanPage() {
       value: member.id,
       label: `${member.fullName} (${member.memberId || "Pending ID"})`,
     }));
-  }, [membersResponse?.data, selectedMemberResponse?.data]);
+  }, [membersResponse?.data, currentMemberResponse?.data]);
 
   // Form watchers for dynamic calculations
   const principalAmount = Form.useWatch("principalAmount", form);
@@ -128,6 +146,15 @@ export function CreateLoanPage() {
       setFormError(
         loanCalc.customAmountError || "Please enter a valid installment amount",
       );
+      return;
+    }
+
+    if (hasExistingLoan) {
+      const msg = activeLoan
+        ? `This member already has an active loan (${activeLoan.loanId || `#${activeLoan.id}`}). Multiple loans are not allowed until the active loan is closed.`
+        : `This member already has a ${pendingOrApprovedLoan?.status?.toLowerCase()} loan application (${pendingOrApprovedLoan?.loanId || `#${pendingOrApprovedLoan?.id}`}).`;
+      setFormError(msg);
+      message.error(msg);
       return;
     }
 
@@ -294,9 +321,51 @@ export function CreateLoanPage() {
                       className="rounded-lg"
                     />
                   </Form.Item>
+
+                  {/* Active / Pending Loan Alerts */}
+                  {activeLoan && (
+                    <Alert
+                      type="error"
+                      showIcon
+                      className="mb-4 rounded-lg"
+                      message="সতর্কতা: এই মেম্বারের ইতোমধ্যে একটি একটিভ লোন চালু রয়েছে!"
+                      description={
+                        <div className="text-xs space-y-1">
+                          <div>
+                            বিদ্যমান লোন আইডি:{" "}
+                            <strong>{activeLoan.loanId || `#${activeLoan.id}`}</strong>{" "}
+                            (মূল ঋণ: BDT {Number(activeLoan.principalAmount).toLocaleString()} | মোট প্রদেয়: BDT {Number(activeLoan.totalPayable).toLocaleString()})
+                          </div>
+                          <div className="text-red-700 font-semibold">
+                            নিয়ম অনুযায়ী, চলমান লোনটি সম্পূর্ণ পরিশোধ ও ক্লোজ (COMPLETED) না হওয়া পর্যন্ত নতুন কোনো লোন প্রদান করা যাবে না।
+                          </div>
+                        </div>
+                      }
+                    />
+                  )}
+
+                  {pendingOrApprovedLoan && !activeLoan && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      className="mb-4 rounded-lg"
+                      message={`সতর্কতা: এই মেম্বারের একটি ${pendingOrApprovedLoan.status === "APPROVED" ? "অনুমোদিত (APPROVED)" : "পেন্ডিং (PENDING)"} লোন আবেদন রয়েছে!`}
+                      description={
+                        <div className="text-xs space-y-1">
+                          <div>
+                            আবেদনকৃত লোন আইডি:{" "}
+                            <strong>{pendingOrApprovedLoan.loanId || `#${pendingOrApprovedLoan.id}`}</strong>
+                          </div>
+                          <div>
+                            অনুগ্রহ করে পূর্বের আবেদনটি ডিসবার্স বা বাতিল করুন, অন্যথায় নতুন লোন আবেদন গ্রহণযোগ্য হবে না।
+                          </div>
+                        </div>
+                      }
+                    />
+                  )}
                 </Col>
 
-                {/* Principal Amount & Installment Count */}
+                {/* Principal Amount & Frequency */}
                 <Col xs={24} sm={12}>
                   <Form.Item
                     label="Principal Amount"
@@ -313,12 +382,73 @@ export function CreateLoanPage() {
                       className="rounded-lg"
                       min={1}
                       precision={2}
-                      prefix="৳"
+                      prefix="BDT "
                       placeholder="50000"
                     />
                   </Form.Item>
                 </Col>
 
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    label="Repayment Frequency"
+                    name="frequency"
+                    rules={[{ required: true }]}
+                  >
+                    <Select
+                      style={{ width: "100%" }}
+                      className="rounded-lg"
+                      options={[
+                        { value: "MONTHLY", label: "Monthly" },
+                        { value: "WEEKLY", label: "Weekly" },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+
+                {/* Charge Type & Charge Rate */}
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    label="Charge Type"
+                    name="chargeType"
+                    rules={[{ required: true }]}
+                  >
+                    <Select
+                      style={{ width: "100%" }}
+                      className="rounded-lg"
+                      options={[
+                        { value: "PERCENTAGE", label: "Percentage (%)" },
+                        { value: "FLAT", label: "Flat Amount (BDT)" },
+                      ]}
+                    />
+                  </Form.Item>
+                </Col>
+
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    label={
+                      chargeType === "PERCENTAGE"
+                        ? "Service Charge Rate (%)"
+                        : "Fixed Charge Amount (BDT)"
+                    }
+                    name="chargeValue"
+                    rules={[
+                      { required: true, message: "Enter the charge value" },
+                    ]}
+                  >
+                    <InputNumber
+                      style={{ width: "100%" }}
+                      className="rounded-lg"
+                      min={0}
+                      max={chargeType === "PERCENTAGE" ? 100 : undefined}
+                      precision={2}
+                      suffix={chargeType === "PERCENTAGE" ? "%" : undefined}
+                      prefix={chargeType === "FLAT" ? "BDT " : undefined}
+                      placeholder="10"
+                    />
+                  </Form.Item>
+                </Col>
+
+                {/* Installment Count & Purpose */}
                 <Col xs={24} sm={12}>
                   <Form.Item
                     label="Installment Count"
@@ -337,67 +467,6 @@ export function CreateLoanPage() {
                       max={120}
                       precision={0}
                       placeholder="12"
-                    />
-                  </Form.Item>
-                </Col>
-
-                {/* Charge Type & Charge Rate */}
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label="Charge Type"
-                    name="chargeType"
-                    rules={[{ required: true }]}
-                  >
-                    <Select
-                      style={{ width: "100%" }}
-                      className="rounded-lg"
-                      options={[
-                        { value: "PERCENTAGE", label: "Percentage (%)" },
-                        { value: "FLAT", label: "Flat Amount (৳)" },
-                      ]}
-                    />
-                  </Form.Item>
-                </Col>
-
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label={
-                      chargeType === "PERCENTAGE"
-                        ? "Service Charge Rate (%)"
-                        : "Fixed Charge Amount (৳)"
-                    }
-                    name="chargeValue"
-                    rules={[
-                      { required: true, message: "Enter the charge value" },
-                    ]}
-                  >
-                    <InputNumber
-                      style={{ width: "100%" }}
-                      className="rounded-lg"
-                      min={0}
-                      max={chargeType === "PERCENTAGE" ? 100 : undefined}
-                      precision={2}
-                      suffix={chargeType === "PERCENTAGE" ? "%" : undefined}
-                      prefix={chargeType === "FLAT" ? "৳" : undefined}
-                      placeholder="10"
-                    />
-                  </Form.Item>
-                </Col>
-
-                {/* Frequency & Purpose */}
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    label="Repayment Frequency"
-                    name="frequency"
-                    rules={[{ required: true }]}
-                  >
-                    <Select
-                      style={{ width: "100%" }}
-                      className="rounded-lg"
-                      options={[
-                        { value: "MONTHLY", label: "Monthly" },
-                        { value: "WEEKLY", label: "Weekly" },
-                      ]}
                     />
                   </Form.Item>
                 </Col>
@@ -472,7 +541,7 @@ export function CreateLoanPage() {
                               <InputNumber
                                 style={{ width: "100%" }}
                                 className="rounded-lg text-base font-semibold"
-                                prefix="৳"
+                                prefix="BDT "
                                 min={1}
                                 precision={2}
                                 placeholder="e.g. 4500"
@@ -509,7 +578,7 @@ export function CreateLoanPage() {
                                   ? formatCurrency(
                                       loanCalc.lastInstallmentAmount,
                                     )
-                                  : "৳0.00"}
+                                  : "BDT 0.00"}
                               </div>
                               <div className="text-[10px] text-purple-600">
                                 Remainder auto-adjusted
@@ -649,7 +718,8 @@ export function CreateLoanPage() {
                     htmlType="submit"
                     loading={isCreating}
                     disabled={
-                      isCustomInstallment && !loanCalc.isValidCustomAmount
+                      hasExistingLoan ||
+                      (isCustomInstallment && !loanCalc.isValidCustomAmount)
                     }
                     className="mt-3 bg-emerald-600 hover:bg-emerald-700 font-semibold shadow-md rounded-lg"
                     style={{

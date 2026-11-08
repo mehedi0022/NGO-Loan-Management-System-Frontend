@@ -13,7 +13,9 @@ export const collectionsApi = baseApi.injectEndpoints({
           typeof arg === "string"
             ? { dueDate: arg }
             : {
-                dueDate: arg?.dueDate,
+                ...(arg?.dueDate && { dueDate: arg.dueDate }),
+                ...(arg?.startDate && { startDate: arg.startDate }),
+                ...(arg?.endDate && { endDate: arg.endDate }),
                 ...(arg?.somitiId && { somitiId: arg.somitiId }),
               };
 

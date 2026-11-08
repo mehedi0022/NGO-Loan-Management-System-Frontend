@@ -1,11 +1,35 @@
-import { Button, Empty, Modal, Radio, Space, Typography } from "antd";
-import { PrinterOutlined } from "@ant-design/icons";
-import { useMemo, useRef, useState } from "react";
-import { formatCurrency, formatDate } from "../../loans/loanFormatters.js";
+import {
+  Button,
+  DatePicker,
+  Empty,
+  Modal,
+  Radio,
+  Select,
+  Space,
+  Spin,
+  Typography,
+} from "antd";
+import { CalendarOutlined, PrinterOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { formatDate } from "../../loans/loanFormatters.js";
+import { useGetDueInstallmentsQuery } from "../collectionsApi.js";
+import { useGetSomitiMembersQuery } from "../../somities/somitiesApi.js";
+import { useGetDpsAccountsQuery } from "../../dps/dpsApi.js";
 
 const toAmount = (val) => {
   const n = Number(val);
   return Number.isFinite(n) ? n : 0;
+};
+
+// Formats amounts as clean numeric text without any currency prefix (no BDT, no ৳)
+const formatAmount = (val, decimals = 2) => {
+  const n = Number(val);
+  if (!Number.isFinite(n)) return "—";
+  return n.toLocaleString("en-IN", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
 };
 
 export function PrintableCollectionSheetModal({
@@ -17,22 +41,138 @@ export function PrintableCollectionSheetModal({
   dueDate,
   selectedSomiti,
   currentUser,
+  somities = [],
   defaultSheetType = "savings",
 }) {
   const printAreaRef = useRef(null);
-  const [sheetType, setSheetType] = useState(
-    defaultSheetType === "combined" ? "all" : defaultSheetType,
+
+  // Track selected Somiti within the modal (can be changed independently from parent)
+  const [modalSomitiId, setModalSomitiId] = useState(
+    selectedSomiti?.id ? String(selectedSomiti.id) : "ALL",
   );
+
+  useEffect(() => {
+    if (selectedSomiti?.id) {
+      setModalSomitiId(String(selectedSomiti.id));
+    }
+  }, [selectedSomiti?.id]);
+
+  const activeSomiti = useMemo(() => {
+    if (!modalSomitiId || modalSomitiId === "ALL") return null;
+    return (
+      (somities || []).find((s) => String(s.id) === String(modalSomitiId)) ||
+      (selectedSomiti?.id && String(selectedSomiti.id) === String(modalSomitiId)
+        ? selectedSomiti
+        : null)
+    );
+  }, [modalSomitiId, somities, selectedSomiti]);
+
+  const currentSomitiId = activeSomiti?.id ? Number(activeSomiti.id) : undefined;
+
+  // Track Daily Date & Monthly Month independently
+  const [dailyDate, setDailyDate] = useState(
+    dueDate ? dayjs(dueDate) : dayjs(),
+  );
+
+  useEffect(() => {
+    if (dueDate) {
+      setDailyDate(dayjs(dueDate));
+    }
+  }, [dueDate]);
+
+  const [sheetType, setSheetType] = useState(
+    defaultSheetType === "combined"
+      ? "all"
+      : defaultSheetType === "monthly"
+        ? "monthly_all"
+        : defaultSheetType,
+  );
+  const [selectedMonth, setSelectedMonth] = useState(
+    dueDate ? dayjs(dueDate).startOf("month") : dayjs().startOf("month"),
+  );
+
+  // Filters for handling mixed frequencies (Weekly vs Monthly) and non-loan members
+  const [loanFrequencyFilter, setLoanFrequencyFilter] = useState("ALL"); // "ALL" | "WEEKLY" | "MONTHLY"
+  const [loanMemberFilter, setLoanMemberFilter] = useState("ACTIVE_ONLY"); // "ACTIVE_ONLY" | "ALL_MEMBERS"
+  const [dpsFrequencyFilter, setDpsFrequencyFilter] = useState("ALL"); // "ALL" | "WEEKLY" | "MONTHLY"
+
+  const isMonthlyMode =
+    sheetType.startsWith("monthly") || sheetType === "monthly";
 
   const handlePrint = () => {
     window.print();
   };
 
-  const loanInstallments = useMemo(() => {
-    return (installments || []).filter(
-      (item) => !item.isDpsOnly && item.loanId,
+  const dailyDateStr = dailyDate
+    ? dailyDate.format("YYYY-MM-DD")
+    : dayjs().format("YYYY-MM-DD");
+
+  // 1. Fetch daily installments dynamically when in Daily mode
+  const { data: dailyInstallmentsData, isLoading: dailyLoading } =
+    useGetDueInstallmentsQuery(
+      {
+        dueDate: dailyDateStr,
+        somitiId: currentSomitiId,
+      },
+      { skip: !open || isMonthlyMode },
     );
-  }, [installments]);
+
+  // 2. Fetch month-wide due installments dynamically when in Monthly mode (works for specific somiti or ALL)
+  const monthStartStr = selectedMonth
+    ? selectedMonth.startOf("month").format("YYYY-MM-DD")
+    : null;
+  const monthEndStr = selectedMonth
+    ? selectedMonth.endOf("month").format("YYYY-MM-DD")
+    : null;
+
+  const { data: monthInstallmentsData, isLoading: monthLoading } =
+    useGetDueInstallmentsQuery(
+      {
+        startDate: monthStartStr,
+        endDate: monthEndStr,
+        somitiId: currentSomitiId,
+      },
+      { skip: !open || !isMonthlyMode },
+    );
+  const monthInstallments = monthInstallmentsData?.data || [];
+
+  // 3. Fetch Somiti members if a specific somiti is selected
+  const { data: modalSomitiMembersData } = useGetSomitiMembersQuery(
+    Number(currentSomitiId),
+    { skip: !open || !currentSomitiId },
+  );
+
+  // 4. Fetch DPS accounts for the selected Somiti or branch
+  const { data: modalDpsData } = useGetDpsAccountsQuery(
+    {
+      status: "ACTIVE",
+      limit: 500,
+      somitiId: currentSomitiId,
+    },
+    { skip: !open },
+  );
+
+  // Active Daily Installments: prioritize fetched query, fallback to prop if dates match
+  const activeDailyInstallments = useMemo(() => {
+    if (dailyInstallmentsData?.data) {
+      return dailyInstallmentsData.data;
+    }
+    if (dailyDateStr === (dueDate ? dayjs(dueDate).format("YYYY-MM-DD") : "")) {
+      return installments;
+    }
+    return [];
+  }, [dailyInstallmentsData, dailyDateStr, dueDate, installments]);
+
+  const loanInstallments = useMemo(() => {
+    return (activeDailyInstallments || []).filter(
+      (item) =>
+        !item.isDpsOnly &&
+        Boolean(item.loanId) &&
+        Boolean(item.loan?.id) &&
+        item.loan?.loanId !== "DPS Only" &&
+        item.loan?.status === "ACTIVE",
+    );
+  }, [activeDailyInstallments]);
 
   const totalDueLoan = useMemo(() => {
     return loanInstallments.reduce((acc, item) => {
@@ -42,30 +182,53 @@ export function PrintableCollectionSheetModal({
   }, [loanInstallments]);
 
   const officerName =
-    selectedSomiti?.fieldOfficer?.fullName ||
+    activeSomiti?.fieldOfficer?.fullName ||
     (currentUser?.role === "FIELD_OFFICER"
       ? currentUser.fullName
       : "All Officers / Branch");
 
   const officerPhone =
-    selectedSomiti?.fieldOfficer?.mobileNumber ||
+    activeSomiti?.fieldOfficer?.mobileNumber ||
     (currentUser?.role === "FIELD_OFFICER" ? currentUser.mobileNumber : "");
 
-  // Prepare full member list for Savings and DPS sheets
+  // Prepare full member list for Savings, DPS and Monthly sheets
   const membersList = useMemo(() => {
-    if (Array.isArray(somitiMembers) && somitiMembers.length > 0) {
-      return somitiMembers;
-    }
-    // Fallback: extract unique members from installments
-    const memberMap = new Map();
-    for (const item of installments) {
-      const member = item.loan?.member;
-      if (member && !memberMap.has(member.id)) {
-        memberMap.set(member.id, member);
+    let list = [];
+    if (
+      Array.isArray(modalSomitiMembersData?.data) &&
+      modalSomitiMembersData.data.length > 0
+    ) {
+      list = [...modalSomitiMembersData.data];
+    } else if (Array.isArray(somitiMembers) && somitiMembers.length > 0) {
+      list = [...somitiMembers];
+    } else {
+      // Fallback: extract unique members from active installments
+      const sourceInstallments = isMonthlyMode
+        ? monthInstallments
+        : activeDailyInstallments;
+      const memberMap = new Map();
+      for (const item of sourceInstallments) {
+        const member = item.loan?.member || item.dpsAccount?.member;
+        if (member && !memberMap.has(member.id)) {
+          memberMap.set(member.id, member);
+        }
       }
+      list = Array.from(memberMap.values());
     }
-    return Array.from(memberMap.values());
-  }, [somitiMembers, installments]);
+
+    // Natural ascending sort by Member ID so all sheets match row-for-row
+    return list.sort((a, b) =>
+      (a.memberId || "").localeCompare(b.memberId || "", undefined, {
+        numeric: true,
+      }),
+    );
+  }, [
+    modalSomitiMembersData,
+    somitiMembers,
+    isMonthlyMode,
+    monthInstallments,
+    activeDailyInstallments,
+  ]);
 
   const totalGenSavingsBalance = membersList.reduce(
     (sum, m) => sum + toAmount(m.savingsAccount?.generalSavingsBalance),
@@ -77,21 +240,39 @@ export function PrintableCollectionSheetModal({
   );
 
   // DPS accounts list: 100% dynamic from actual active DPS accounts in the database
-  const dpsList = useMemo(() => {
-    // 1. If explicit dpsAccounts prop is provided
+  const allDpsAccounts = useMemo(() => {
+    if (
+      Array.isArray(modalDpsData?.data?.accounts) &&
+      modalDpsData.data.accounts.length > 0
+    ) {
+      return modalDpsData.data.accounts;
+    }
     if (Array.isArray(dpsAccounts) && dpsAccounts.length > 0) {
-      return dpsAccounts
+      return dpsAccounts;
+    }
+    return [];
+  }, [modalDpsData, dpsAccounts]);
+
+  const dpsList = useMemo(() => {
+    let list = [];
+    // 1. If explicit DPS accounts are fetched or provided
+    if (Array.isArray(allDpsAccounts) && allDpsAccounts.length > 0) {
+      list = allDpsAccounts
         .filter((acc) => !acc.status || acc.status === "ACTIVE")
         .map((acc, idx) => {
           const member = acc.member || {};
           const paid = Number(acc.paidInstallments) || 0;
           const isWk = acc.frequency === "WEEKLY";
-          const tenure = isWk
-            ? `${acc.durationMonths ? Math.round((acc.durationMonths / 12) * 52) : 52} W`
-            : `${acc.durationMonths || 12} M`;
+          const totalInst = isWk
+            ? acc.durationMonths
+              ? Math.round((acc.durationMonths / 12) * 52)
+              : acc.installments?.length || 52
+            : acc.durationMonths || acc.installments?.length || 12;
+          const tenure = isWk ? `${totalInst} W` : `${totalInst} M`;
 
           return {
             id: acc.id || idx + 1,
+            rawAccount: acc,
             memberId: member.memberId || "",
             fullName: member.fullName || "",
             fatherName: member.fatherName,
@@ -100,59 +281,398 @@ export function PrintableCollectionSheetModal({
             dpsNo:
               acc.dpsNumber ||
               `DPS-${String(acc.id || idx + 1).padStart(6, "0")}`,
+            openDate: acc.startDate ? formatDate(acc.startDate) : "—",
+            openDateRaw: acc.startDate,
             frequency: acc.frequency || "MONTHLY",
             tenure,
+            paidInstallments: paid,
+            totalInstallments: totalInst,
+            nextInstallmentNo: paid + 1,
             instNo: `#${paid + 1}`,
+            installmentAmount: toAmount(acc.installmentAmount),
             monthlyDemand: toAmount(acc.installmentAmount),
           };
         });
+    } else {
+      // 2. Otherwise extract active DPS accounts from membersList
+      for (const member of membersList) {
+        const activeAccounts = Array.isArray(member.dpsAccounts)
+          ? member.dpsAccounts.filter((d) => !d.status || d.status === "ACTIVE")
+          : member.dpsAccount &&
+              (!member.dpsAccount.status || member.dpsAccount.status === "ACTIVE")
+            ? [member.dpsAccount]
+            : [];
+
+        for (const dps of activeAccounts) {
+          const paid = Number(dps.paidInstallments) || 0;
+          const isWk = dps.frequency === "WEEKLY";
+          const totalInst = isWk
+            ? dps.durationMonths
+              ? Math.round((dps.durationMonths / 12) * 52)
+              : dps.installments?.length || 52
+            : dps.durationMonths || dps.tenureMonths || dps.installments?.length || 12;
+          const tenure = isWk ? `${totalInst} W` : `${totalInst} M`;
+
+          list.push({
+            id: dps.id,
+            rawAccount: dps,
+            memberId: member.memberId || "",
+            fullName: member.fullName || "",
+            fatherName: member.fatherName,
+            guardianName: member.guardianName,
+            mobileNumber: member.mobileNumber || "",
+            dpsNo: dps.dpsNumber || `DPS-${String(dps.id).padStart(6, "0")}`,
+            openDate: dps.startDate ? formatDate(dps.startDate) : "—",
+            openDateRaw: dps.startDate,
+            frequency: dps.frequency || "MONTHLY",
+            tenure,
+            paidInstallments: paid,
+            totalInstallments: totalInst,
+            nextInstallmentNo: paid + 1,
+            instNo: `#${paid + 1}`,
+            installmentAmount: toAmount(
+              dps.installmentAmount ?? dps.monthlyInstallment ?? 0,
+            ),
+            monthlyDemand: toAmount(
+              dps.installmentAmount ?? dps.monthlyInstallment ?? 0,
+            ),
+          });
+        }
+      }
     }
 
-    // 2. Otherwise extract active DPS accounts from membersList
+    // Sort naturally by Member ID so DPS sheet rows match row-for-row with Savings & Loans
+    return list.sort((a, b) =>
+      (a.memberId || "").localeCompare(b.memberId || "", undefined, {
+        numeric: true,
+      }),
+    );
+  }, [allDpsAccounts, membersList]);
+
+  // Compute weekly collection meeting dates for the chosen month
+  const meetingDates = useMemo(() => {
+    if (!selectedMonth) return [];
+    const SOMITI_DAY_MAP = {
+      SUNDAY: 0,
+      MONDAY: 1,
+      TUESDAY: 2,
+      WEDNESDAY: 3,
+      THURSDAY: 4,
+      FRIDAY: 5,
+      SATURDAY: 6,
+    };
+    const somitiDayName = activeSomiti?.meetingDay?.toUpperCase();
+    const targetDayOfWeek =
+      somitiDayName && SOMITI_DAY_MAP[somitiDayName] !== undefined
+        ? SOMITI_DAY_MAP[somitiDayName]
+        : dailyDate
+          ? dailyDate.day()
+          : 3; // default Wednesday
+
+    const dates = [];
+    const start = dayjs(selectedMonth).startOf("month");
+    const end = dayjs(selectedMonth).endOf("month");
+
+    let curr = start;
+    while (curr.isBefore(end) || curr.isSame(end, "day")) {
+      if (curr.day() === targetDayOfWeek) {
+        dates.push(curr);
+      }
+      curr = curr.add(1, "day");
+    }
+
+    if (dates.length === 0) {
+      dates.push(
+        start.add(7, "day"),
+        start.add(14, "day"),
+        start.add(21, "day"),
+        start.add(28, "day"),
+      );
+    }
+    return dates;
+  }, [selectedMonth, activeSomiti, dailyDate]);
+
+  // Helper: map any date to the closest weekly meeting date index (0..meetingDates.length-1)
+  const getWeekIndexForDate = (dueDateVal, dates) => {
+    if (!dueDateVal || !dates || dates.length === 0) return 0;
+    const d = dayjs(dueDateVal);
+    const targetDateKey = d.format("YYYY-MM-DD");
+
+    // 1. Exact match with a meeting date
+    const exactIdx = dates.findIndex(
+      (mDate) => mDate.format("YYYY-MM-DD") === targetDateKey,
+    );
+    if (exactIdx !== -1) return exactIdx;
+
+    // 2. Nearest meeting date
+    let bestIdx = 0;
+    let minDiff = Infinity;
+    dates.forEach((mDate, idx) => {
+      const diff = Math.abs(d.diff(mDate, "day"));
+      if (diff < minDiff) {
+        minDiff = diff;
+        bestIdx = idx;
+      }
+    });
+    return bestIdx;
+  };
+
+  // Map member active loans & installments across the month with exact weekly mapping
+  const memberLoansMap = useMemo(() => {
+    const map = new Map();
+
+    const processItem = (item) => {
+      // STRICT FILTER: If it is DPS-only, or has no real active loan, SKIP!
+      if (
+        item.isDpsOnly ||
+        !item.loanId ||
+        !item.loan?.id ||
+        item.loan?.loanId === "DPS Only" ||
+        item.loan?.status !== "ACTIVE"
+      ) {
+        return;
+      }
+      const memId = item.loan?.member?.id;
+      if (!memId) return;
+      if (!map.has(memId)) {
+        map.set(memId, {
+          loan: item.loan,
+          weeklyInstallments: new Map(), // weekIndex -> installment
+          allInstallments: [],
+          totalActualMonthDemand: 0,
+        });
+      }
+      const memData = map.get(memId);
+      // Ensure we don't duplicate installments
+      if (!memData.allInstallments.some((x) => x.id === item.id)) {
+        memData.allInstallments.push(item);
+        const wkIdx = getWeekIndexForDate(item.dueDate, meetingDates);
+        const due = Math.max(0, toAmount(item.amount) - toAmount(item.paidAmount));
+        const prev = memData.weeklyInstallments.get(wkIdx);
+        if (prev) {
+          prev.due += due;
+          prev.items.push(item);
+        } else {
+          memData.weeklyInstallments.set(wkIdx, {
+            due,
+            items: [item],
+            amount: item.amount,
+            paidAmount: item.paidAmount,
+          });
+        }
+        memData.totalActualMonthDemand += due;
+      }
+    };
+
+    // Process monthInstallments ONLY (all installments due in this month across 30/31 days)
+    for (const item of monthInstallments) {
+      processItem(item);
+    }
+
+    return map;
+  }, [monthInstallments, meetingDates]);
+
+  // Active loan accounts list for the Monthly Loan Sheet with frequency & membership filters
+  const monthLoanAccountsList = useMemo(() => {
     const list = [];
+    const seenLoanIds = new Set();
+
+    // 1. Iterate through Somiti members
     for (const member of membersList) {
-      const activeAccounts = Array.isArray(member.dpsAccounts)
-        ? member.dpsAccounts.filter((d) => !d.status || d.status === "ACTIVE")
-        : member.dpsAccount &&
-            (!member.dpsAccount.status || member.dpsAccount.status === "ACTIVE")
-          ? [member.dpsAccount]
-          : [];
-
-      for (const dps of activeAccounts) {
-        const paid = Number(dps.paidInstallments) || 0;
-        const isWk = dps.frequency === "WEEKLY";
-        const tenure = isWk
-          ? `${dps.durationMonths ? Math.round((dps.durationMonths / 12) * 52) : 52} W`
-          : dps.durationMonths
-            ? `${dps.durationMonths} M`
-            : dps.tenureMonths
-              ? `${dps.tenureMonths} M`
-              : "";
-
+      const memLoanData = memberLoansMap.get(member.id);
+      if (
+        memLoanData?.loan &&
+        memLoanData.loan.id &&
+        memLoanData.loan.loanId !== "DPS Only" &&
+        memLoanData.loan.status === "ACTIVE"
+      ) {
+        const loanId = memLoanData.loan.loanId || memLoanData.loan.id;
+        if (loanId && !seenLoanIds.has(loanId)) {
+          seenLoanIds.add(loanId);
+          list.push({
+            id: memLoanData.loan.id,
+            memberId: member.memberId || "",
+            fullName: member.fullName || "",
+            guardianName: member.guardianName || member.fatherName || "",
+            mobileNumber: member.mobileNumber || "",
+            loanId: memLoanData.loan.loanId || "",
+            disbursementDate: memLoanData.loan.disbursementDate,
+            principalAmount: memLoanData.loan.principalAmount,
+            installmentAmount: memLoanData.loan.installmentAmount,
+            frequency: (memLoanData.loan.frequency || "WEEKLY").toUpperCase(),
+            weeklyInstallments: memLoanData.weeklyInstallments,
+            totalActualMonthDemand: memLoanData.totalActualMonthDemand,
+            hasActiveLoan: true,
+            loan: memLoanData.loan,
+          });
+        }
+      } else if (loanMemberFilter === "ALL_MEMBERS") {
+        // Member has no active loan in this month
         list.push({
-          id: dps.id,
+          id: `no-loan-${member.id}`,
           memberId: member.memberId || "",
           fullName: member.fullName || "",
-          fatherName: member.fatherName,
-          guardianName: member.guardianName,
+          guardianName: member.guardianName || member.fatherName || "",
           mobileNumber: member.mobileNumber || "",
-          dpsNo: dps.dpsNumber || `DPS-${String(dps.id).padStart(6, "0")}`,
-          frequency: dps.frequency || "MONTHLY",
-          tenure,
-          instNo: `#${paid + 1}`,
-          monthlyDemand: toAmount(
-            dps.installmentAmount ?? dps.monthlyInstallment ?? 0,
-          ),
+          loanId: "—",
+          disbursementDate: null,
+          principalAmount: 0,
+          installmentAmount: 0,
+          frequency: "—",
+          weeklyInstallments: new Map(),
+          totalActualMonthDemand: 0,
+          hasActiveLoan: false,
+          loan: null,
         });
       }
     }
-    return list;
-  }, [dpsAccounts, membersList]);
 
-  const totalDpsDemand = dpsList.reduce(
-    (sum, item) => sum + item.monthlyDemand,
-    0,
-  );
+    // 2. Append any loan accounts from memberLoansMap that might not be in membersList
+    for (const [memberId, memLoanData] of memberLoansMap.entries()) {
+      if (
+        !memLoanData?.loan ||
+        !memLoanData.loan.id ||
+        memLoanData.loan.loanId === "DPS Only" ||
+        memLoanData.loan.status !== "ACTIVE"
+      ) {
+        continue;
+      }
+      const loanId = memLoanData.loan?.loanId || memLoanData.loan?.id;
+      if (loanId && !seenLoanIds.has(loanId)) {
+        seenLoanIds.add(loanId);
+        const mem = memLoanData.loan?.member;
+        list.push({
+          id: memLoanData.loan.id,
+          memberId: mem?.memberId || "",
+          fullName: mem?.fullName || "",
+          guardianName: mem?.guardianName || mem?.fatherName || "",
+          mobileNumber: mem?.mobileNumber || "",
+          loanId: memLoanData.loan.loanId || "",
+          disbursementDate: memLoanData.loan.disbursementDate,
+          principalAmount: memLoanData.loan.principalAmount,
+          installmentAmount: memLoanData.loan.installmentAmount,
+          frequency: (memLoanData.loan.frequency || "WEEKLY").toUpperCase(),
+          weeklyInstallments: memLoanData.weeklyInstallments,
+          totalActualMonthDemand: memLoanData.totalActualMonthDemand,
+          hasActiveLoan: true,
+          loan: memLoanData.loan,
+        });
+      }
+    }
+
+    // 3. Filter by Loan Frequency (ALL, WEEKLY, MONTHLY)
+    let finalList = list;
+    if (loanFrequencyFilter !== "ALL") {
+      finalList = list.filter(
+        (item) => !item.hasActiveLoan || item.frequency === loanFrequencyFilter,
+      );
+    }
+
+    // Sort naturally by Member ID so Loan Sheet rows match row-for-row with Savings & DPS
+    return finalList.sort((a, b) =>
+      (a.memberId || "").localeCompare(b.memberId || "", undefined, {
+        numeric: true,
+      }),
+    );
+  }, [membersList, memberLoansMap, loanMemberFilter, loanFrequencyFilter]);
+
+  // DPS Accounts list with frequency filter
+  const filteredDpsList = useMemo(() => {
+    if (dpsFrequencyFilter === "ALL") return dpsList;
+    return dpsList.filter(
+      (item) => (item.frequency || "MONTHLY").toUpperCase() === dpsFrequencyFilter,
+    );
+  }, [dpsList, dpsFrequencyFilter]);
+
+  // DPS Accounts with exact weekly installment schedule for the selected month
+  const dpsAccountsWithSchedule = useMemo(() => {
+    return filteredDpsList.map((item) => {
+      const isWk = item.frequency === "WEEKLY";
+      const weeklySchedule = new Map(); // weekIndex -> { demand, isDue, inst }
+      let monthDpsDemand = 0;
+
+      const rawAcc = item.rawAccount;
+      const accInstallments = Array.isArray(rawAcc?.installments)
+        ? rawAcc.installments
+        : [];
+
+      // If we have actual installments from backend database
+      if (accInstallments.length > 0 && selectedMonth && meetingDates.length > 0) {
+        const monthStart = dayjs(selectedMonth).startOf("month");
+        const monthEnd = dayjs(selectedMonth).endOf("month");
+
+        const thisMonthInsts = accInstallments.filter((inst) => {
+          if (!inst.dueDate) return false;
+          const d = dayjs(inst.dueDate);
+          return (
+            (d.isAfter(monthStart) || d.isSame(monthStart, "day")) &&
+            (d.isBefore(monthEnd) || d.isSame(monthEnd, "day"))
+          );
+        });
+
+        for (const inst of thisMonthInsts) {
+          const wkIdx = getWeekIndexForDate(inst.dueDate, meetingDates);
+          const due = Math.max(0, toAmount(inst.amount) - toAmount(inst.paidAmount));
+          const existing = weeklySchedule.get(wkIdx);
+          if (existing) {
+            existing.demand += due;
+            existing.installments.push(inst);
+          } else {
+            weeklySchedule.set(wkIdx, {
+              demand: due,
+              installments: [inst],
+              inst,
+              isDue: true,
+            });
+          }
+          monthDpsDemand += due;
+        }
+      }
+
+      // Fallback: If no installments array was returned or matched, derive from frequency & meetingDates
+      if (weeklySchedule.size === 0 && meetingDates.length > 0) {
+        const regAmount = item.installmentAmount;
+        if (isWk) {
+          // Weekly DPS: due every weekly meeting date
+          meetingDates.forEach((_, idx) => {
+            weeklySchedule.set(idx, {
+              demand: regAmount,
+              installments: [],
+              inst: null,
+              isDue: true,
+            });
+            monthDpsDemand += regAmount;
+          });
+        } else {
+          // Monthly DPS: due once per month on the meeting date closest to account open date
+          const openDay = item.openDateRaw ? dayjs(item.openDateRaw).date() : 1;
+          const targetDate = dayjs(selectedMonth).date(
+            Math.min(openDay, dayjs(selectedMonth).daysInMonth()),
+          );
+          const wkIdx = getWeekIndexForDate(targetDate, meetingDates);
+          weeklySchedule.set(wkIdx, {
+            demand: regAmount,
+            installments: [],
+            inst: null,
+            isDue: true,
+          });
+          monthDpsDemand = regAmount;
+        }
+      }
+
+      return {
+        ...item,
+        weeklySchedule,
+        monthDpsDemand,
+      };
+    });
+  }, [filteredDpsList, meetingDates, selectedMonth]);
+
+  const totalDpsDemand = useMemo(() => {
+    return isMonthlyMode
+      ? dpsAccountsWithSchedule.reduce((sum, item) => sum + item.monthDpsDemand, 0)
+      : filteredDpsList.reduce((sum, item) => sum + item.monthlyDemand, 0);
+  }, [isMonthlyMode, dpsAccountsWithSchedule, filteredDpsList]);
 
   // Helper: Header block for an individual sheet
   const renderHeader = (program, badge) => (
@@ -187,47 +707,67 @@ export function PrintableCollectionSheetModal({
   );
 
   // Helper: Meta Info Bar
-  const renderMetaBar = () => (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
-        border: "1px solid #333",
-        background: "#fdfdfd",
-        padding: "4px 8px",
-        fontSize: 11,
-        marginBottom: 6,
-      }}
-    >
-      <div>
-        <strong>Somiti Name: </strong>
-        <span>{selectedSomiti ? selectedSomiti.name : "All Somities"}</span>
-        {selectedSomiti?.code && (
-          <span style={{ marginLeft: 4 }}>
-            ({selectedSomiti.somitiId || selectedSomiti.code})
+  const renderMetaBar = (isMonthly = false) => {
+    const targetDateDayjs = dailyDate ? dayjs(dailyDate) : dayjs();
+    const monthDayjs = selectedMonth ? dayjs(selectedMonth) : dayjs();
+    const monthStart = monthDayjs.startOf("month").format("01 MMM");
+    const monthEnd = monthDayjs.endOf("month").format("DD MMM YYYY");
+
+    return (
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          border: "1px solid #333",
+          background: "#fdfdfd",
+          padding: "4px 8px",
+          fontSize: 10.5,
+          marginBottom: 6,
+        }}
+      >
+        <div>
+          <strong>Somiti: </strong>
+          <span>{activeSomiti ? activeSomiti.name : "All Somities"}</span>
+          {activeSomiti?.code && (
+            <span style={{ marginLeft: 3 }}>
+              ({activeSomiti.somitiId || activeSomiti.code})
+            </span>
+          )}
+        </div>
+        <div>
+          {isMonthly ? (
+            <>
+              <strong>Collection Month: </strong>
+              <span style={{ fontWeight: 600 }}>
+                {monthDayjs.format("MMMM YYYY")} ({monthStart} – {monthEnd})
+              </span>
+            </>
+          ) : (
+            <>
+              <strong>Collection Date: </strong>
+              <span>{targetDateDayjs.format("DD MMMM, YYYY")}</span>
+              <span style={{ marginLeft: 4, color: "#555" }}>
+                ({targetDateDayjs.format("dddd")})
+              </span>
+            </>
+          )}
+        </div>
+        <div>
+          <strong>Meeting Day: </strong>
+          <span>
+            {activeSomiti?.meetingDay
+              ? activeSomiti.meetingDay.toUpperCase()
+              : "—"}
           </span>
-        )}
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <strong>Field Officer: </strong>
+          <span>{officerName}</span>
+          {officerPhone && <span style={{ marginLeft: 3 }}>({officerPhone})</span>}
+        </div>
       </div>
-      <div>
-        <strong>Collection Date: </strong>
-        <span>{dueDate.format("DD MMMM, YYYY")}</span>
-        <span style={{ marginLeft: 5, color: "#555" }}>
-          ({dueDate.format("dddd")})
-        </span>
-      </div>
-      <div>
-        <strong>Field Officer: </strong>
-        <span>{officerName}</span>
-        {officerPhone && <span style={{ marginLeft: 4 }}>({officerPhone})</span>}
-      </div>
-      <div>
-        <strong>Center / Area: </strong>
-        <span>
-          {selectedSomiti?.area || selectedSomiti?.address || "Branch Area"}
-        </span>
-      </div>
-    </div>
-  );
+    );
+  };
 
   // Helper: Signature Block with enhanced top padding
   const renderSignatureBlock = () => (
@@ -321,27 +861,25 @@ export function PrintableCollectionSheetModal({
           <tr>
             <th style={{ width: "3.5%" }}>SL</th>
             <th style={{ width: "8.5%" }}>Member ID</th>
-            <th style={{ width: "16%", textAlign: "left" }}>
-              Member / Guardian Name
+            <th style={{ width: "8.5%" }}>Adm. Date</th>
+            <th style={{ width: "18%", textAlign: "left" }}>
+              Member Name
             </th>
-            <th style={{ width: "9%" }}>Mobile No</th>
+            <th style={{ width: "10.5%" }}>Mobile</th>
             <th style={{ width: "9.5%", textAlign: "right" }}>
-              Gen. Sav. Bal. (৳)
+              Gen. Bal
             </th>
-            <th style={{ width: "9.5%", background: "#f0fdf4" }}>
-              Gen. Sav. Coll (৳)
+            <th style={{ width: "11%", background: "#f0fdf4" }}>
+              Gen. Coll
             </th>
             <th style={{ width: "9.5%", textAlign: "right" }}>
-              Spc. Sav. Bal. (৳)
+              Spc. Bal
             </th>
-            <th style={{ width: "9.5%", background: "#fefce8" }}>
-              Spc. Sav. Coll (৳)
+            <th style={{ width: "11%", background: "#fefce8" }}>
+              Spc. Coll
             </th>
             <th style={{ width: "10%", fontWeight: "bold" }}>
-              Total Sav. Coll (৳)
-            </th>
-            <th style={{ width: "15%", whiteSpace: "nowrap" }}>
-              Member Signature
+              Total Coll
             </th>
           </tr>
         </thead>
@@ -358,11 +896,20 @@ export function PrintableCollectionSheetModal({
                 <td style={{ textAlign: "center", fontWeight: 600 }}>
                   {member.memberId || ""}
                 </td>
+                <td
+                  style={{
+                    textAlign: "center",
+                    fontSize: 9.5,
+                    color: "#475569",
+                  }}
+                >
+                  {member.joinDate ? formatDate(member.joinDate) : "—"}
+                </td>
                 <td>
                   <div style={{ fontWeight: 600 }}>{member.fullName}</div>
                   {(member.guardianName || member.fatherName) && (
                     <div style={{ fontSize: 9, color: "#64748b" }}>
-                      Guardian: {member.guardianName || member.fatherName}
+                      G: {member.guardianName || member.fatherName}
                     </div>
                   )}
                 </td>
@@ -376,7 +923,7 @@ export function PrintableCollectionSheetModal({
                     fontWeight: 600,
                   }}
                 >
-                  {formatCurrency(genBal)}
+                  {formatAmount(genBal)}
                 </td>
                 <td
                   className="print-blank-box"
@@ -389,7 +936,7 @@ export function PrintableCollectionSheetModal({
                     fontWeight: 600,
                   }}
                 >
-                  {formatCurrency(spcBal)}
+                  {formatAmount(spcBal)}
                 </td>
                 <td
                   className="print-blank-box"
@@ -399,29 +946,24 @@ export function PrintableCollectionSheetModal({
                   className="print-blank-box"
                   style={{ background: "#fcfcff" }}
                 ></td>
-                <td
-                  className="print-blank-box"
-                  style={{ textAlign: "center" }}
-                ></td>
               </tr>
             );
           })}
 
           {/* Summary Row */}
           <tr style={{ background: "#f8f9fa", fontWeight: "bold" }}>
-            <td colSpan={4} style={{ textAlign: "right", paddingRight: 8 }}>
-              Total Somiti Members ({membersList.length} Members):
+            <td colSpan={5} style={{ textAlign: "right", paddingRight: 8 }}>
+              Total ({membersList.length} Members):
             </td>
             <td style={{ textAlign: "right", color: "#047857" }}>
-              {formatCurrency(totalGenSavingsBalance)}
+              {formatAmount(totalGenSavingsBalance)}
             </td>
             <td className="print-blank-box"></td>
             <td style={{ textAlign: "right", color: "#0284c7" }}>
-              {formatCurrency(totalSpcSavingsBalance)}
+              {formatAmount(totalSpcSavingsBalance)}
             </td>
             <td className="print-blank-box"></td>
             <td className="print-blank-box"></td>
-            <td></td>
           </tr>
         </tbody>
       </table>
@@ -442,27 +984,25 @@ export function PrintableCollectionSheetModal({
       <table className="print-table">
         <thead>
           <tr>
-            <th style={{ width: "3%" }}>SL</th>
-            <th style={{ width: "8%" }}>Member ID</th>
-            <th style={{ width: "15%", textAlign: "left" }}>
-              Member / Guardian Name
+            <th style={{ width: "3.5%" }}>SL</th>
+            <th style={{ width: "8.5%" }}>Member ID</th>
+            <th style={{ width: "17%", textAlign: "left" }}>
+              Member Name
             </th>
-            <th style={{ width: "8.5%" }}>Mobile No</th>
-            <th style={{ width: "8%" }}>DPS Acc #</th>
+            <th style={{ width: "9.5%" }}>Mobile</th>
+            <th style={{ width: "9.5%" }}>DPS No</th>
+            <th style={{ width: "8%" }}>Open Date</th>
             <th style={{ width: "5.5%" }}>Tenure</th>
-            <th style={{ width: "4.5%" }}>Inst #</th>
-            <th style={{ width: "9%", textAlign: "right" }}>
-              Target Inst. (৳)
+            <th style={{ width: "6.5%" }}>Paid / Tot</th>
+            <th style={{ width: "5.5%" }}>Inst #</th>
+            <th style={{ width: "9.5%", textAlign: "right" }}>
+              Target Inst
             </th>
-            <th style={{ width: "9%", background: "#eff6ff" }}>
-              Collected DPS (৳)
+            <th style={{ width: "14%", background: "#eff6ff" }}>
+              DPS Coll
             </th>
-            <th style={{ width: "6.5%" }}>Late Fine (৳)</th>
-            <th style={{ width: "9%", fontWeight: "bold" }}>
-              Total Received (৳)
-            </th>
-            <th style={{ width: "14%", whiteSpace: "nowrap" }}>
-              Member Signature
+            <th style={{ width: "13%", fontWeight: "bold" }}>
+              Total Coll
             </th>
           </tr>
         </thead>
@@ -479,7 +1019,7 @@ export function PrintableCollectionSheetModal({
                 <div style={{ fontWeight: 600 }}>{item.fullName}</div>
                 {(item.guardianName || item.fatherName) && (
                   <div style={{ fontSize: 9, color: "#64748b" }}>
-                    Guardian: {item.guardianName || item.fatherName}
+                    G: {item.guardianName || item.fatherName}
                   </div>
                 )}
               </td>
@@ -495,12 +1035,31 @@ export function PrintableCollectionSheetModal({
               >
                 {item.dpsNo}
               </td>
+              <td
+                style={{
+                  textAlign: "center",
+                  fontSize: 9.5,
+                  color: "#475569",
+                }}
+              >
+                {item.openDate || "—"}
+              </td>
               <td style={{ textAlign: "center", fontSize: 10 }}>{item.tenure}</td>
-              <td style={{ textAlign: "center", fontWeight: 600 }}>
-                {item.instNo}
+              <td style={{ textAlign: "center", fontSize: 9.5 }}>
+                <span
+                  style={{
+                    fontWeight: 600,
+                    color: item.paidInstallments > 0 ? "#047857" : "#475569",
+                  }}
+                >
+                  {item.paidInstallments}/{item.totalInstallments}
+                </span>
+              </td>
+              <td style={{ textAlign: "center", fontWeight: 600, fontSize: 9.5 }}>
+                #{item.nextInstallmentNo}
               </td>
               <td style={{ textAlign: "right", fontWeight: 700 }}>
-                {formatCurrency(item.monthlyDemand)}
+                {formatAmount(item.monthlyDemand)}
                 {item.frequency === "WEEKLY" && (
                   <span
                     style={{
@@ -515,32 +1074,25 @@ export function PrintableCollectionSheetModal({
               </td>
               <td
                 className="print-blank-box"
-                style={{ background: "#fcfcff" }}
+                style={{ background: "#eff6ff" }}
               ></td>
-              <td className="print-blank-box"></td>
               <td
                 className="print-blank-box"
                 style={{ background: "#f8fafc" }}
-              ></td>
-              <td
-                className="print-blank-box"
-                style={{ textAlign: "center" }}
               ></td>
             </tr>
           ))}
 
           {/* Summary Row */}
           <tr style={{ background: "#f8f9fa", fontWeight: "bold" }}>
-            <td colSpan={7} style={{ textAlign: "right", paddingRight: 8 }}>
+            <td colSpan={9} style={{ textAlign: "right", paddingRight: 8 }}>
               Total DPS Demand ({dpsList.length} Accounts):
             </td>
             <td style={{ textAlign: "right", fontSize: 11 }}>
-              {formatCurrency(totalDpsDemand)}
+              {formatAmount(totalDpsDemand)}
             </td>
             <td className="print-blank-box"></td>
             <td className="print-blank-box"></td>
-            <td className="print-blank-box"></td>
-            <td></td>
           </tr>
         </tbody>
       </table>
@@ -563,23 +1115,21 @@ export function PrintableCollectionSheetModal({
           <tr>
             <th style={{ width: "3.5%" }}>SL</th>
             <th style={{ width: "8.5%" }}>Member ID</th>
-            <th style={{ width: "16%", textAlign: "left" }}>
-              Member / Guardian Name
+            <th style={{ width: "18%", textAlign: "left" }}>
+              Member Name
             </th>
-            <th style={{ width: "9%" }}>Mobile No</th>
-            <th style={{ width: "8%" }}>Loan ID</th>
-            <th style={{ width: "5%" }}>Inst #</th>
-            <th style={{ width: "11.5%", textAlign: "right" }}>
-              Loan Due / Demand (৳)
-            </th>
-            <th style={{ width: "11.5%", background: "#eef2ff" }}>
-              Collected Loan (৳)
-            </th>
+            <th style={{ width: "10%" }}>Mobile</th>
+            <th style={{ width: "9%" }}>Loan ID</th>
+            <th style={{ width: "9%" }}>Disb. Date</th>
+            <th style={{ width: "6%" }}>Inst #</th>
             <th style={{ width: "11%", textAlign: "right" }}>
-              Remaining Balance (৳)
+              Loan Due
             </th>
-            <th style={{ width: "16%", whiteSpace: "nowrap" }}>
-              Member Signature
+            <th style={{ width: "13%", background: "#eef2ff" }}>
+              Loan Coll
+            </th>
+            <th style={{ width: "12%", textAlign: "right" }}>
+              Balance
             </th>
           </tr>
         </thead>
@@ -603,7 +1153,7 @@ export function PrintableCollectionSheetModal({
                   <div style={{ fontWeight: 600 }}>{member?.fullName || ""}</div>
                   {(member?.guardianName || member?.fatherName) && (
                     <div style={{ fontSize: 9, color: "#64748b" }}>
-                      Guardian: {member?.guardianName || member?.fatherName}
+                      G: {member?.guardianName || member?.fatherName}
                     </div>
                   )}
                 </td>
@@ -612,6 +1162,17 @@ export function PrintableCollectionSheetModal({
                 </td>
                 <td style={{ textAlign: "center", fontWeight: 600 }}>
                   {item.loan?.loanId || ""}
+                </td>
+                <td
+                  style={{
+                    textAlign: "center",
+                    fontSize: 9.5,
+                    color: "#475569",
+                  }}
+                >
+                  {item.loan?.disbursementDate
+                    ? formatDate(item.loan.disbursementDate)
+                    : "—"}
                 </td>
                 <td style={{ textAlign: "center", fontWeight: 600 }}>
                   #{item.installmentNo}
@@ -623,32 +1184,871 @@ export function PrintableCollectionSheetModal({
                     color: "#1e293b",
                   }}
                 >
-                  {formatCurrency(dueLoan)}
+                  {formatAmount(dueLoan)}
                 </td>
                 <td
                   className="print-blank-box"
                   style={{ background: "#fcfcff" }}
                 ></td>
                 <td className="print-blank-box"></td>
-                <td
-                  className="print-blank-box"
-                  style={{ textAlign: "center" }}
-                ></td>
               </tr>
             );
           })}
 
           {/* Summary Row */}
           <tr style={{ background: "#f8f9fa", fontWeight: "bold" }}>
-            <td colSpan={6} style={{ textAlign: "right", paddingRight: 8 }}>
+            <td colSpan={7} style={{ textAlign: "right", paddingRight: 8 }}>
               Total Loan Demand ({loanInstallments.length} Members):
             </td>
             <td style={{ textAlign: "right", fontSize: 11.5 }}>
-              {formatCurrency(totalDueLoan)}
+              {formatAmount(totalDueLoan)}
             </td>
             <td className="print-blank-box"></td>
             <td className="print-blank-box"></td>
+          </tr>
+        </tbody>
+      </table>
+    );
+  };
+
+  // Helper: Monthly Savings Table (Sheet 1 — Full 1 Month for ALL Members)
+  const renderMonthlySavingsTable = () => {
+    if (membersList.length === 0) {
+      return (
+        <Empty
+          description="No members found for this Somiti"
+          style={{ padding: "30px 0" }}
+        />
+      );
+    }
+
+    return (
+      <table className="print-table" style={{ fontSize: 9 }}>
+        <thead>
+          <tr>
+            <th rowSpan={2} style={{ width: "2.5%" }}>SL</th>
+            <th rowSpan={2} style={{ width: "6.5%" }}>Member ID</th>
+            <th rowSpan={2} style={{ width: "7%" }}>Adm. Date</th>
+            <th rowSpan={2} style={{ width: "14%", textAlign: "left" }}>Member Name</th>
+            <th rowSpan={2} style={{ width: "8%" }}>Mobile</th>
+            <th rowSpan={2} style={{ width: "7%", textAlign: "right" }}>Gen. Bal</th>
+            <th rowSpan={2} style={{ width: "7%", textAlign: "right" }}>Spc. Bal</th>
+
+            {/* Weekly Meeting Dates */}
+            {meetingDates.map((date, idx) => (
+              <th
+                key={idx}
+                colSpan={2}
+                style={{
+                  background: idx % 2 === 0 ? "#f8fafc" : "#f1f5f9",
+                  borderBottom: "1px solid #cbd5e1",
+                }}
+              >
+                Wk {idx + 1} ({date.format("DD MMM")})
+              </th>
+            ))}
+
+            <th rowSpan={2} style={{ width: "7%", background: "#f0fdf4" }}>Month Gen.</th>
+            <th rowSpan={2} style={{ width: "7%", background: "#fefce8" }}>Month Spc.</th>
+            <th rowSpan={2} style={{ width: "8%", fontWeight: "bold" }}>Total Sav. Coll</th>
+          </tr>
+          <tr>
+            {meetingDates.map((_, idx) => (
+              <>
+                <th
+                  key={`dem-gen-${idx}`}
+                  style={{
+                    fontSize: 8,
+                    width: `${26 / (meetingDates.length * 2)}%`,
+                    background: idx % 2 === 0 ? "#f0fdf4" : "#e6f9ed",
+                  }}
+                >
+                  Gen.
+                </th>
+                <th
+                  key={`dem-spc-${idx}`}
+                  style={{
+                    fontSize: 8,
+                    width: `${26 / (meetingDates.length * 2)}%`,
+                    background: idx % 2 === 0 ? "#fefce8" : "#fef9c3",
+                  }}
+                >
+                  Spc.
+                </th>
+              </>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {membersList.map((member, index) => {
+            const genBal = toAmount(member.savingsAccount?.generalSavingsBalance);
+            const spcBal = toAmount(member.savingsAccount?.specialSavingsBalance);
+
+            return (
+              <tr key={member.id || index}>
+                <td style={{ textAlign: "center", fontWeight: "bold" }}>{index + 1}</td>
+                <td style={{ textAlign: "center", fontWeight: 600 }}>{member.memberId || ""}</td>
+                <td style={{ textAlign: "center", fontSize: 8.5, color: "#475569" }}>
+                  {member.joinDate ? formatDate(member.joinDate) : "—"}
+                </td>
+                <td>
+                  <div style={{ fontWeight: 600, fontSize: 9.5 }}>{member.fullName}</div>
+                  {(member.guardianName || member.fatherName) && (
+                    <div style={{ fontSize: 8, color: "#64748b" }}>
+                      G: {member.guardianName || member.fatherName}
+                    </div>
+                  )}
+                </td>
+                <td style={{ textAlign: "center", fontSize: 8.5 }}>{member.mobileNumber || ""}</td>
+                <td style={{ textAlign: "right", color: "#047857", fontWeight: 600, fontSize: 9 }}>
+                  {formatAmount(genBal)}
+                </td>
+                <td style={{ textAlign: "right", color: "#0284c7", fontWeight: 600, fontSize: 9 }}>
+                  {formatAmount(spcBal)}
+                </td>
+
+                {/* Blank writable boxes for weekly General & Special savings collection */}
+                {meetingDates.map((_, idx) => (
+                  <>
+                    <td
+                      key={`wk-gen-${idx}`}
+                      className="print-blank-box"
+                      style={{ background: "#fcfffc" }}
+                    ></td>
+                    <td
+                      key={`wk-spc-${idx}`}
+                      className="print-blank-box"
+                      style={{ background: "#fffdf9" }}
+                    ></td>
+                  </>
+                ))}
+
+                <td className="print-blank-box" style={{ background: "#f0fdf4" }}></td>
+                <td className="print-blank-box" style={{ background: "#fefce8" }}></td>
+                <td className="print-blank-box" style={{ background: "#fcfcff" }}></td>
+              </tr>
+            );
+          })}
+
+          {/* Grand Summary Row */}
+          <tr style={{ background: "#f8f9fa", fontWeight: "bold" }}>
+            <td colSpan={5} style={{ textAlign: "right", paddingRight: 6 }}>
+              Total ({membersList.length} Members):
+            </td>
+            <td style={{ textAlign: "right", color: "#047857", fontSize: 9.5 }}>
+              {formatAmount(totalGenSavingsBalance)}
+            </td>
+            <td style={{ textAlign: "right", color: "#0284c7", fontSize: 9.5 }}>
+              {formatAmount(totalSpcSavingsBalance)}
+            </td>
+            {meetingDates.map((_, idx) => (
+              <>
+                <td key={`tot-gen-${idx}`} className="print-blank-box"></td>
+                <td key={`tot-spc-${idx}`} className="print-blank-box"></td>
+              </>
+            ))}
+            <td className="print-blank-box"></td>
+            <td className="print-blank-box"></td>
+            <td className="print-blank-box"></td>
+          </tr>
+        </tbody>
+      </table>
+    );
+  };
+
+  // Helper: Monthly DPS Table (Sheet 2 — Full 1 Month for DPS Accounts)
+  const renderMonthlyDpsTable = () => {
+    if (dpsAccountsWithSchedule.length === 0) {
+      return (
+        <Empty
+          description="No DPS accounts match the selected filter"
+          style={{ padding: "30px 0" }}
+        />
+      );
+    }
+
+    let grandMonthDemand = 0;
+    const weeklyTotals = meetingDates.map(() => ({ demand: 0 }));
+
+    return (
+      <table className="print-table" style={{ fontSize: 9 }}>
+        <thead>
+          <tr>
+            <th rowSpan={2} style={{ width: "3%" }}>SL</th>
+            <th rowSpan={2} style={{ width: "6.5%" }}>Member ID</th>
+            <th rowSpan={2} style={{ width: "14%", textAlign: "left" }}>Member Name</th>
+            <th rowSpan={2} style={{ width: "8%" }}>Mobile</th>
+            <th rowSpan={2} style={{ width: "8%" }}>DPS No</th>
+            <th rowSpan={2} style={{ width: "7%" }}>Open Date</th>
+            <th rowSpan={2} style={{ width: "4.5%" }}>Tenure</th>
+            <th rowSpan={2} style={{ width: "5.5%" }}>Paid / Tot</th>
+            <th rowSpan={2} style={{ width: "5.5%", textAlign: "right" }}>Inst.</th>
+
+            {/* Weekly Columns with Demand and Coll */}
+            {meetingDates.map((date, idx) => (
+              <th
+                key={idx}
+                colSpan={2}
+                style={{
+                  background: idx % 2 === 0 ? "#eff6ff" : "#dbeafe",
+                  borderBottom: "1px solid #cbd5e1",
+                }}
+              >
+                Wk {idx + 1} ({date.format("DD MMM")})
+              </th>
+            ))}
+
+            <th rowSpan={2} style={{ width: "6%", fontWeight: "bold" }}>Month Demand</th>
+            <th rowSpan={2} style={{ width: "6%", background: "#eff6ff" }}>Month Coll</th>
+            <th rowSpan={2} style={{ width: "6%", fontWeight: "bold" }}>Total Received</th>
+          </tr>
+          <tr>
+            {meetingDates.map((_, idx) => (
+              <>
+                <th
+                  key={`dem-${idx}`}
+                  style={{
+                    fontSize: 8,
+                    width: `${26 / (meetingDates.length * 2)}%`,
+                    background: idx % 2 === 0 ? "#eff6ff" : "#dbeafe",
+                  }}
+                >
+                  Demand
+                </th>
+                <th
+                  key={`col-${idx}`}
+                  style={{
+                    fontSize: 8,
+                    width: `${26 / (meetingDates.length * 2)}%`,
+                    background: idx % 2 === 0 ? "#ffffff" : "#f8fafc",
+                  }}
+                >
+                  Coll.
+                </th>
+              </>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {dpsAccountsWithSchedule.map((item, index) => {
+            const memberMonthDemand = item.monthDpsDemand || 0;
+            grandMonthDemand += memberMonthDemand;
+
+            return (
+              <tr key={item.id || index}>
+                <td style={{ textAlign: "center", fontWeight: "bold" }}>{index + 1}</td>
+                <td style={{ textAlign: "center", fontWeight: 600 }}>{item.memberId || ""}</td>
+                <td>
+                  <div style={{ fontWeight: 600, fontSize: 9.5 }}>{item.fullName}</div>
+                  {(item.guardianName || item.fatherName) && (
+                    <div style={{ fontSize: 8, color: "#64748b" }}>
+                      G: {item.guardianName || item.fatherName}
+                    </div>
+                  )}
+                </td>
+                <td style={{ textAlign: "center", fontSize: 8.5 }}>{item.mobileNumber || ""}</td>
+                <td style={{ textAlign: "center", fontWeight: 700, color: "#0369a1", fontSize: 9 }}>
+                  <div>
+                    <span>{item.dpsNo}</span>
+                    <span
+                      style={{
+                        fontSize: 7.5,
+                        marginLeft: 3,
+                        padding: "1px 3px",
+                        borderRadius: 2,
+                        background:
+                          item.frequency === "WEEKLY" ? "#e0f2fe" : "#fef3c7",
+                        color:
+                          item.frequency === "WEEKLY" ? "#0369a1" : "#b45309",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {item.frequency === "WEEKLY" ? "Wk" : "Mo"}
+                    </span>
+                  </div>
+                </td>
+                <td style={{ textAlign: "center", fontSize: 8.5, color: "#475569" }}>
+                  {item.openDate || "—"}
+                </td>
+                <td style={{ textAlign: "center", fontSize: 8.5 }}>{item.tenure}</td>
+                <td style={{ textAlign: "center", fontSize: 8.5 }}>
+                  <div style={{ fontWeight: 600, color: item.paidInstallments > 0 ? "#047857" : "#334155" }}>
+                    {item.paidInstallments}/{item.totalInstallments}
+                  </div>
+                  <div style={{ fontSize: 7.5, color: "#64748b" }}>
+                    Cur: #{item.nextInstallmentNo}
+                  </div>
+                </td>
+                <td style={{ textAlign: "right", fontWeight: 600, fontSize: 9 }}>
+                  {formatAmount(item.installmentAmount)}
+                </td>
+
+                {/* Week by Week Installments — strictly shows actual scheduled DPS installments for that week */}
+                {meetingDates.map((date, idx) => {
+                  const wkData = item.weeklySchedule?.get(idx);
+                  const isDueThisWeek = Boolean(wkData && wkData.isDue);
+                  const weekDemand = wkData ? wkData.demand : 0;
+
+                  if (weekDemand > 0) {
+                    weeklyTotals[idx].demand += weekDemand;
+                  }
+
+                  return (
+                    <>
+                      <td
+                        key={`dem-${idx}`}
+                        style={{
+                          textAlign: "right",
+                          fontSize: 8.5,
+                          fontWeight: weekDemand > 0 ? 600 : 400,
+                          color: weekDemand > 0 ? "#0369a1" : "#94a3b8",
+                          background: idx % 2 === 0 ? "#eff6ff" : "#f0f9ff",
+                        }}
+                      >
+                        {isDueThisWeek && weekDemand > 0 ? formatAmount(weekDemand) : "—"}
+                      </td>
+                      <td
+                        key={`col-${idx}`}
+                        className="print-blank-box"
+                        style={{ background: "#ffffff" }}
+                      ></td>
+                    </>
+                  );
+                })}
+
+                {/* Total Month DPS Demand */}
+                <td
+                  style={{
+                    textAlign: "right",
+                    fontWeight: "bold",
+                    color: "#0369a1",
+                    fontSize: 9.5,
+                  }}
+                >
+                  {memberMonthDemand > 0 ? formatAmount(memberMonthDemand) : "—"}
+                </td>
+
+                {/* Blank writable collection boxes */}
+                <td className="print-blank-box" style={{ background: "#eff6ff" }}></td>
+                <td className="print-blank-box" style={{ background: "#f8fafc" }}></td>
+              </tr>
+            );
+          })}
+
+          {/* Grand Summary Row */}
+          <tr style={{ background: "#f8f9fa", fontWeight: "bold" }}>
+            <td colSpan={8} style={{ textAlign: "right", paddingRight: 6 }}>
+              Total ({dpsAccountsWithSchedule.length} DPS Accounts):
+            </td>
             <td></td>
+            {meetingDates.map((_, idx) => (
+              <>
+                <td
+                  key={`tot-dem-${idx}`}
+                  style={{ textAlign: "right", fontSize: 8.5, color: "#0369a1" }}
+                >
+                  {formatAmount(weeklyTotals[idx].demand)}
+                </td>
+                <td key={`tot-col-${idx}`} className="print-blank-box"></td>
+              </>
+            ))}
+            <td
+              style={{
+                textAlign: "right",
+                fontSize: 9.5,
+                color: "#0369a1",
+              }}
+            >
+              {formatAmount(grandMonthDemand)}
+            </td>
+            <td className="print-blank-box"></td>
+            <td className="print-blank-box"></td>
+          </tr>
+        </tbody>
+      </table>
+    );
+  };
+
+  // Helper: Monthly Loan Table (Sheet 3 — Full 1 Month for Loan Accounts)
+  const renderMonthlyLoanTable = () => {
+    if (monthLoanAccountsList.length === 0) {
+      return (
+        <Empty
+          description="No active loans found for this Somiti"
+          style={{ padding: "30px 0" }}
+        />
+      );
+    }
+
+    let grandMonthDemand = 0;
+    const weeklyTotals = meetingDates.map(() => ({ demand: 0 }));
+
+    return (
+      <table className="print-table" style={{ fontSize: 9 }}>
+        <thead>
+          <tr>
+            <th rowSpan={2} style={{ width: "3%" }}>SL</th>
+            <th rowSpan={2} style={{ width: "6.5%" }}>Member ID</th>
+            <th rowSpan={2} style={{ width: "14%", textAlign: "left" }}>Member Name</th>
+            <th rowSpan={2} style={{ width: "8%" }}>Mobile</th>
+            <th rowSpan={2} style={{ width: "8%" }}>Loan ID</th>
+            <th rowSpan={2} style={{ width: "7%" }}>Disb. Date</th>
+            <th rowSpan={2} style={{ width: "6%", textAlign: "right" }}>Inst.</th>
+
+            {/* Weekly Columns */}
+            {meetingDates.map((date, idx) => (
+              <th
+                key={idx}
+                colSpan={2}
+                style={{
+                  background: idx % 2 === 0 ? "#f8fafc" : "#f1f5f9",
+                  borderBottom: "1px solid #cbd5e1",
+                }}
+              >
+                Wk {idx + 1} ({date.format("DD MMM")})
+              </th>
+            ))}
+
+            <th rowSpan={2} style={{ width: "7%", fontWeight: "bold" }}>Month Demand</th>
+            <th rowSpan={2} style={{ width: "7.5%", background: "#fffbeb" }}>Month Coll</th>
+            <th rowSpan={2} style={{ width: "7%" }}>Balance</th>
+          </tr>
+          <tr>
+            {meetingDates.map((_, idx) => (
+              <>
+                <th
+                  key={`dem-${idx}`}
+                  style={{
+                    fontSize: 8,
+                    width: `${26 / (meetingDates.length * 2)}%`,
+                    background: idx % 2 === 0 ? "#f8fafc" : "#f1f5f9",
+                  }}
+                >
+                  Demand
+                </th>
+                <th
+                  key={`col-${idx}`}
+                  style={{
+                    fontSize: 8,
+                    width: `${26 / (meetingDates.length * 2)}%`,
+                    background: idx % 2 === 0 ? "#ffffff" : "#f8fafc",
+                  }}
+                >
+                  Coll.
+                </th>
+              </>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {monthLoanAccountsList.map((item, index) => {
+            const loan = item.loan;
+            const regInst = loan ? toAmount(loan.installmentAmount) : 0;
+            let memberMonthDemand = 0;
+
+            return (
+              <tr key={item.loanId || index}>
+                <td style={{ textAlign: "center", fontWeight: "bold" }}>{index + 1}</td>
+                <td style={{ textAlign: "center", fontWeight: 600 }}>{item.memberId || ""}</td>
+                <td>
+                  <div style={{ fontWeight: 600, fontSize: 9.5 }}>{item.fullName}</div>
+                  {item.guardianName && (
+                    <div style={{ fontSize: 8, color: "#64748b" }}>
+                      G: {item.guardianName}
+                    </div>
+                  )}
+                </td>
+                <td style={{ textAlign: "center", fontSize: 8.5 }}>{item.mobileNumber || ""}</td>
+                <td style={{ textAlign: "center", fontWeight: 700, color: "#1d4ed8", fontSize: 9 }}>
+                  {item.hasActiveLoan ? (
+                    <div>
+                      <span>{item.loanId}</span>
+                      <span
+                        style={{
+                          fontSize: 7.5,
+                          marginLeft: 3,
+                          padding: "1px 3px",
+                          borderRadius: 2,
+                          background:
+                            item.frequency === "WEEKLY" ? "#e0f2fe" : "#fef3c7",
+                          color:
+                            item.frequency === "WEEKLY" ? "#0369a1" : "#b45309",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {item.frequency === "WEEKLY" ? "Wk" : "Mo"}
+                      </span>
+                    </div>
+                  ) : (
+                    <span style={{ color: "#94a3b8" }}>No Loan</span>
+                  )}
+                </td>
+                <td style={{ textAlign: "center", fontSize: 8.5, color: "#475569" }}>
+                  {item.disbursementDate ? formatDate(item.disbursementDate) : "—"}
+                </td>
+                <td style={{ textAlign: "right", fontWeight: 600, fontSize: 9 }}>
+                  {item.hasActiveLoan ? formatAmount(regInst) : "—"}
+                </td>
+
+                {/* Week by Week Installments — strictly shows actual installments due in that week */}
+                {meetingDates.map((date, idx) => {
+                  const inst = item.weeklyInstallments?.get(idx);
+                  const instDemand = inst
+                    ? typeof inst.due === "number"
+                      ? inst.due
+                      : Math.max(0, toAmount(inst.amount) - toAmount(inst.paidAmount))
+                    : 0;
+
+                  if (instDemand > 0) {
+                    memberMonthDemand += instDemand;
+                    weeklyTotals[idx].demand += instDemand;
+                  }
+
+                  return (
+                    <>
+                      <td
+                        key={`dem-${idx}`}
+                        style={{
+                          textAlign: "right",
+                          fontSize: 8.5,
+                          fontWeight: instDemand > 0 ? 600 : 400,
+                          color: instDemand > 0 ? "#1e293b" : "#94a3b8",
+                          background: idx % 2 === 0 ? "#f8fafc" : "#f1f5f9",
+                        }}
+                      >
+                        {instDemand > 0 ? formatAmount(instDemand) : "—"}
+                      </td>
+                      <td
+                        key={`col-${idx}`}
+                        className="print-blank-box"
+                        style={{ background: "#ffffff" }}
+                      ></td>
+                    </>
+                  );
+                })}
+
+                {/* Total Month Demand — exact total due in this month */}
+                <td
+                  style={{
+                    textAlign: "right",
+                    fontWeight: "bold",
+                    color: "#047857",
+                    fontSize: 9.5,
+                  }}
+                >
+                  {(() => {
+                    grandMonthDemand += memberMonthDemand;
+                    return memberMonthDemand > 0
+                      ? formatAmount(memberMonthDemand)
+                      : "—";
+                  })()}
+                </td>
+
+                {/* Total Month Coll */}
+                <td
+                  className="print-blank-box"
+                  style={{ background: "#fffdf9" }}
+                ></td>
+
+                {/* Balance */}
+                <td className="print-blank-box"></td>
+              </tr>
+            );
+          })}
+
+          {/* Grand Summary Row */}
+          <tr style={{ background: "#f8f9fa", fontWeight: "bold" }}>
+            <td colSpan={6} style={{ textAlign: "right", paddingRight: 6 }}>
+              Total ({monthLoanAccountsList.length} Loans):
+            </td>
+            <td></td>
+            {meetingDates.map((_, idx) => (
+              <>
+                <td
+                  key={`tot-dem-${idx}`}
+                  style={{ textAlign: "right", fontSize: 8.5 }}
+                >
+                  {formatAmount(weeklyTotals[idx].demand)}
+                </td>
+                <td key={`tot-col-${idx}`} className="print-blank-box"></td>
+              </>
+            ))}
+            <td
+              style={{
+                textAlign: "right",
+                fontSize: 9.5,
+                color: "#047857",
+              }}
+            >
+              {formatAmount(grandMonthDemand)}
+            </td>
+            <td className="print-blank-box"></td>
+            <td className="print-blank-box"></td>
+          </tr>
+        </tbody>
+      </table>
+    );
+  };
+
+  // Helper: Monthly Combined Master Table (Sheet 4 — Single Matrix View)
+  const renderMonthlyCombinedTable = () => {
+    if (membersList.length === 0) {
+      return (
+        <Empty
+          description="No members found for this Somiti"
+          style={{ padding: "30px 0" }}
+        />
+      );
+    }
+
+    let grandMonthDemand = 0;
+    const weeklyTotals = meetingDates.map(() => ({ demand: 0 }));
+
+    return (
+      <table className="print-table" style={{ fontSize: 9 }}>
+        <thead>
+          <tr>
+            <th rowSpan={2} style={{ width: "3%" }}>
+              SL
+            </th>
+            <th rowSpan={2} style={{ width: "6%" }}>
+              Member ID
+            </th>
+            <th rowSpan={2} style={{ width: "13.5%", textAlign: "left" }}>
+              Member / Guardian Name
+            </th>
+            <th rowSpan={2} style={{ width: "6.5%" }}>
+              Admission Date
+            </th>
+            <th rowSpan={2} style={{ width: "7.5%" }}>
+              Loan & Disb
+            </th>
+            <th rowSpan={2} style={{ width: "5%" }}>
+              Inst.
+            </th>
+
+            {/* Weekly Columns */}
+            {meetingDates.map((date, idx) => (
+              <th
+                key={idx}
+                colSpan={2}
+                style={{
+                  background: idx % 2 === 0 ? "#f8fafc" : "#f1f5f9",
+                  borderBottom: "1px solid #cbd5e1",
+                }}
+              >
+                Wk {idx + 1} ({date.format("DD MMM")})
+              </th>
+            ))}
+
+            <th rowSpan={2} style={{ width: "6%", background: "#f0fdf4" }}>
+              Sav. Coll
+            </th>
+            <th rowSpan={2} style={{ width: "6%", background: "#eff6ff" }}>
+              DPS Coll
+            </th>
+            <th rowSpan={2} style={{ width: "7.5%", fontWeight: "bold" }}>
+              Month Demand
+            </th>
+            <th rowSpan={2} style={{ width: "7.5%", background: "#fffbeb" }}>
+              Month Coll
+            </th>
+          </tr>
+          <tr>
+            {meetingDates.map((_, idx) => (
+              <>
+                <th
+                  key={`dem-${idx}`}
+                  style={{
+                    fontSize: 8,
+                    width: `${26 / (meetingDates.length * 2)}%`,
+                    background: idx % 2 === 0 ? "#f8fafc" : "#f1f5f9",
+                  }}
+                >
+                  Demand
+                </th>
+                <th
+                  key={`col-${idx}`}
+                  style={{
+                    fontSize: 8,
+                    width: `${26 / (meetingDates.length * 2)}%`,
+                    background: idx % 2 === 0 ? "#ffffff" : "#f8fafc",
+                  }}
+                >
+                  Coll.
+                </th>
+              </>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {membersList.map((member, index) => {
+            const memLoanData = memberLoansMap.get(member.id);
+            const loan =
+              memLoanData?.loan &&
+              memLoanData.loan.id &&
+              memLoanData.loan.loanId !== "DPS Only" &&
+              memLoanData.loan.status === "ACTIVE"
+                ? memLoanData.loan
+                : null;
+            const regInst = loan ? toAmount(loan.installmentAmount) : 0;
+
+            let memberMonthDemand = 0;
+
+            return (
+              <tr key={member.id || index}>
+                <td style={{ textAlign: "center", fontWeight: "bold" }}>
+                  {index + 1}
+                </td>
+                <td style={{ textAlign: "center", fontWeight: 600 }}>
+                  {member.memberId || ""}
+                </td>
+                <td>
+                  <div style={{ fontWeight: 600, fontSize: 9.5 }}>
+                    {member.fullName}
+                  </div>
+                  {(member.guardianName || member.fatherName) && (
+                    <div style={{ fontSize: 8, color: "#64748b" }}>
+                      G: {member.guardianName || member.fatherName}
+                    </div>
+                  )}
+                  {member.mobileNumber && (
+                    <div style={{ fontSize: 8, color: "#94a3b8" }}>
+                      {member.mobileNumber}
+                    </div>
+                  )}
+                </td>
+                <td
+                  style={{
+                    textAlign: "center",
+                    fontSize: 8.5,
+                    color: "#475569",
+                  }}
+                >
+                  {member.joinDate ? formatDate(member.joinDate) : "—"}
+                </td>
+                <td style={{ textAlign: "center", fontSize: 8.5 }}>
+                  {loan ? (
+                    <div>
+                      <strong className="text-blue-700">{loan.loanId}</strong>
+                      <div style={{ fontSize: 8, color: "#64748b" }}>
+                        {loan.disbursementDate
+                          ? formatDate(loan.disbursementDate)
+                          : "—"}
+                      </div>
+                    </div>
+                  ) : (
+                    <span style={{ color: "#94a3b8" }}>No Loan</span>
+                  )}
+                </td>
+                <td
+                  style={{ textAlign: "right", fontWeight: 600, fontSize: 9 }}
+                >
+                  {loan ? formatAmount(regInst) : "—"}
+                </td>
+
+                {/* Week by Week Installments — strictly shows actual installments due in that week */}
+                {meetingDates.map((date, idx) => {
+                  const inst = memLoanData?.weeklyInstallments?.get(idx);
+                  const instDemand = inst
+                    ? typeof inst.due === "number"
+                      ? inst.due
+                      : Math.max(0, toAmount(inst.amount) - toAmount(inst.paidAmount))
+                    : 0;
+
+                  if (instDemand > 0) {
+                    memberMonthDemand += instDemand;
+                    weeklyTotals[idx].demand += instDemand;
+                  }
+
+                  return (
+                    <>
+                      <td
+                        key={`dem-${idx}`}
+                        style={{
+                          textAlign: "right",
+                          fontSize: 8.5,
+                          fontWeight: instDemand > 0 ? 600 : 400,
+                          color: instDemand > 0 ? "#1e293b" : "#94a3b8",
+                          background: idx % 2 === 0 ? "#f8fafc" : "#f1f5f9",
+                        }}
+                      >
+                        {instDemand > 0 ? formatAmount(instDemand) : "—"}
+                      </td>
+                      <td
+                        key={`col-${idx}`}
+                        className="print-blank-box"
+                        style={{ background: "#ffffff" }}
+                      ></td>
+                    </>
+                  );
+                })}
+
+                {/* Savings Coll */}
+                <td
+                  className="print-blank-box"
+                  style={{ background: "#fcfffc" }}
+                ></td>
+                {/* DPS Coll */}
+                <td
+                  className="print-blank-box"
+                  style={{ background: "#f8fafc" }}
+                ></td>
+
+                {/* Total Month Demand */}
+                <td
+                  style={{
+                    textAlign: "right",
+                    fontWeight: "bold",
+                    color: "#047857",
+                    fontSize: 9.5,
+                  }}
+                >
+                  {(() => {
+                    grandMonthDemand += memberMonthDemand;
+                    return memberMonthDemand > 0
+                      ? formatAmount(memberMonthDemand)
+                      : "—";
+                  })()}
+                </td>
+
+                {/* Total Month Coll */}
+                <td
+                  className="print-blank-box"
+                  style={{ background: "#fffdf9" }}
+                ></td>
+              </tr>
+            );
+          })}
+
+          {/* Grand Summary Row */}
+          <tr style={{ background: "#f8f9fa", fontWeight: "bold" }}>
+            <td colSpan={6} style={{ textAlign: "right", paddingRight: 6 }}>
+              Total ({membersList.length} Members):
+            </td>
+            {meetingDates.map((_, idx) => (
+              <>
+                <td
+                  key={`tot-dem-${idx}`}
+                  style={{ textAlign: "right", fontSize: 8.5 }}
+                >
+                  {formatAmount(weeklyTotals[idx].demand)}
+                </td>
+                <td key={`tot-col-${idx}`} className="print-blank-box"></td>
+              </>
+            ))}
+            <td className="print-blank-box"></td>
+            <td className="print-blank-box"></td>
+            <td
+              style={{
+                textAlign: "right",
+                fontSize: 9.5,
+                color: "#047857",
+              }}
+            >
+              {formatAmount(grandMonthDemand)}
+            </td>
+            <td className="print-blank-box"></td>
           </tr>
         </tbody>
       </table>
@@ -670,27 +2070,116 @@ export function PrintableCollectionSheetModal({
             alignItems: "center",
             paddingRight: 24,
             flexWrap: "wrap",
-            gap: 8,
+            gap: 10,
           }}
         >
           <Space wrap>
             <PrinterOutlined style={{ fontSize: 18, color: "#1890ff" }} />
-            <Typography.Text strong style={{ fontSize: 16 }}>
-              Field Collection Sheets
-            </Typography.Text>
+            <div>
+              <Typography.Text strong style={{ fontSize: 16 }}>
+                Field Collection Sheets
+              </Typography.Text>
+              <div style={{ fontSize: 11, color: "#64748b" }}>
+                {activeSomiti ? activeSomiti.name : "All Somities"} •{" "}
+                {isMonthlyMode
+                  ? `Monthly Full Sheet (${selectedMonth ? selectedMonth.format("MMMM YYYY") : ""})`
+                  : `Daily Collection (${dailyDate ? formatDate(dailyDate) : "Today"})`}
+              </div>
+            </div>
           </Space>
-          <div className="overflow-x-auto max-w-full">
+
+          <div className="overflow-x-auto max-w-full flex items-center gap-2 flex-wrap">
+            {/* Somiti Selector inside Modal */}
+            {somities && somities.length > 0 && (
+              <Select
+                size="small"
+                style={{ width: 175 }}
+                value={modalSomitiId}
+                onChange={(val) => setModalSomitiId(val)}
+                options={[
+                  { value: "ALL", label: "All Somities (সকল সমিতি)" },
+                  ...somities.map((s) => ({
+                    value: String(s.id),
+                    label: `${s.name}${s.meetingDay ? ` (${s.meetingDay.slice(0, 3)})` : ""}`,
+                  })),
+                ]}
+              />
+            )}
+
+            {/* Primary Mode Toggle: Daily vs Monthly */}
             <Radio.Group
-              value={sheetType === "combined" ? "all" : sheetType}
-              onChange={(e) => setSheetType(e.target.value)}
+              value={isMonthlyMode ? "monthly" : "daily"}
+              onChange={(e) => {
+                const nextMode = e.target.value;
+                if (nextMode === "monthly") {
+                  setSheetType("monthly_all");
+                } else {
+                  setSheetType("all");
+                }
+              }}
               buttonStyle="solid"
               size="small"
             >
-              <Radio.Button value="savings">1. Savings</Radio.Button>
-              <Radio.Button value="dps">2. DPS</Radio.Button>
-              <Radio.Button value="loan">3. Loan</Radio.Button>
-              <Radio.Button value="all">4. All</Radio.Button>
+              <Radio.Button value="daily">📅 Daily (দৈনিক)</Radio.Button>
+              <Radio.Button value="monthly">🗓️ Monthly (১ মাস)</Radio.Button>
             </Radio.Group>
+
+            {/* Daily Date Picker when in Daily Mode */}
+            {!isMonthlyMode && (
+              <DatePicker
+                value={dailyDate}
+                onChange={(val) => val && setDailyDate(val)}
+                size="small"
+                allowClear={false}
+                format="DD MMM YYYY"
+                style={{ width: 130 }}
+              />
+            )}
+
+            {/* Month Picker when in Monthly Mode */}
+            {isMonthlyMode && (
+              <DatePicker
+                picker="month"
+                value={selectedMonth}
+                onChange={(val) => val && setSelectedMonth(val)}
+                size="small"
+                allowClear={false}
+                format="MMMM YYYY"
+                style={{ width: 140 }}
+              />
+            )}
+
+            {/* Sub-sheet Selection */}
+            {isMonthlyMode ? (
+              <Radio.Group
+                value={sheetType === "monthly" ? "monthly_all" : sheetType}
+                onChange={(e) => setSheetType(e.target.value)}
+                size="small"
+              >
+                <Radio.Button value="monthly_all">
+                  All Monthly Sheets (সকল শীট)
+                </Radio.Button>
+                <Radio.Button value="monthly_savings">
+                  1. Savings (সকল মেম্বার)
+                </Radio.Button>
+                <Radio.Button value="monthly_dps">2. DPS</Radio.Button>
+                <Radio.Button value="monthly_loan">3. Loan</Radio.Button>
+                <Radio.Button value="monthly_matrix">
+                  4. Combined Matrix
+                </Radio.Button>
+              </Radio.Group>
+            ) : (
+              <Radio.Group
+                value={sheetType === "combined" ? "all" : sheetType}
+                onChange={(e) => setSheetType(e.target.value)}
+                size="small"
+              >
+                <Radio.Button value="all">All Daily Sheets</Radio.Button>
+                <Radio.Button value="savings">1. Savings</Radio.Button>
+                <Radio.Button value="dps">2. DPS</Radio.Button>
+                <Radio.Button value="loan">3. Loan</Radio.Button>
+              </Radio.Group>
+            )}
           </div>
         </div>
       }
@@ -799,7 +2288,7 @@ export function PrintableCollectionSheetModal({
           .print-table th,
           .print-table td {
             border: 1px solid #111 !important;
-            padding: 3px 4px !important;
+            padding: 4px 5px !important;
             line-height: 1.2 !important;
           }
           .print-table tr {
@@ -813,7 +2302,8 @@ export function PrintableCollectionSheetModal({
             print-color-adjust: exact;
           }
           .print-blank-box {
-            height: 20px !important;
+            height: 28px !important;
+            min-height: 28px !important;
             background: #fff !important;
           }
         }
@@ -865,7 +2355,7 @@ export function PrintableCollectionSheetModal({
         .print-table th,
         .print-table td {
           border: 1px solid #333;
-          padding: 4px 6px;
+          padding: 5px 6px;
         }
         .print-table th {
           background-color: #f3f4f6;
@@ -873,15 +2363,108 @@ export function PrintableCollectionSheetModal({
           text-align: center;
         }
         .print-blank-box {
-          height: 22px;
+          height: 28px;
+          min-height: 28px;
           background: #fafafa;
         }
       `}</style>
 
+      {/* Interactive Controls Bar for Frequency & Members filtering */}
+      <div
+        className="no-print"
+        style={{
+          background: "#f8fafc",
+          border: "1px solid #e2e8f0",
+          borderRadius: 6,
+          padding: "8px 14px",
+          marginBottom: 10,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 10,
+          fontSize: 12,
+        }}
+      >
+        <Space wrap size="middle">
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontWeight: 600, color: "#334155" }}>
+              Loan Frequency:
+            </span>
+            <Radio.Group
+              value={loanFrequencyFilter}
+              onChange={(e) => setLoanFrequencyFilter(e.target.value)}
+              size="small"
+              buttonStyle="solid"
+            >
+              <Radio.Button value="ALL">All Loans (সব)</Radio.Button>
+              <Radio.Button value="WEEKLY">Weekly (সাপ্তাহিক)</Radio.Button>
+              <Radio.Button value="MONTHLY">Monthly (মাসিক)</Radio.Button>
+            </Radio.Group>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontWeight: 600, color: "#334155" }}>
+              Loan Members:
+            </span>
+            <Radio.Group
+              value={loanMemberFilter}
+              onChange={(e) => setLoanMemberFilter(e.target.value)}
+              size="small"
+            >
+              <Radio.Button value="ACTIVE_ONLY">
+                Active Loans Only ({monthLoanAccountsList.filter((x) => x.hasActiveLoan).length})
+              </Radio.Button>
+              <Radio.Button value="ALL_MEMBERS">
+                All Members ({membersList.length})
+              </Radio.Button>
+            </Radio.Group>
+          </div>
+        </Space>
+
+        <Space wrap size="middle">
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontWeight: 600, color: "#334155" }}>
+              DPS Frequency:
+            </span>
+            <Radio.Group
+              value={dpsFrequencyFilter}
+              onChange={(e) => setDpsFrequencyFilter(e.target.value)}
+              size="small"
+              buttonStyle="solid"
+            >
+              <Radio.Button value="ALL">All DPS ({dpsList.length})</Radio.Button>
+              <Radio.Button value="WEEKLY">Weekly</Radio.Button>
+              <Radio.Button value="MONTHLY">Monthly</Radio.Button>
+            </Radio.Group>
+          </div>
+        </Space>
+      </div>
+
+      {(isMonthlyMode ? monthLoading : dailyLoading) && (
+        <div
+          className="no-print"
+          style={{
+            textAlign: "center",
+            padding: "8px 16px",
+            background: "#f0f9ff",
+            color: "#0284c7",
+            borderRadius: 6,
+            marginBottom: 10,
+            fontSize: 12,
+            fontWeight: 500,
+            border: "1px solid #bae6fd",
+          }}
+        >
+          <Spin size="small" style={{ marginRight: 8 }} />
+          Loading collection sheet data...
+        </div>
+      )}
+
       <div className="preview-container">
         <div className="collection-print-root" ref={printAreaRef}>
           {/* ============================================================== */}
-          {/* OPTION 1: SAVINGS ONLY                                         */}
+          {/* DAILY OPTION 1: SAVINGS ONLY                                   */}
           {/* ============================================================== */}
           {sheetType === "savings" && (
             <div className="sheet-page">
@@ -889,7 +2472,7 @@ export function PrintableCollectionSheetModal({
                 "Microfinance & Savings Program",
                 "1. Daily Field Collection Sheet — Savings (General & Special)",
               )}
-              {renderMetaBar()}
+              {renderMetaBar(false)}
               {renderSavingsTable()}
               {renderSignatureBlock()}
               {renderFooter(1, 1)}
@@ -897,7 +2480,7 @@ export function PrintableCollectionSheetModal({
           )}
 
           {/* ============================================================== */}
-          {/* OPTION 2: DPS ONLY                                             */}
+          {/* DAILY OPTION 2: DPS ONLY                                       */}
           {/* ============================================================== */}
           {sheetType === "dps" && (
             <div className="sheet-page">
@@ -905,7 +2488,7 @@ export function PrintableCollectionSheetModal({
                 "Deposit Pension Scheme (DPS) Program",
                 "2. Daily Field Collection Sheet — DPS (Deposit Pension Scheme)",
               )}
-              {renderMetaBar()}
+              {renderMetaBar(false)}
               {renderDpsTable()}
               {renderSignatureBlock()}
               {renderFooter(1, 1)}
@@ -913,7 +2496,7 @@ export function PrintableCollectionSheetModal({
           )}
 
           {/* ============================================================== */}
-          {/* OPTION 3: LOAN ONLY                                            */}
+          {/* DAILY OPTION 3: LOAN ONLY                                      */}
           {/* ============================================================== */}
           {sheetType === "loan" && (
             <div className="sheet-page">
@@ -921,7 +2504,7 @@ export function PrintableCollectionSheetModal({
                 "Microfinance & Credit Program",
                 "3. Daily Field Collection Sheet — Loan Repayment",
               )}
-              {renderMetaBar()}
+              {renderMetaBar(false)}
               {renderLoanTable()}
               {renderSignatureBlock()}
               {renderFooter(1, 1)}
@@ -929,7 +2512,7 @@ export function PrintableCollectionSheetModal({
           )}
 
           {/* ============================================================== */}
-          {/* OPTION 4: ALL SHEETS (SAVINGS + DPS + LOAN IN SINGLE PDF)      */}
+          {/* DAILY OPTION 4: ALL DAILY SHEETS (SAVINGS + DPS + LOAN)        */}
           {/* ============================================================== */}
           {(sheetType === "all" || sheetType === "combined") && (
             <>
@@ -939,13 +2522,13 @@ export function PrintableCollectionSheetModal({
                   "Microfinance & Savings Program",
                   "1. Daily Field Collection Sheet — Savings (General & Special)",
                 )}
-                {renderMetaBar()}
+                {renderMetaBar(false)}
                 {renderSavingsTable()}
                 {renderSignatureBlock()}
                 {renderFooter(1, 3)}
               </div>
 
-              {/* Automatic Page Break for Printing & Clean Preview Divider */}
+              {/* Automatic Page Break */}
               <div className="sheet-page-break" />
 
               {/* Sheet 2: DPS */}
@@ -954,13 +2537,13 @@ export function PrintableCollectionSheetModal({
                   "Deposit Pension Scheme (DPS) Program",
                   "2. Daily Field Collection Sheet — DPS (Deposit Pension Scheme)",
                 )}
-                {renderMetaBar()}
+                {renderMetaBar(false)}
                 {renderDpsTable()}
                 {renderSignatureBlock()}
                 {renderFooter(2, 3)}
               </div>
 
-              {/* Automatic Page Break for Printing & Clean Preview Divider */}
+              {/* Automatic Page Break */}
               <div className="sheet-page-break" />
 
               {/* Sheet 3: Loan */}
@@ -969,8 +2552,121 @@ export function PrintableCollectionSheetModal({
                   "Microfinance & Credit Program",
                   "3. Daily Field Collection Sheet — Loan Repayment",
                 )}
-                {renderMetaBar()}
+                {renderMetaBar(false)}
                 {renderLoanTable()}
+                {renderSignatureBlock()}
+                {renderFooter(3, 3)}
+              </div>
+            </>
+          )}
+
+          {/* ============================================================== */}
+          {/* MONTHLY OPTION 1: MONTHLY SAVINGS ONLY (ALL MEMBERS)           */}
+          {/* ============================================================== */}
+          {sheetType === "monthly_savings" && (
+            <div className="sheet-page">
+              {renderHeader(
+                "Microfinance & Savings Program",
+                `1. Monthly Field Collection Sheet — Savings (General & Special) — ${selectedMonth ? selectedMonth.format("MMMM YYYY") : "Monthly"}`,
+              )}
+              {renderMetaBar(true)}
+              {renderMonthlySavingsTable()}
+              {renderSignatureBlock()}
+              {renderFooter(1, 1)}
+            </div>
+          )}
+
+          {/* ============================================================== */}
+          {/* MONTHLY OPTION 2: MONTHLY DPS ONLY (DPS ACCOUNTS)              */}
+          {/* ============================================================== */}
+          {sheetType === "monthly_dps" && (
+            <div className="sheet-page">
+              {renderHeader(
+                "Deposit Pension Scheme (DPS) Program",
+                `2. Monthly Field Collection Sheet — DPS (Deposit Pension Scheme) — ${selectedMonth ? selectedMonth.format("MMMM YYYY") : "Monthly"}`,
+              )}
+              {renderMetaBar(true)}
+              {renderMonthlyDpsTable()}
+              {renderSignatureBlock()}
+              {renderFooter(1, 1)}
+            </div>
+          )}
+
+          {/* ============================================================== */}
+          {/* MONTHLY OPTION 3: MONTHLY LOAN ONLY (LOAN ACCOUNTS)            */}
+          {/* ============================================================== */}
+          {sheetType === "monthly_loan" && (
+            <div className="sheet-page">
+              {renderHeader(
+                "Microfinance & Credit Program",
+                `3. Monthly Field Collection Sheet — Loan Repayment — ${selectedMonth ? selectedMonth.format("MMMM YYYY") : "Monthly"}`,
+              )}
+              {renderMetaBar(true)}
+              {renderMonthlyLoanTable()}
+              {renderSignatureBlock()}
+              {renderFooter(1, 1)}
+            </div>
+          )}
+
+          {/* ============================================================== */}
+          {/* MONTHLY OPTION 4: COMBINED MASTER MATRIX                       */}
+          {/* ============================================================== */}
+          {sheetType === "monthly_matrix" && (
+            <div className="sheet-page">
+              {renderHeader(
+                "Microfinance & Credit Program",
+                `Monthly Field Collection Master Matrix — ${selectedMonth ? selectedMonth.format("MMMM YYYY") : "Monthly Ledger"}`,
+              )}
+              {renderMetaBar(true)}
+              {renderMonthlyCombinedTable()}
+              {renderSignatureBlock()}
+              {renderFooter(1, 1)}
+            </div>
+          )}
+
+          {/* ============================================================== */}
+          {/* MONTHLY OPTION 5: ALL MONTHLY SHEETS (SAVINGS + DPS + LOAN)   */}
+          {/* ============================================================== */}
+          {(sheetType === "monthly_all" || sheetType === "monthly") && (
+            <>
+              {/* Sheet 1: Monthly Savings (All Somiti Members) */}
+              <div className="sheet-page">
+                {renderHeader(
+                  "Microfinance & Savings Program",
+                  `1. Monthly Field Collection Sheet — Savings (General & Special) — ${selectedMonth ? selectedMonth.format("MMMM YYYY") : "Monthly"}`,
+                )}
+                {renderMetaBar(true)}
+                {renderMonthlySavingsTable()}
+                {renderSignatureBlock()}
+                {renderFooter(1, 3)}
+              </div>
+
+              {/* Automatic Page Break */}
+              <div className="sheet-page-break" />
+
+              {/* Sheet 2: Monthly DPS (DPS Accounts) */}
+              <div className="sheet-page">
+                {renderHeader(
+                  "Deposit Pension Scheme (DPS) Program",
+                  `2. Monthly Field Collection Sheet — DPS (Deposit Pension Scheme) — ${selectedMonth ? selectedMonth.format("MMMM YYYY") : "Monthly"}`,
+                )}
+                {renderMetaBar(true)}
+                {renderMonthlyDpsTable()}
+                {renderSignatureBlock()}
+                {renderFooter(2, 3)}
+              </div>
+
+              {/* Automatic Page Break */}
+              <div className="sheet-page-break" />
+
+              {/* Sheet 3: Monthly Loan (Active Loan Accounts) */}
+              <div className="sheet-page">
+                {renderHeader(
+                  "Microfinance & Credit Program",
+                  `3. Monthly Field Collection Sheet — Loan Repayment — ${selectedMonth ? selectedMonth.format("MMMM YYYY") : "Monthly"}`,
+                )}
+                {renderMetaBar(true)}
+                {renderMonthlyLoanTable()}
                 {renderSignatureBlock()}
                 {renderFooter(3, 3)}
               </div>

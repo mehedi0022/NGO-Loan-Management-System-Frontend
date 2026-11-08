@@ -291,7 +291,7 @@ export function EditLoanPage() {
                       className="w-full rounded-lg"
                       min={0.01}
                       precision={2}
-                      prefix="৳"
+                      prefix="BDT "
                     />
                   </Form.Item>
                 </Col>
@@ -402,7 +402,7 @@ export function EditLoanPage() {
                       >
                         <InputNumber
                           className="w-full rounded-lg"
-                          prefix="৳"
+                          prefix="BDT "
                           min={1}
                           precision={2}
                         />
@@ -416,7 +416,7 @@ export function EditLoanPage() {
                         <div className="text-xl font-bold text-purple-900 mt-1">
                           {loanCalc
                             ? formatCurrency(loanCalc.lastInstallmentAmount)
-                            : "৳0.00"}
+                            : "BDT 0.00"}
                         </div>
                       </div>
                     </Col>

@@ -68,9 +68,9 @@ export const calculateLoanPreview = ({
 
       if (remainderInPaisa <= 0) {
         isValidCustomAmount = false;
-        customAmountError = `Amount is too high. ৳${customNum.toLocaleString()} × ${regularCount} installments equals ৳${(
-          (customNum * regularCount)
-        ).toLocaleString()}, which exceeds or equals total payable (৳${totalPayable.toLocaleString()}).`;
+        customAmountError = `Amount is too high. BDT ${customNum.toLocaleString()} × ${regularCount} installments equals BDT ${(
+          customNum * regularCount
+        ).toLocaleString()}, which exceeds or equals total payable (BDT ${totalPayable.toLocaleString()}).`;
         effectiveInstallmentAmount = customNum;
       } else {
         effectiveInstallmentAmount = customNum;
