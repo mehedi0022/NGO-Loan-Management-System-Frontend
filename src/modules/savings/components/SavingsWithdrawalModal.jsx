@@ -16,14 +16,16 @@ import {
 } from "antd";
 import {
   BankOutlined,
+  ExclamationCircleOutlined,
   SafetyOutlined,
   UserOutlined,
   WalletOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { formatCurrency } from "../../loans/loanFormatters.js";
+import { useGetAccountsQuery } from "../../accounts/accountsApi.js";
 import { useGetMemberSavingsQuery, useWithdrawSavingsMutation } from "../savingsApi.js";
 import { MemberSavingsSelector } from "./MemberSavingsSelector.jsx";
 
@@ -58,6 +60,8 @@ export function SavingsWithdrawalModal({
   const [form] = Form.useForm();
 
   const savingsType = Form.useWatch("savingsType", form) || "GENERAL";
+  const selectedPaymentMethod = Form.useWatch("paymentMethod", form) || "CASH";
+  const selectedAccountId = Form.useWatch("accountId", form);
   const amount = toAmount(Form.useWatch("amount", form));
 
   const generalBalance = toAmount(account?.generalSavingsBalance);
@@ -68,10 +72,56 @@ export function SavingsWithdrawalModal({
 
   const balanceAfter = Math.max(0, availableBalance - amount);
 
+  // Fetch financial accounts list
+  const { data: accountsResponse } = useGetAccountsQuery(undefined, {
+    skip: !open,
+  });
+  const accounts = useMemo(() => {
+    if (Array.isArray(accountsResponse?.data)) return accountsResponse.data;
+    if (Array.isArray(accountsResponse?.data?.accounts))
+      return accountsResponse.data.accounts;
+    return [];
+  }, [accountsResponse]);
+
+  // Active payout financial account
+  const activePayoutAccount = useMemo(() => {
+    if (selectedAccountId) {
+      const match = accounts.find((a) => a.id === selectedAccountId);
+      if (match) return match;
+    }
+    if (selectedPaymentMethod === "BANK_TRANSFER") {
+      return (
+        accounts.find((a) => a.accountType === "BANK" && a.isActive) ||
+        accounts.find((a) => a.isDefault && a.isActive) ||
+        accounts[0]
+      );
+    }
+    if (selectedPaymentMethod === "MOBILE_PAYMENT") {
+      return (
+        accounts.find((a) => a.accountType === "MOBILE_BANKING" && a.isActive) ||
+        accounts.find((a) => a.isDefault && a.isActive) ||
+        accounts[0]
+      );
+    }
+    return (
+      accounts.find((a) => a.isDefault && a.isActive) ||
+      accounts.find((a) => a.accountType === "CASH" && a.isActive) ||
+      accounts[0]
+    );
+  }, [accounts, selectedAccountId, selectedPaymentMethod]);
+
+  const activeOrgBalance = Number(activePayoutAccount?.currentBalance) || 0;
+  const isOrgShortage = activePayoutAccount && amount > activeOrgBalance;
+  const orgShortageAmount = isOrgShortage ? amount - activeOrgBalance : 0;
+
   const unavailable = !account || account.status !== "ACTIVE";
   const insufficientBalance = amount > availableBalance;
   const canSubmit =
-    !unavailable && amount > 0 && !insufficientBalance && availableBalance > 0;
+    !unavailable &&
+    amount > 0 &&
+    !insufficientBalance &&
+    availableBalance > 0 &&
+    !isOrgShortage;
 
   const [withdrawSavings, { isLoading }] = useWithdrawSavingsMutation();
 
@@ -79,16 +129,36 @@ export function SavingsWithdrawalModal({
     if (!open) return;
 
     form.resetFields();
+    const defaultAcc =
+      accounts.find((a) => a.isDefault && a.isActive) ||
+      accounts.find((a) => a.accountType === "CASH" && a.isActive) ||
+      accounts[0];
 
     form.setFieldsValue({
       savingsType: "GENERAL",
       amount: undefined,
       transactionDate: dayjs(),
       paymentMethod: "CASH",
+      accountId: defaultAcc?.id,
       reference: undefined,
       notes: undefined,
     });
-  }, [form, open, member?.id]);
+  }, [form, open, member?.id, accounts]);
+
+  const handlePaymentMethodChange = (method) => {
+    if (method === "BANK_TRANSFER") {
+      const bankAcc = accounts.find((a) => a.accountType === "BANK" && a.isActive);
+      if (bankAcc) form.setFieldValue("accountId", bankAcc.id);
+    } else if (method === "MOBILE_PAYMENT") {
+      const mobAcc = accounts.find((a) => a.accountType === "MOBILE_BANKING" && a.isActive);
+      if (mobAcc) form.setFieldValue("accountId", mobAcc.id);
+    } else {
+      const cashAcc =
+        accounts.find((a) => a.accountType === "CASH" && a.isActive) ||
+        accounts.find((a) => a.isDefault && a.isActive);
+      if (cashAcc) form.setFieldValue("accountId", cashAcc.id);
+    }
+  };
 
   const handleTypeChange = () => {
     // Prevent an amount entered for one savings type from
@@ -122,6 +192,7 @@ export function SavingsWithdrawalModal({
         amount: withdrawalAmount,
         transactionDate: values.transactionDate.format("YYYY-MM-DD"),
         paymentMethod: values.paymentMethod,
+        accountId: values.accountId,
         ...(values.reference?.trim() && {
           reference: values.reference.trim(),
         }),
@@ -437,9 +508,76 @@ export function SavingsWithdrawalModal({
               },
             ]}
           >
-            <Select options={paymentMethods} placeholder="Select method" />
+            <Select
+              options={paymentMethods}
+              placeholder="Select method"
+              onChange={handlePaymentMethodChange}
+            />
           </Form.Item>
         </div>
+
+        {/* Payout Financial Account Selector */}
+        <Form.Item
+          name="accountId"
+          label={
+            <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+              <span>Payout Account (Source)</span>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: !isOrgShortage ? "#16a34a" : "#dc2626",
+                  fontWeight: 600,
+                }}
+              >
+                Available: {formatCurrency(activeOrgBalance)}
+              </span>
+            </div>
+          }
+          rules={[{ required: true, message: "Select payout account" }]}
+        >
+          <Select
+            placeholder="Select Cash or Bank account"
+            options={accounts
+              .filter((a) => a.isActive)
+              .map((a) => ({
+                value: a.id,
+                label: `${a.accountName} (${a.accountType}) — Available: ${formatCurrency(a.currentBalance)}`,
+              }))}
+          />
+        </Form.Item>
+
+        {/* Insufficient Cash Balance Alert */}
+        {isOrgShortage && (
+          <Alert
+            className="mb-4"
+            type="error"
+            showIcon
+            icon={<ExclamationCircleOutlined />}
+            message={
+              <span style={{ fontWeight: 700 }}>
+                Insufficient Account Balance — Withdrawal Blocked
+              </span>
+            }
+            description={
+              <div>
+                Account <strong>{activePayoutAccount?.accountName}</strong> has only{" "}
+                <strong style={{ color: "#dc2626" }}>
+                  {formatCurrency(activeOrgBalance)}
+                </strong>
+                , but this withdrawal requires{" "}
+                <strong>{formatCurrency(amount)}</strong>.
+                <div style={{ fontWeight: 700, color: "#b91c1c", marginTop: 4 }}>
+                  Cash Shortage: {formatCurrency(orgShortageAmount)}
+                </div>
+                <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                  Cannot disburse cash exceeding available funds. Please transfer
+                  funds from Bank to Cash in <strong>Accounts &amp; Cash</strong> or
+                  select another account with sufficient funds.
+                </div>
+              </div>
+            }
+          />
+        )}
 
         <Form.Item
           name="reference"

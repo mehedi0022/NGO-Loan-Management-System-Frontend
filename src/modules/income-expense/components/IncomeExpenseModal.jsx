@@ -36,6 +36,7 @@ export function IncomeExpenseModal({
   const [form] = Form.useForm();
   const selectedType = Form.useWatch("type", form) || initialType;
   const selectedPaymentMethod = Form.useWatch("paymentMethod", form) || "CASH";
+  const selectedAccountId = Form.useWatch("accountId", form);
   const enteredAmount = Form.useWatch("amount", form) || 0;
 
   const [createVoucher, { isLoading: isCreating }] =
@@ -56,6 +57,10 @@ export function IncomeExpenseModal({
 
   // Resolve target account for this transaction
   const targetAccount = useMemo(() => {
+    if (selectedAccountId) {
+      const match = accounts.find((a) => a.id === selectedAccountId);
+      if (match) return match;
+    }
     if (selectedPaymentMethod === "BANK_TRANSFER") {
       return (
         accounts.find((a) => a.accountType === "BANK" && a.isActive) ||
@@ -75,7 +80,7 @@ export function IncomeExpenseModal({
       accounts.find((a) => a.accountType === "CASH" && a.isActive) ||
       accounts[0]
     );
-  }, [accounts, selectedPaymentMethod]);
+  }, [accounts, selectedAccountId, selectedPaymentMethod]);
 
   const availableBalance = Number(targetAccount?.currentBalance) || 0;
   const isShortage = selectedType === "EXPENSE" && Number(enteredAmount) > availableBalance;
@@ -101,13 +106,34 @@ export function IncomeExpenseModal({
     if (!open) return;
 
     form.resetFields();
+    const defaultAcc =
+      accounts.find((a) => a.isDefault && a.isActive) ||
+      accounts.find((a) => a.accountType === "CASH" && a.isActive) ||
+      accounts[0];
+
     form.setFieldsValue({
       type: initialType,
       date: dayjs(),
       paymentMethod: "CASH",
+      accountId: defaultAcc?.id,
       somitiId: null,
     });
-  }, [open, initialType, form]);
+  }, [open, initialType, form, accounts]);
+
+  const handlePaymentMethodChange = (method) => {
+    if (method === "BANK_TRANSFER") {
+      const bankAcc = accounts.find((a) => a.accountType === "BANK" && a.isActive);
+      if (bankAcc) form.setFieldValue("accountId", bankAcc.id);
+    } else if (method === "MOBILE_PAYMENT") {
+      const mobAcc = accounts.find((a) => a.accountType === "MOBILE_BANKING" && a.isActive);
+      if (mobAcc) form.setFieldValue("accountId", mobAcc.id);
+    } else {
+      const cashAcc =
+        accounts.find((a) => a.accountType === "CASH" && a.isActive) ||
+        accounts.find((a) => a.isDefault && a.isActive);
+      if (cashAcc) form.setFieldValue("accountId", cashAcc.id);
+    }
+  };
 
   const handleSubmit = async () => {
     try {
@@ -118,6 +144,7 @@ export function IncomeExpenseModal({
         amount: Number(values.amount),
         date: values.date ? values.date.format("YYYY-MM-DD") : undefined,
         paymentMethod: values.paymentMethod,
+        accountId: values.accountId,
         reference: values.reference || undefined,
         description: values.description || undefined,
         somitiId: values.somitiId || undefined,
@@ -265,7 +292,45 @@ export function IncomeExpenseModal({
               label="Payment Method"
               rules={[{ required: true, message: "Select payment method" }]}
             >
-              <Select options={paymentMethods} />
+              <Select options={paymentMethods} onChange={handlePaymentMethodChange} />
+            </Form.Item>
+          </Col>
+
+          <Col xs={24} sm={12}>
+            <Form.Item
+              name="accountId"
+              label={
+                <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                  <span>
+                    {selectedType === "EXPENSE"
+                      ? "Payment Account (Source)"
+                      : "Deposit Account (Destination)"}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: !isShortage ? "#16a34a" : "#dc2626",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Available: ৳
+                    {availableBalance.toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                    })}
+                  </span>
+                </div>
+              }
+              rules={[{ required: true, message: "Please select an account" }]}
+            >
+              <Select
+                placeholder="Select Cash or Bank account"
+                options={accounts
+                  .filter((a) => a.isActive)
+                  .map((a) => ({
+                    value: a.id,
+                    label: `${a.accountName} (${a.accountType}) — ৳${Number(a.currentBalance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+                  }))}
+              />
             </Form.Item>
           </Col>
 
