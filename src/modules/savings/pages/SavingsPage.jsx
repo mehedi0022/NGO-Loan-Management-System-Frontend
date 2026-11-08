@@ -3,6 +3,7 @@ import {
   BankOutlined,
   EyeOutlined,
   MinusCircleOutlined,
+  PercentageOutlined,
   PhoneOutlined,
   PlusCircleOutlined,
   PrinterOutlined,
@@ -40,6 +41,7 @@ import {
 import { useGetActiveSomitiesQuery } from "../../somities/somitiesApi.js";
 import { MemberSavingsSelector } from "../components/MemberSavingsSelector.jsx";
 import { QuickSavingsCollectionModal } from "../components/QuickSavingsCollectionModal.jsx";
+import { SavingsInterestModal } from "../components/SavingsInterestModal.jsx";
 import { SavingsWithdrawalModal } from "../components/SavingsWithdrawalModal.jsx";
 import { useGetMemberSavingsQuery } from "../savingsApi.js";
 
@@ -55,6 +57,7 @@ export function SavingsPage() {
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
   const [passbookOpen, setPassbookOpen] = useState(false);
+  const [interestModalOpen, setInterestModalOpen] = useState(false);
   const [modalMember, setModalMember] = useState(null);
 
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20 });
@@ -193,17 +196,29 @@ export function SavingsPage() {
   return (
     <PageContainer>
       {/* Page Header */}
-      <div className="mb-5">
-        <Title
-          level={2}
-          className="m-0! text-slate-900 dark:text-slate-50 font-bold"
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <Title
+            level={2}
+            className="m-0! text-slate-900 dark:text-slate-50 font-bold"
+          >
+            Savings Management
+          </Title>
+          <Text type="secondary" className="text-sm">
+            Collect savings, process member withdrawals, calculate & post compound
+            interest, and audit ledgers.
+          </Text>
+        </div>
+        <Button
+          type="primary"
+          icon={<PercentageOutlined />}
+          onClick={() => setInterestModalOpen(true)}
+          style={{ background: "#059669", borderColor: "#059669" }}
+          className="hover:!bg-emerald-700 font-semibold shadow-sm"
+          size="middle"
         >
-          Savings Management
-        </Title>
-        <Text type="secondary" className="text-sm">
-          Collect savings, process member withdrawals, and audit savings
-          transaction ledgers.
-        </Text>
+          Savings Interest & Compounding
+        </Button>
       </div>
 
       {/* 1. Directory View (when NO member is selected) */}
@@ -508,6 +523,12 @@ export function SavingsPage() {
         loans={[]}
         defaultSection="savings"
         onClose={() => setPassbookOpen(false)}
+      />
+
+      {/* Savings Interest & Compounding Modal */}
+      <SavingsInterestModal
+        open={interestModalOpen}
+        onClose={() => setInterestModalOpen(false)}
       />
     </PageContainer>
   );

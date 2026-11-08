@@ -1,3 +1,12 @@
+export const formatAmount = (value, decimals = 2) => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "—";
+  return amount.toLocaleString("en-US", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+};
+
 export const formatCurrency = (value) => {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return "—";

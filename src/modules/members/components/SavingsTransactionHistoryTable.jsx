@@ -1,6 +1,7 @@
 import {
   ArrowDownOutlined,
   ArrowUpOutlined,
+  PercentageOutlined,
   RollbackOutlined,
 } from "@ant-design/icons";
 import { Button, Empty, Table, Tag, Tooltip, Typography, message } from "antd";
@@ -90,6 +91,10 @@ export function SavingsTransactionHistoryTable({
           <Tag color="success" icon={<ArrowDownOutlined />}>
             Deposit
           </Tag>
+        ) : type === "INTEREST" ? (
+          <Tag color="cyan" icon={<PercentageOutlined />}>
+            Interest
+          </Tag>
         ) : (
           <Tag color="error" icon={<ArrowUpOutlined />}>
             Withdrawal
@@ -104,12 +109,12 @@ export function SavingsTransactionHistoryTable({
       render: (amt, record) => (
         <span
           className={`font-bold ${
-            record.type === "DEPOSIT"
+            record.type === "DEPOSIT" || record.type === "INTEREST"
               ? "text-emerald-600 dark:text-emerald-400"
               : "text-rose-600 dark:text-rose-400"
           }`}
         >
-          {record.type === "DEPOSIT" ? "+" : "-"}
+          {record.type === "DEPOSIT" || record.type === "INTEREST" ? "+" : "-"}
           {formatCurrency(amt)}
         </span>
       ),

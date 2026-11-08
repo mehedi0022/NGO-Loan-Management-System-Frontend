@@ -30,6 +30,7 @@ import { PageContainer } from "../../../components/page-container/PageContainer.
 import { StatCard } from "../../../components/stat-card/StatCard.jsx";
 import { formatCurrency, formatDate } from "../../loans/loanFormatters.js";
 import { useGetDpsAccountsQuery } from "../dpsApi.js";
+import { useGetSomitiesQuery } from "../../somities/somitiesApi.js";
 import { OpenDpsModal } from "../components/OpenDpsModal.jsx";
 import { DepositDpsModal } from "../components/DepositDpsModal.jsx";
 import { CloseDpsModal } from "../components/CloseDpsModal.jsx";
@@ -39,6 +40,7 @@ export function DpsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [statusFilter, setStatusFilter] = useState("");
+  const [somitiFilter, setSomitiFilter] = useState(undefined);
   const [search, setSearch] = useState("");
   const [openModal, setOpenModal] = useState(false);
   const [depositModalOpen, setDepositModalOpen] = useState(false);
@@ -53,11 +55,19 @@ export function DpsPage() {
     setCloseModalOpen(true);
   };
 
+  const { data: somitiesData } = useGetSomitiesQuery({ limit: 100 });
+  const somities = Array.isArray(somitiesData?.data?.somities)
+    ? somitiesData.data.somities
+    : Array.isArray(somitiesData?.data)
+      ? somitiesData.data
+      : [];
+
   const { data, isLoading, isFetching, isError, error, refetch } =
     useGetDpsAccountsQuery({
       page,
       limit: pageSize,
       status: statusFilter || undefined,
+      somitiId: somitiFilter || undefined,
       search: search || undefined,
     });
 
@@ -359,8 +369,8 @@ export function DpsPage() {
 
       {/* Filter and Search Bar */}
       <Card className="mb-4">
-        <Row gutter={[16, 16]} align="middle" justify="space-between">
-          <Col xs={24} md={10}>
+        <Row gutter={[16, 16]} align="middle">
+          <Col xs={24} sm={12} md={8}>
             <Input
               allowClear
               prefix={<SearchOutlined style={{ color: "#94a3b8" }} />}
@@ -372,7 +382,23 @@ export function DpsPage() {
               }}
             />
           </Col>
-          <Col xs={24} md={12} className="flex justify-start md:justify-end">
+          <Col xs={24} sm={12} md={6}>
+            <Select
+              allowClear
+              placeholder="Filter by Somiti..."
+              style={{ width: "100%" }}
+              value={somitiFilter}
+              onChange={(val) => {
+                setSomitiFilter(val);
+                setPage(1);
+              }}
+              options={somities.map((s) => ({
+                value: s.id,
+                label: `${s.name}${s.code ? ` (${s.code})` : ""}`,
+              }))}
+            />
+          </Col>
+          <Col xs={24} md={10} className="flex justify-start md:justify-end">
             <Radio.Group
               value={statusFilter}
               onChange={(e) => {

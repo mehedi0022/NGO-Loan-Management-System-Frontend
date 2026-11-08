@@ -181,6 +181,12 @@ export function PrintableCollectionSheetModal({
     }, 0);
   }, [loanInstallments]);
 
+  const totalLoanPrincipal = useMemo(() => {
+    return loanInstallments.reduce((acc, item) => {
+      return acc + toAmount(item.loan?.principalAmount ?? item.loan?.amount ?? 0);
+    }, 0);
+  }, [loanInstallments]);
+
   const officerName =
     activeSomiti?.fieldOfficer?.fullName ||
     (currentUser?.role === "FIELD_OFFICER"
@@ -255,10 +261,37 @@ export function PrintableCollectionSheetModal({
 
   const dpsList = useMemo(() => {
     let list = [];
+    const targetDaily = dailyDate ? dayjs(dailyDate) : dayjs();
+    const monthEnd = selectedMonth
+      ? dayjs(selectedMonth).endOf("month")
+      : dayjs().endOf("month");
+    const cutoffDate = isMonthlyMode ? monthEnd : targetDaily;
+
     // 1. If explicit DPS accounts are fetched or provided
     if (Array.isArray(allDpsAccounts) && allDpsAccounts.length > 0) {
       list = allDpsAccounts
-        .filter((acc) => !acc.status || acc.status === "ACTIVE")
+        .filter((acc) => {
+          if (acc.status && acc.status !== "ACTIVE") return false;
+          if (currentSomitiId) {
+            const accSomitiId =
+              acc.member?.somitiId ??
+              acc.member?.somiti?.id ??
+              acc.somitiId ??
+              acc.somiti?.id;
+            if (accSomitiId && Number(accSomitiId) !== Number(currentSomitiId)) {
+              return false;
+            }
+          }
+          // Strict Date Filter: Account must be opened on or before the viewed collection period!
+          const rawStart = acc.startDate || acc.openDateRaw || acc.createdAt;
+          if (rawStart) {
+            const startD = dayjs(rawStart);
+            if (startD.isValid() && startD.isAfter(cutoffDate, "day")) {
+              return false;
+            }
+          }
+          return true;
+        })
         .map((acc, idx) => {
           const member = acc.member || {};
           const paid = Number(acc.paidInstallments) || 0;
@@ -296,6 +329,14 @@ export function PrintableCollectionSheetModal({
     } else {
       // 2. Otherwise extract active DPS accounts from membersList
       for (const member of membersList) {
+        if (
+          currentSomitiId &&
+          member.somitiId &&
+          Number(member.somitiId) !== Number(currentSomitiId)
+        ) {
+          continue;
+        }
+
         const activeAccounts = Array.isArray(member.dpsAccounts)
           ? member.dpsAccounts.filter((d) => !d.status || d.status === "ACTIVE")
           : member.dpsAccount &&
@@ -304,6 +345,15 @@ export function PrintableCollectionSheetModal({
             : [];
 
         for (const dps of activeAccounts) {
+          // Strict Date Filter: Account must be opened on or before the viewed collection period!
+          const rawStart = dps.startDate || dps.openDateRaw || dps.createdAt;
+          if (rawStart) {
+            const startD = dayjs(rawStart);
+            if (startD.isValid() && startD.isAfter(cutoffDate, "day")) {
+              continue;
+            }
+          }
+
           const paid = Number(dps.paidInstallments) || 0;
           const isWk = dps.frequency === "WEEKLY";
           const totalInst = isWk
@@ -347,7 +397,7 @@ export function PrintableCollectionSheetModal({
         numeric: true,
       }),
     );
-  }, [allDpsAccounts, membersList]);
+  }, [allDpsAccounts, membersList, currentSomitiId, selectedMonth, dailyDate, isMonthlyMode]);
 
   // Compute weekly collection meeting dates for the chosen month
   const meetingDates = useMemo(() => {
@@ -440,6 +490,7 @@ export function PrintableCollectionSheetModal({
           weeklyInstallments: new Map(), // weekIndex -> installment
           allInstallments: [],
           totalActualMonthDemand: 0,
+          totalActualMonthPaid: 0,
         });
       }
       const memData = map.get(memId);
@@ -447,20 +498,29 @@ export function PrintableCollectionSheetModal({
       if (!memData.allInstallments.some((x) => x.id === item.id)) {
         memData.allInstallments.push(item);
         const wkIdx = getWeekIndexForDate(item.dueDate, meetingDates);
-        const due = Math.max(0, toAmount(item.amount) - toAmount(item.paidAmount));
+        const instAmount = toAmount(item.amount);
+        const paidAmount = toAmount(item.paidAmount);
+        const due = Math.max(0, instAmount - paidAmount);
+        const isPaid = item.status === "PAID" || (paidAmount >= instAmount && instAmount > 0);
+
         const prev = memData.weeklyInstallments.get(wkIdx);
         if (prev) {
+          prev.amount = (prev.amount || 0) + instAmount;
+          prev.paidAmount = (prev.paidAmount || 0) + paidAmount;
           prev.due += due;
+          prev.isPaid = prev.isPaid && isPaid;
           prev.items.push(item);
         } else {
           memData.weeklyInstallments.set(wkIdx, {
+            amount: instAmount,
+            paidAmount,
             due,
+            isPaid,
             items: [item],
-            amount: item.amount,
-            paidAmount: item.paidAmount,
           });
         }
-        memData.totalActualMonthDemand += due;
+        memData.totalActualMonthDemand += instAmount;
+        memData.totalActualMonthPaid = (memData.totalActualMonthPaid || 0) + paidAmount;
       }
     };
 
@@ -502,6 +562,7 @@ export function PrintableCollectionSheetModal({
             frequency: (memLoanData.loan.frequency || "WEEKLY").toUpperCase(),
             weeklyInstallments: memLoanData.weeklyInstallments,
             totalActualMonthDemand: memLoanData.totalActualMonthDemand,
+            totalActualMonthPaid: memLoanData.totalActualMonthPaid || 0,
             hasActiveLoan: true,
             loan: memLoanData.loan,
           });
@@ -554,6 +615,7 @@ export function PrintableCollectionSheetModal({
           frequency: (memLoanData.loan.frequency || "WEEKLY").toUpperCase(),
           weeklyInstallments: memLoanData.weeklyInstallments,
           totalActualMonthDemand: memLoanData.totalActualMonthDemand,
+          totalActualMonthPaid: memLoanData.totalActualMonthPaid || 0,
           hasActiveLoan: true,
           loan: memLoanData.loan,
         });
@@ -576,6 +638,12 @@ export function PrintableCollectionSheetModal({
     );
   }, [membersList, memberLoansMap, loanMemberFilter, loanFrequencyFilter]);
 
+  const totalMonthLoanPrincipal = useMemo(() => {
+    return monthLoanAccountsList.reduce((acc, item) => {
+      return acc + (item.hasActiveLoan ? toAmount(item.principalAmount) : 0);
+    }, 0);
+  }, [monthLoanAccountsList]);
+
   // DPS Accounts list with frequency filter
   const filteredDpsList = useMemo(() => {
     if (dpsFrequencyFilter === "ALL") return dpsList;
@@ -586,18 +654,39 @@ export function PrintableCollectionSheetModal({
 
   // DPS Accounts with exact weekly installment schedule for the selected month
   const dpsAccountsWithSchedule = useMemo(() => {
-    return filteredDpsList.map((item) => {
+    const monthEnd = selectedMonth
+      ? dayjs(selectedMonth).endOf("month")
+      : dayjs().endOf("month");
+
+    return filteredDpsList
+      .filter((item) => {
+        // Strict filter: accounts opened after the month must never appear in this month's sheet
+        const rawStart =
+          item.rawAccount?.startDate ||
+          item.openDateRaw ||
+          item.rawAccount?.createdAt;
+        if (rawStart) {
+          const startD = dayjs(rawStart);
+          if (startD.isValid() && startD.isAfter(monthEnd, "day")) {
+            return false;
+          }
+        }
+        return true;
+      })
+      .map((item) => {
       const isWk = item.frequency === "WEEKLY";
-      const weeklySchedule = new Map(); // weekIndex -> { demand, isDue, inst }
+      const weeklySchedule = new Map(); // weekIndex -> { demand, paid, due, isPaid, isDue, inst, installmentNo, instNumbers }
       let monthDpsDemand = 0;
+      let monthDpsPaid = 0;
 
       const rawAcc = item.rawAccount;
       const accInstallments = Array.isArray(rawAcc?.installments)
         ? rawAcc.installments
         : [];
+      const hasDbInstallments = accInstallments.length > 0;
 
-      // If we have actual installments from backend database
-      if (accInstallments.length > 0 && selectedMonth && meetingDates.length > 0) {
+      // 1. If we have actual installments from backend database, strictly use them
+      if (hasDbInstallments && selectedMonth && meetingDates.length > 0) {
         const monthStart = dayjs(selectedMonth).startOf("month");
         const monthEnd = dayjs(selectedMonth).endOf("month");
 
@@ -612,51 +701,87 @@ export function PrintableCollectionSheetModal({
 
         for (const inst of thisMonthInsts) {
           const wkIdx = getWeekIndexForDate(inst.dueDate, meetingDates);
-          const due = Math.max(0, toAmount(inst.amount) - toAmount(inst.paidAmount));
+          const instAmount = toAmount(inst.amount);
+          const paidAmount = toAmount(inst.paidAmount);
+          const due = Math.max(0, instAmount - paidAmount);
+          const isPaid = inst.status === "PAID" || (paidAmount >= instAmount && instAmount > 0);
+
           const existing = weeklySchedule.get(wkIdx);
           if (existing) {
-            existing.demand += due;
+            existing.demand += instAmount;
+            existing.paid = (existing.paid || 0) + paidAmount;
+            existing.due += due;
+            existing.isPaid = existing.isPaid && isPaid;
             existing.installments.push(inst);
+            if (inst.installmentNo && !existing.instNumbers.includes(inst.installmentNo)) {
+              existing.instNumbers.push(inst.installmentNo);
+            }
           } else {
             weeklySchedule.set(wkIdx, {
-              demand: due,
+              demand: instAmount,
+              paid: paidAmount,
+              due,
+              isPaid,
               installments: [inst],
               inst,
+              installmentNo: inst.installmentNo,
+              instNumbers: inst.installmentNo ? [inst.installmentNo] : [],
               isDue: true,
             });
           }
-          monthDpsDemand += due;
+          monthDpsDemand += instAmount;
+          monthDpsPaid += paidAmount;
         }
       }
 
-      // Fallback: If no installments array was returned or matched, derive from frequency & meetingDates
-      if (weeklySchedule.size === 0 && meetingDates.length > 0) {
+      // 2. Fallback: ONLY if no installments array was returned from the database
+      if (!hasDbInstallments && meetingDates.length > 0) {
         const regAmount = item.installmentAmount;
+        const openDayjs = item.openDateRaw ? dayjs(item.openDateRaw) : null;
+
         if (isWk) {
-          // Weekly DPS: due every weekly meeting date
-          meetingDates.forEach((_, idx) => {
-            weeklySchedule.set(idx, {
-              demand: regAmount,
-              installments: [],
-              inst: null,
-              isDue: true,
-            });
-            monthDpsDemand += regAmount;
+          // Weekly DPS: only due on weekly meeting dates ON OR AFTER account start date
+          meetingDates.forEach((mDate, idx) => {
+            const isAfterStart = !openDayjs || !mDate.isBefore(openDayjs, "day");
+            if (isAfterStart) {
+              const calculatedInstNo = (item.paidInstallments || 0) + 1 + idx;
+              weeklySchedule.set(idx, {
+                demand: regAmount,
+                paid: 0,
+                due: regAmount,
+                isPaid: false,
+                installments: [],
+                inst: null,
+                installmentNo: calculatedInstNo,
+                instNumbers: [calculatedInstNo],
+                isDue: true,
+              });
+              monthDpsDemand += regAmount;
+            }
           });
         } else {
-          // Monthly DPS: due once per month on the meeting date closest to account open date
-          const openDay = item.openDateRaw ? dayjs(item.openDateRaw).date() : 1;
+          // Monthly DPS: due once per month on meeting date closest to open date
+          const openDay = openDayjs ? openDayjs.date() : 1;
           const targetDate = dayjs(selectedMonth).date(
             Math.min(openDay, dayjs(selectedMonth).daysInMonth()),
           );
-          const wkIdx = getWeekIndexForDate(targetDate, meetingDates);
-          weeklySchedule.set(wkIdx, {
-            demand: regAmount,
-            installments: [],
-            inst: null,
-            isDue: true,
-          });
-          monthDpsDemand = regAmount;
+          const isAfterStart = !openDayjs || !targetDate.isBefore(openDayjs, "day");
+          if (isAfterStart) {
+            const wkIdx = getWeekIndexForDate(targetDate, meetingDates);
+            const calculatedInstNo = (item.paidInstallments || 0) + 1;
+            weeklySchedule.set(wkIdx, {
+              demand: regAmount,
+              paid: 0,
+              due: regAmount,
+              isPaid: false,
+              installments: [],
+              inst: null,
+              installmentNo: calculatedInstNo,
+              instNumbers: [calculatedInstNo],
+              isDue: true,
+            });
+            monthDpsDemand = regAmount;
+          }
         }
       }
 
@@ -664,6 +789,7 @@ export function PrintableCollectionSheetModal({
         ...item,
         weeklySchedule,
         monthDpsDemand,
+        monthDpsPaid,
       };
     });
   }, [filteredDpsList, meetingDates, selectedMonth]);
@@ -739,7 +865,7 @@ export function PrintableCollectionSheetModal({
             <>
               <strong>Collection Month: </strong>
               <span style={{ fontWeight: 600 }}>
-                {monthDayjs.format("MMMM YYYY")} ({monthStart} – {monthEnd})
+                {monthDayjs.format("MMMM YYYY")}
               </span>
             </>
           ) : (
@@ -860,26 +986,26 @@ export function PrintableCollectionSheetModal({
         <thead>
           <tr>
             <th style={{ width: "3.5%" }}>SL</th>
-            <th style={{ width: "8.5%" }}>Member ID</th>
-            <th style={{ width: "8.5%" }}>Adm. Date</th>
-            <th style={{ width: "18%", textAlign: "left" }}>
+            <th style={{ width: "8%" }}>Member ID</th>
+            <th style={{ width: "7.5%" }}>Adm. Date</th>
+            <th style={{ width: "17%", textAlign: "left" }}>
               Member Name
             </th>
-            <th style={{ width: "10.5%" }}>Mobile</th>
-            <th style={{ width: "9.5%", textAlign: "right" }}>
-              Gen. Bal
+            <th style={{ width: "9.5%" }}>Mobile</th>
+            <th style={{ width: "9%", textAlign: "right" }}>
+              Gen. Sev Bal
             </th>
-            <th style={{ width: "11%", background: "#f0fdf4" }}>
-              Gen. Coll
+            <th style={{ width: "12.5%", background: "#f0fdf4" }}>
+              Gen. Sev Collection
             </th>
-            <th style={{ width: "9.5%", textAlign: "right" }}>
-              Spc. Bal
+            <th style={{ width: "9%", textAlign: "right" }}>
+              Spc. Sev Bal
             </th>
-            <th style={{ width: "11%", background: "#fefce8" }}>
-              Spc. Coll
+            <th style={{ width: "12.5%", background: "#fefce8" }}>
+              Spc. Sev Collection
             </th>
-            <th style={{ width: "10%", fontWeight: "bold" }}>
-              Total Coll
+            <th style={{ width: "11.5%", fontWeight: "bold" }}>
+              Total Collection
             </th>
           </tr>
         </thead>
@@ -986,23 +1112,22 @@ export function PrintableCollectionSheetModal({
           <tr>
             <th style={{ width: "3.5%" }}>SL</th>
             <th style={{ width: "8.5%" }}>Member ID</th>
-            <th style={{ width: "17%", textAlign: "left" }}>
+            <th style={{ width: "19%", textAlign: "left" }}>
               Member Name
             </th>
-            <th style={{ width: "9.5%" }}>Mobile</th>
-            <th style={{ width: "9.5%" }}>DPS No</th>
-            <th style={{ width: "8%" }}>Open Date</th>
-            <th style={{ width: "5.5%" }}>Tenure</th>
-            <th style={{ width: "6.5%" }}>Paid / Tot</th>
-            <th style={{ width: "5.5%" }}>Inst #</th>
+            <th style={{ width: "10%" }}>Mobile</th>
+            <th style={{ width: "8.5%" }}>Open Date</th>
+            <th style={{ width: "5%" }}>Tenure</th>
+            <th style={{ width: "6%" }}>Paid / Tot</th>
+            <th style={{ width: "5%" }}>Inst. No</th>
             <th style={{ width: "9.5%", textAlign: "right" }}>
               Target Inst
             </th>
-            <th style={{ width: "14%", background: "#eff6ff" }}>
-              DPS Coll
+            <th style={{ width: "12.5%", background: "#eff6ff" }}>
+              DPS Collection
             </th>
-            <th style={{ width: "13%", fontWeight: "bold" }}>
-              Total Coll
+            <th style={{ width: "12.5%", fontWeight: "bold" }}>
+              Total Collection
             </th>
           </tr>
         </thead>
@@ -1029,22 +1154,25 @@ export function PrintableCollectionSheetModal({
               <td
                 style={{
                   textAlign: "center",
-                  fontWeight: 700,
-                  color: "#0369a1",
-                }}
-              >
-                {item.dpsNo}
-              </td>
-              <td
-                style={{
-                  textAlign: "center",
                   fontSize: 9.5,
                   color: "#475569",
                 }}
               >
                 {item.openDate || "—"}
               </td>
-              <td style={{ textAlign: "center", fontSize: 10 }}>{item.tenure}</td>
+              <td style={{ textAlign: "center", fontSize: 10 }}>
+                {item.tenure}
+                <span
+                  style={{
+                    fontSize: 7.5,
+                    marginLeft: 2,
+                    color: item.frequency === "WEEKLY" ? "#0369a1" : "#b45309",
+                    fontWeight: 600,
+                  }}
+                >
+                  ({item.frequency === "WEEKLY" ? "Wk" : "Mo"})
+                </span>
+              </td>
               <td style={{ textAlign: "center", fontSize: 9.5 }}>
                 <span
                   style={{
@@ -1056,21 +1184,10 @@ export function PrintableCollectionSheetModal({
                 </span>
               </td>
               <td style={{ textAlign: "center", fontWeight: 600, fontSize: 9.5 }}>
-                #{item.nextInstallmentNo}
+                {item.nextInstallmentNo}
               </td>
               <td style={{ textAlign: "right", fontWeight: 700 }}>
                 {formatAmount(item.monthlyDemand)}
-                {item.frequency === "WEEKLY" && (
-                  <span
-                    style={{
-                      fontSize: 8.5,
-                      color: "#0369a1",
-                      marginLeft: 2,
-                    }}
-                  >
-                    (Wk)
-                  </span>
-                )}
               </td>
               <td
                 className="print-blank-box"
@@ -1085,7 +1202,7 @@ export function PrintableCollectionSheetModal({
 
           {/* Summary Row */}
           <tr style={{ background: "#f8f9fa", fontWeight: "bold" }}>
-            <td colSpan={9} style={{ textAlign: "right", paddingRight: 8 }}>
+            <td colSpan={8} style={{ textAlign: "right", paddingRight: 8 }}>
               Total DPS Demand ({dpsList.length} Accounts):
             </td>
             <td style={{ textAlign: "right", fontSize: 11 }}>
@@ -1114,32 +1231,31 @@ export function PrintableCollectionSheetModal({
         <thead>
           <tr>
             <th style={{ width: "3.5%" }}>SL</th>
-            <th style={{ width: "8.5%" }}>Member ID</th>
-            <th style={{ width: "18%", textAlign: "left" }}>
+            <th style={{ width: "9%" }}>Member ID</th>
+            <th style={{ width: "19%", textAlign: "left" }}>
               Member Name
             </th>
-            <th style={{ width: "10%" }}>Mobile</th>
-            <th style={{ width: "9%" }}>Loan ID</th>
-            <th style={{ width: "9%" }}>Disb. Date</th>
-            <th style={{ width: "6%" }}>Inst #</th>
+            <th style={{ width: "11%" }}>Mobile</th>
+            <th style={{ width: "9.5%" }}>Disb. Date</th>
+            <th style={{ width: "11%", textAlign: "right" }}>
+              Principal
+            </th>
+            <th style={{ width: "6%" }}>Inst. No</th>
             <th style={{ width: "11%", textAlign: "right" }}>
               Loan Due
             </th>
-            <th style={{ width: "13%", background: "#eef2ff" }}>
-              Loan Coll
-            </th>
-            <th style={{ width: "12%", textAlign: "right" }}>
-              Balance
+            <th style={{ width: "20%", background: "#eef2ff" }}>
+              Loan Collection
             </th>
           </tr>
         </thead>
         <tbody>
           {loanInstallments.map((item, index) => {
             const member = item.loan?.member;
-            const dueLoan = Math.max(
-              0,
-              toAmount(item.amount) - toAmount(item.paidAmount),
-            );
+            const instAmount = toAmount(item.amount);
+            const paidAmount = toAmount(item.paidAmount);
+            const dueLoan = Math.max(0, instAmount - paidAmount);
+            const isPaid = item.status === "PAID" || (paidAmount >= instAmount && instAmount > 0);
 
             return (
               <tr key={item.id || index}>
@@ -1160,9 +1276,6 @@ export function PrintableCollectionSheetModal({
                 <td style={{ textAlign: "center", fontSize: 10 }}>
                   {member?.mobileNumber || ""}
                 </td>
-                <td style={{ textAlign: "center", fontWeight: 600 }}>
-                  {item.loan?.loanId || ""}
-                </td>
                 <td
                   style={{
                     textAlign: "center",
@@ -1174,36 +1287,54 @@ export function PrintableCollectionSheetModal({
                     ? formatDate(item.loan.disbursementDate)
                     : "—"}
                 </td>
+                <td
+                  style={{
+                    textAlign: "right",
+                    fontWeight: 600,
+                  }}
+                >
+                  {formatAmount(item.loan?.principalAmount ?? item.loan?.amount ?? 0)}
+                </td>
                 <td style={{ textAlign: "center", fontWeight: 600 }}>
-                  #{item.installmentNo}
+                  {item.installmentNo}
                 </td>
                 <td
                   style={{
                     textAlign: "right",
                     fontWeight: 700,
-                    color: "#1e293b",
+                    color: isPaid ? "#047857" : "#1e293b",
                   }}
                 >
-                  {formatAmount(dueLoan)}
+                  {formatAmount(isPaid ? instAmount : dueLoan)}
                 </td>
                 <td
-                  className="print-blank-box"
-                  style={{ background: "#fcfcff" }}
-                ></td>
-                <td className="print-blank-box"></td>
+                  className={isPaid ? "" : "print-blank-box"}
+                  style={{
+                    background: isPaid ? "#f0fdf4" : "#fcfcff",
+                    textAlign: isPaid ? "right" : "center",
+                    padding: isPaid ? "4px 8px" : 0,
+                    fontWeight: 700,
+                    color: "#047857",
+                  }}
+                >
+                  {isPaid || paidAmount > 0 ? formatAmount(paidAmount) : null}
+                </td>
               </tr>
             );
           })}
 
           {/* Summary Row */}
           <tr style={{ background: "#f8f9fa", fontWeight: "bold" }}>
-            <td colSpan={7} style={{ textAlign: "right", paddingRight: 8 }}>
+            <td colSpan={5} style={{ textAlign: "right", paddingRight: 8 }}>
               Total Loan Demand ({loanInstallments.length} Members):
             </td>
+            <td style={{ textAlign: "right", fontSize: 11 }}>
+              {formatAmount(totalLoanPrincipal)}
+            </td>
+            <td></td>
             <td style={{ textAlign: "right", fontSize: 11.5 }}>
               {formatAmount(totalDueLoan)}
             </td>
-            <td className="print-blank-box"></td>
             <td className="print-blank-box"></td>
           </tr>
         </tbody>
@@ -1226,13 +1357,13 @@ export function PrintableCollectionSheetModal({
       <table className="print-table" style={{ fontSize: 9 }}>
         <thead>
           <tr>
-            <th rowSpan={2} style={{ width: "2.5%" }}>SL</th>
-            <th rowSpan={2} style={{ width: "6.5%" }}>Member ID</th>
-            <th rowSpan={2} style={{ width: "7%" }}>Adm. Date</th>
-            <th rowSpan={2} style={{ width: "14%", textAlign: "left" }}>Member Name</th>
-            <th rowSpan={2} style={{ width: "8%" }}>Mobile</th>
-            <th rowSpan={2} style={{ width: "7%", textAlign: "right" }}>Gen. Bal</th>
-            <th rowSpan={2} style={{ width: "7%", textAlign: "right" }}>Spc. Bal</th>
+            <th rowSpan={2} style={{ width: "2%" }}>SL</th>
+            <th rowSpan={2} style={{ width: "4.5%" }}>Member ID</th>
+            <th rowSpan={2} style={{ width: "4.5%" }}>Adm. Date</th>
+            <th rowSpan={2} style={{ width: "10%", textAlign: "left" }}>Member Name</th>
+            <th rowSpan={2} style={{ width: "6%" }}>Mobile</th>
+            <th rowSpan={2} style={{ width: "4.5%", textAlign: "right" }}>Gen. Sev Bal</th>
+            <th rowSpan={2} style={{ width: "4.5%", textAlign: "right" }}>Spc. Sev Bal</th>
 
             {/* Weekly Meeting Dates */}
             {meetingDates.map((date, idx) => (
@@ -1248,9 +1379,9 @@ export function PrintableCollectionSheetModal({
               </th>
             ))}
 
-            <th rowSpan={2} style={{ width: "7%", background: "#f0fdf4" }}>Month Gen.</th>
-            <th rowSpan={2} style={{ width: "7%", background: "#fefce8" }}>Month Spc.</th>
-            <th rowSpan={2} style={{ width: "8%", fontWeight: "bold" }}>Total Sav. Coll</th>
+            <th rowSpan={2} style={{ width: "4.5%", background: "#f0fdf4" }}>Month Gen. Sev</th>
+            <th rowSpan={2} style={{ width: "4.5%", background: "#fefce8" }}>Month Spc. Sev</th>
+            <th rowSpan={2} style={{ width: "5%", fontWeight: "bold" }}>Total Savings Collection</th>
           </tr>
           <tr>
             {meetingDates.map((_, idx) => (
@@ -1259,21 +1390,23 @@ export function PrintableCollectionSheetModal({
                   key={`dem-gen-${idx}`}
                   style={{
                     fontSize: 8,
-                    width: `${26 / (meetingDates.length * 2)}%`,
+                    width: `${50 / (meetingDates.length * 2)}%`,
+                    minWidth: 32,
                     background: idx % 2 === 0 ? "#f0fdf4" : "#e6f9ed",
                   }}
                 >
-                  Gen.
+                  Gen. Sev
                 </th>
                 <th
                   key={`dem-spc-${idx}`}
                   style={{
                     fontSize: 8,
-                    width: `${26 / (meetingDates.length * 2)}%`,
+                    width: `${50 / (meetingDates.length * 2)}%`,
+                    minWidth: 32,
                     background: idx % 2 === 0 ? "#fefce8" : "#fef9c3",
                   }}
                 >
-                  Spc.
+                  Spc. Sev
                 </th>
               </>
             ))}
@@ -1368,23 +1501,23 @@ export function PrintableCollectionSheetModal({
     }
 
     let grandMonthDemand = 0;
-    const weeklyTotals = meetingDates.map(() => ({ demand: 0 }));
+    let grandMonthPaid = 0;
+    const weeklyTotals = meetingDates.map(() => ({ demand: 0, paid: 0 }));
 
     return (
       <table className="print-table" style={{ fontSize: 9 }}>
         <thead>
           <tr>
-            <th rowSpan={2} style={{ width: "3%" }}>SL</th>
-            <th rowSpan={2} style={{ width: "6.5%" }}>Member ID</th>
+            <th rowSpan={2} style={{ width: "2.5%" }}>SL</th>
+            <th rowSpan={2} style={{ width: "5.5%" }}>Member ID</th>
             <th rowSpan={2} style={{ width: "14%", textAlign: "left" }}>Member Name</th>
             <th rowSpan={2} style={{ width: "8%" }}>Mobile</th>
-            <th rowSpan={2} style={{ width: "8%" }}>DPS No</th>
             <th rowSpan={2} style={{ width: "7%" }}>Open Date</th>
-            <th rowSpan={2} style={{ width: "4.5%" }}>Tenure</th>
+            <th rowSpan={2} style={{ width: "5%" }}>Tenure</th>
             <th rowSpan={2} style={{ width: "5.5%" }}>Paid / Tot</th>
             <th rowSpan={2} style={{ width: "5.5%", textAlign: "right" }}>Inst.</th>
 
-            {/* Weekly Columns with Demand and Coll */}
+            {/* Weekly Columns with Demand and Collection */}
             {meetingDates.map((date, idx) => (
               <th
                 key={idx}
@@ -1398,9 +1531,8 @@ export function PrintableCollectionSheetModal({
               </th>
             ))}
 
-            <th rowSpan={2} style={{ width: "6%", fontWeight: "bold" }}>Month Demand</th>
-            <th rowSpan={2} style={{ width: "6%", background: "#eff6ff" }}>Month Coll</th>
-            <th rowSpan={2} style={{ width: "6%", fontWeight: "bold" }}>Total Received</th>
+            <th rowSpan={2} style={{ width: "7%", fontWeight: "bold" }}>Month Demand</th>
+            <th rowSpan={2} style={{ width: "8%", background: "#eff6ff", fontWeight: "bold" }}>Month Collection</th>
           </tr>
           <tr>
             {meetingDates.map((_, idx) => (
@@ -1409,7 +1541,7 @@ export function PrintableCollectionSheetModal({
                   key={`dem-${idx}`}
                   style={{
                     fontSize: 8,
-                    width: `${26 / (meetingDates.length * 2)}%`,
+                    width: `${32 / (meetingDates.length * 2)}%`,
                     background: idx % 2 === 0 ? "#eff6ff" : "#dbeafe",
                   }}
                 >
@@ -1419,11 +1551,11 @@ export function PrintableCollectionSheetModal({
                   key={`col-${idx}`}
                   style={{
                     fontSize: 8,
-                    width: `${26 / (meetingDates.length * 2)}%`,
+                    width: `${32 / (meetingDates.length * 2)}%`,
                     background: idx % 2 === 0 ? "#ffffff" : "#f8fafc",
                   }}
                 >
-                  Coll.
+                  Collection
                 </th>
               </>
             ))}
@@ -1432,7 +1564,10 @@ export function PrintableCollectionSheetModal({
         <tbody>
           {dpsAccountsWithSchedule.map((item, index) => {
             const memberMonthDemand = item.monthDpsDemand || 0;
+            const memberMonthPaid = item.monthDpsPaid || 0;
             grandMonthDemand += memberMonthDemand;
+            grandMonthPaid += memberMonthPaid;
+            const isWk = item.frequency === "WEEKLY";
 
             return (
               <tr key={item.id || index}>
@@ -1447,51 +1582,48 @@ export function PrintableCollectionSheetModal({
                   )}
                 </td>
                 <td style={{ textAlign: "center", fontSize: 8.5 }}>{item.mobileNumber || ""}</td>
-                <td style={{ textAlign: "center", fontWeight: 700, color: "#0369a1", fontSize: 9 }}>
-                  <div>
-                    <span>{item.dpsNo}</span>
-                    <span
-                      style={{
-                        fontSize: 7.5,
-                        marginLeft: 3,
-                        padding: "1px 3px",
-                        borderRadius: 2,
-                        background:
-                          item.frequency === "WEEKLY" ? "#e0f2fe" : "#fef3c7",
-                        color:
-                          item.frequency === "WEEKLY" ? "#0369a1" : "#b45309",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {item.frequency === "WEEKLY" ? "Wk" : "Mo"}
-                    </span>
-                  </div>
-                </td>
                 <td style={{ textAlign: "center", fontSize: 8.5, color: "#475569" }}>
                   {item.openDate || "—"}
                 </td>
-                <td style={{ textAlign: "center", fontSize: 8.5 }}>{item.tenure}</td>
                 <td style={{ textAlign: "center", fontSize: 8.5 }}>
-                  <div style={{ fontWeight: 600, color: item.paidInstallments > 0 ? "#047857" : "#334155" }}>
+                  {item.tenure}
+                  <span
+                    style={{
+                      fontSize: 7.5,
+                      marginLeft: 2,
+                      color: isWk ? "#0369a1" : "#b45309",
+                      fontWeight: 600,
+                    }}
+                  >
+                    ({isWk ? "Wk" : "Mo"})
+                  </span>
+                </td>
+                <td style={{ textAlign: "center", fontSize: 8.5 }}>
+                  <span style={{ fontWeight: 600, color: item.paidInstallments > 0 ? "#047857" : "#334155" }}>
                     {item.paidInstallments}/{item.totalInstallments}
-                  </div>
-                  <div style={{ fontSize: 7.5, color: "#64748b" }}>
-                    Cur: #{item.nextInstallmentNo}
-                  </div>
+                  </span>
                 </td>
                 <td style={{ textAlign: "right", fontWeight: 600, fontSize: 9 }}>
                   {formatAmount(item.installmentAmount)}
                 </td>
 
-                {/* Week by Week Installments — strictly shows actual scheduled DPS installments for that week */}
+                {/* Week by Week Installments — displays exact installment number (#13, #14...) and amount */}
                 {meetingDates.map((date, idx) => {
                   const wkData = item.weeklySchedule?.get(idx);
                   const isDueThisWeek = Boolean(wkData && wkData.isDue);
                   const weekDemand = wkData ? wkData.demand : 0;
+                  const weekPaid = wkData ? (wkData.paid || 0) : 0;
+                  const isPaid = wkData?.isPaid || (weekPaid >= weekDemand && weekDemand > 0);
 
                   if (weekDemand > 0) {
                     weeklyTotals[idx].demand += weekDemand;
+                    weeklyTotals[idx].paid += weekPaid;
                   }
+
+                  const instNumber = wkData?.installmentNo ?? (isWk ? item.nextInstallmentNo + idx : null);
+                  const showInst = isWk
+                    ? (instNumber && instNumber <= item.totalInstallments ? instNumber : null)
+                    : (isDueThisWeek && wkData?.installmentNo ? wkData.installmentNo : null);
 
                   return (
                     <>
@@ -1500,18 +1632,66 @@ export function PrintableCollectionSheetModal({
                         style={{
                           textAlign: "right",
                           fontSize: 8.5,
-                          fontWeight: weekDemand > 0 ? 600 : 400,
-                          color: weekDemand > 0 ? "#0369a1" : "#94a3b8",
                           background: idx % 2 === 0 ? "#eff6ff" : "#f0f9ff",
+                          padding: "2px 4px",
                         }}
                       >
-                        {isDueThisWeek && weekDemand > 0 ? formatAmount(weekDemand) : "—"}
+                        {isDueThisWeek && weekDemand > 0 ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: showInst ? "space-between" : "flex-end",
+                              alignItems: "center",
+                              gap: 2,
+                            }}
+                          >
+                            {showInst && (
+                              <span
+                                style={{
+                                  fontSize: 7.5,
+                                  fontWeight: 700,
+                                  color: isPaid ? "#047857" : "#0369a1",
+                                  background: isPaid ? "#dcfce7" : "#e0f2fe",
+                                  padding: "0 3px",
+                                  borderRadius: 2,
+                                  border: isPaid ? "1px solid #86efac" : "1px solid #bae6fd",
+                                  lineHeight: 1.2,
+                                }}
+                                title={`Installment ${showInst}${isPaid ? " (Paid)" : ""}`}
+                              >
+                                {showInst}
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontWeight: 600,
+                                color: isPaid ? "#047857" : "#0369a1",
+                                fontSize: 8.5,
+                              }}
+                            >
+                              {formatAmount(weekDemand)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span style={{ color: "#94a3b8" }}>—</span>
+                        )}
                       </td>
                       <td
                         key={`col-${idx}`}
-                        className="print-blank-box"
-                        style={{ background: "#ffffff" }}
-                      ></td>
+                        className={isPaid ? "" : "print-blank-box"}
+                        style={{
+                          background: isPaid ? "#f0fdf4" : "#ffffff",
+                          textAlign: "right",
+                          padding: "2px 4px",
+                          fontWeight: 600,
+                          fontSize: 8.5,
+                          color: "#047857",
+                        }}
+                      >
+                        {isPaid || weekPaid > 0 ? (
+                          <span>{formatAmount(weekPaid > 0 ? weekPaid : (isPaid ? weekDemand : 0))}</span>
+                        ) : null}
+                      </td>
                     </>
                   );
                 })}
@@ -1528,16 +1708,27 @@ export function PrintableCollectionSheetModal({
                   {memberMonthDemand > 0 ? formatAmount(memberMonthDemand) : "—"}
                 </td>
 
-                {/* Blank writable collection boxes */}
-                <td className="print-blank-box" style={{ background: "#eff6ff" }}></td>
-                <td className="print-blank-box" style={{ background: "#f8fafc" }}></td>
+                {/* Single Month Collection: Displays amount paid if any, else blank writable box */}
+                <td
+                  className={memberMonthPaid > 0 ? "" : "print-blank-box"}
+                  style={{
+                    background: memberMonthPaid > 0 ? "#f0fdf4" : "#eff6ff",
+                    textAlign: "right",
+                    padding: "2px 4px",
+                    fontWeight: "bold",
+                    color: "#047857",
+                    fontSize: 9.5,
+                  }}
+                >
+                  {memberMonthPaid > 0 ? formatAmount(memberMonthPaid) : null}
+                </td>
               </tr>
             );
           })}
 
           {/* Grand Summary Row */}
           <tr style={{ background: "#f8f9fa", fontWeight: "bold" }}>
-            <td colSpan={8} style={{ textAlign: "right", paddingRight: 6 }}>
+            <td colSpan={7} style={{ textAlign: "right", paddingRight: 6 }}>
               Total ({dpsAccountsWithSchedule.length} DPS Accounts):
             </td>
             <td></td>
@@ -1549,7 +1740,19 @@ export function PrintableCollectionSheetModal({
                 >
                   {formatAmount(weeklyTotals[idx].demand)}
                 </td>
-                <td key={`tot-col-${idx}`} className="print-blank-box"></td>
+                <td
+                  key={`tot-col-${idx}`}
+                  className={weeklyTotals[idx].paid > 0 ? "" : "print-blank-box"}
+                  style={{
+                    textAlign: "right",
+                    fontSize: 8.5,
+                    color: "#047857",
+                    background: weeklyTotals[idx].paid > 0 ? "#f0fdf4" : "#ffffff",
+                    padding: "2px 4px",
+                  }}
+                >
+                  {weeklyTotals[idx].paid > 0 ? formatAmount(weeklyTotals[idx].paid) : ""}
+                </td>
               </>
             ))}
             <td
@@ -1561,8 +1764,18 @@ export function PrintableCollectionSheetModal({
             >
               {formatAmount(grandMonthDemand)}
             </td>
-            <td className="print-blank-box"></td>
-            <td className="print-blank-box"></td>
+            <td
+              className={grandMonthPaid > 0 ? "" : "print-blank-box"}
+              style={{
+                textAlign: "right",
+                fontSize: 9.5,
+                color: "#047857",
+                background: grandMonthPaid > 0 ? "#f0fdf4" : "#eff6ff",
+                padding: "2px 4px",
+              }}
+            >
+              {grandMonthPaid > 0 ? formatAmount(grandMonthPaid) : ""}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -1581,19 +1794,20 @@ export function PrintableCollectionSheetModal({
     }
 
     let grandMonthDemand = 0;
-    const weeklyTotals = meetingDates.map(() => ({ demand: 0 }));
+    let grandMonthPaid = 0;
+    const weeklyTotals = meetingDates.map(() => ({ demand: 0, paid: 0 }));
 
     return (
       <table className="print-table" style={{ fontSize: 9 }}>
         <thead>
           <tr>
-            <th rowSpan={2} style={{ width: "3%" }}>SL</th>
-            <th rowSpan={2} style={{ width: "6.5%" }}>Member ID</th>
-            <th rowSpan={2} style={{ width: "14%", textAlign: "left" }}>Member Name</th>
-            <th rowSpan={2} style={{ width: "8%" }}>Mobile</th>
-            <th rowSpan={2} style={{ width: "8%" }}>Loan ID</th>
-            <th rowSpan={2} style={{ width: "7%" }}>Disb. Date</th>
-            <th rowSpan={2} style={{ width: "6%", textAlign: "right" }}>Inst.</th>
+            <th rowSpan={2} style={{ width: "2.5%" }}>SL</th>
+            <th rowSpan={2} style={{ width: "6%" }}>Member ID</th>
+            <th rowSpan={2} style={{ width: "15%", textAlign: "left" }}>Member Name</th>
+            <th rowSpan={2} style={{ width: "8.5%" }}>Mobile</th>
+            <th rowSpan={2} style={{ width: "7.5%" }}>Disb. Date</th>
+            <th rowSpan={2} style={{ width: "8%", textAlign: "right" }}>Principal</th>
+            <th rowSpan={2} style={{ width: "6.5%", textAlign: "right" }}>Inst.</th>
 
             {/* Weekly Columns */}
             {meetingDates.map((date, idx) => (
@@ -1610,8 +1824,7 @@ export function PrintableCollectionSheetModal({
             ))}
 
             <th rowSpan={2} style={{ width: "7%", fontWeight: "bold" }}>Month Demand</th>
-            <th rowSpan={2} style={{ width: "7.5%", background: "#fffbeb" }}>Month Coll</th>
-            <th rowSpan={2} style={{ width: "7%" }}>Balance</th>
+            <th rowSpan={2} style={{ width: "8%", background: "#fffbeb", fontWeight: "bold" }}>Month Collection</th>
           </tr>
           <tr>
             {meetingDates.map((_, idx) => (
@@ -1620,7 +1833,7 @@ export function PrintableCollectionSheetModal({
                   key={`dem-${idx}`}
                   style={{
                     fontSize: 8,
-                    width: `${26 / (meetingDates.length * 2)}%`,
+                    width: `${31 / (meetingDates.length * 2)}%`,
                     background: idx % 2 === 0 ? "#f8fafc" : "#f1f5f9",
                   }}
                 >
@@ -1630,11 +1843,11 @@ export function PrintableCollectionSheetModal({
                   key={`col-${idx}`}
                   style={{
                     fontSize: 8,
-                    width: `${26 / (meetingDates.length * 2)}%`,
+                    width: `${31 / (meetingDates.length * 2)}%`,
                     background: idx % 2 === 0 ? "#ffffff" : "#f8fafc",
                   }}
                 >
-                  Coll.
+                  Collection
                 </th>
               </>
             ))}
@@ -1645,6 +1858,7 @@ export function PrintableCollectionSheetModal({
             const loan = item.loan;
             const regInst = loan ? toAmount(loan.installmentAmount) : 0;
             let memberMonthDemand = 0;
+            let memberMonthPaid = 0;
 
             return (
               <tr key={item.loanId || index}>
@@ -1659,49 +1873,53 @@ export function PrintableCollectionSheetModal({
                   )}
                 </td>
                 <td style={{ textAlign: "center", fontSize: 8.5 }}>{item.mobileNumber || ""}</td>
-                <td style={{ textAlign: "center", fontWeight: 700, color: "#1d4ed8", fontSize: 9 }}>
-                  {item.hasActiveLoan ? (
-                    <div>
-                      <span>{item.loanId}</span>
-                      <span
-                        style={{
-                          fontSize: 7.5,
-                          marginLeft: 3,
-                          padding: "1px 3px",
-                          borderRadius: 2,
-                          background:
-                            item.frequency === "WEEKLY" ? "#e0f2fe" : "#fef3c7",
-                          color:
-                            item.frequency === "WEEKLY" ? "#0369a1" : "#b45309",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {item.frequency === "WEEKLY" ? "Wk" : "Mo"}
-                      </span>
-                    </div>
-                  ) : (
-                    <span style={{ color: "#94a3b8" }}>No Loan</span>
-                  )}
-                </td>
                 <td style={{ textAlign: "center", fontSize: 8.5, color: "#475569" }}>
                   {item.disbursementDate ? formatDate(item.disbursementDate) : "—"}
                 </td>
                 <td style={{ textAlign: "right", fontWeight: 600, fontSize: 9 }}>
-                  {item.hasActiveLoan ? formatAmount(regInst) : "—"}
+                  {item.hasActiveLoan ? formatAmount(item.principalAmount || item.loan?.principalAmount) : "—"}
+                </td>
+                <td style={{ textAlign: "right", fontWeight: 600, fontSize: 9 }}>
+                  {item.hasActiveLoan ? (
+                    <>
+                      {formatAmount(regInst)}
+                      <span
+                        style={{
+                          fontSize: 7.5,
+                          marginLeft: 2,
+                          color: item.frequency === "WEEKLY" ? "#0369a1" : "#b45309",
+                          fontWeight: 600,
+                        }}
+                      >
+                        ({item.frequency === "WEEKLY" ? "Wk" : "Mo"})
+                      </span>
+                    </>
+                  ) : (
+                    "—"
+                  )}
                 </td>
 
                 {/* Week by Week Installments — strictly shows actual installments due in that week */}
                 {meetingDates.map((date, idx) => {
                   const inst = item.weeklyInstallments?.get(idx);
-                  const instDemand = inst
-                    ? typeof inst.due === "number"
-                      ? inst.due
-                      : Math.max(0, toAmount(inst.amount) - toAmount(inst.paidAmount))
+                  const instAmount = inst
+                    ? typeof inst.amount === "number"
+                      ? inst.amount
+                      : toAmount(inst.items?.[0]?.amount)
                     : 0;
+                  const instPaid = inst
+                    ? typeof inst.paidAmount === "number"
+                      ? inst.paidAmount
+                      : toAmount(inst.items?.[0]?.paidAmount)
+                    : 0;
+                  const isPaid = inst?.isPaid || (instPaid >= instAmount && instAmount > 0);
+                  const instNo = inst?.items?.[0]?.installmentNo;
 
-                  if (instDemand > 0) {
-                    memberMonthDemand += instDemand;
-                    weeklyTotals[idx].demand += instDemand;
+                  if (instAmount > 0) {
+                    memberMonthDemand += instAmount;
+                    memberMonthPaid += instPaid;
+                    weeklyTotals[idx].demand += instAmount;
+                    weeklyTotals[idx].paid += instPaid;
                   }
 
                   return (
@@ -1711,18 +1929,66 @@ export function PrintableCollectionSheetModal({
                         style={{
                           textAlign: "right",
                           fontSize: 8.5,
-                          fontWeight: instDemand > 0 ? 600 : 400,
-                          color: instDemand > 0 ? "#1e293b" : "#94a3b8",
                           background: idx % 2 === 0 ? "#f8fafc" : "#f1f5f9",
+                          padding: "2px 4px",
                         }}
                       >
-                        {instDemand > 0 ? formatAmount(instDemand) : "—"}
+                        {instAmount > 0 ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: instNo ? "space-between" : "flex-end",
+                              alignItems: "center",
+                              gap: 2,
+                            }}
+                          >
+                            {instNo && (
+                              <span
+                                style={{
+                                  fontSize: 7.5,
+                                  fontWeight: 700,
+                                  color: isPaid ? "#047857" : "#334155",
+                                  background: isPaid ? "#dcfce7" : "#f1f5f9",
+                                  padding: "0 3px",
+                                  borderRadius: 2,
+                                  border: isPaid ? "1px solid #86efac" : "1px solid #cbd5e1",
+                                  lineHeight: 1.2,
+                                }}
+                                title={`Installment ${instNo}${isPaid ? " (Paid)" : ""}`}
+                              >
+                                {instNo}
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontWeight: 600,
+                                color: isPaid ? "#047857" : "#1e293b",
+                                fontSize: 8.5,
+                              }}
+                            >
+                              {formatAmount(instAmount)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span style={{ color: "#94a3b8" }}>—</span>
+                        )}
                       </td>
                       <td
                         key={`col-${idx}`}
-                        className="print-blank-box"
-                        style={{ background: "#ffffff" }}
-                      ></td>
+                        className={isPaid ? "" : "print-blank-box"}
+                        style={{
+                          background: isPaid ? "#f0fdf4" : "#ffffff",
+                          textAlign: "right",
+                          padding: "2px 4px",
+                          fontWeight: 600,
+                          fontSize: 8.5,
+                          color: "#047857",
+                        }}
+                      >
+                        {isPaid || instPaid > 0 ? (
+                          <span>{formatAmount(instPaid)}</span>
+                        ) : null}
+                      </td>
                     </>
                   );
                 })}
@@ -1738,28 +2004,38 @@ export function PrintableCollectionSheetModal({
                 >
                   {(() => {
                     grandMonthDemand += memberMonthDemand;
+                    grandMonthPaid += memberMonthPaid;
                     return memberMonthDemand > 0
                       ? formatAmount(memberMonthDemand)
                       : "—";
                   })()}
                 </td>
 
-                {/* Total Month Coll */}
+                {/* Total Month Collection */}
                 <td
-                  className="print-blank-box"
-                  style={{ background: "#fffdf9" }}
-                ></td>
-
-                {/* Balance */}
-                <td className="print-blank-box"></td>
+                  className={memberMonthPaid > 0 ? "" : "print-blank-box"}
+                  style={{
+                    background: memberMonthPaid > 0 ? "#f0fdf4" : "#fffdf9",
+                    textAlign: "right",
+                    padding: "2px 4px",
+                    fontWeight: "bold",
+                    color: "#047857",
+                    fontSize: 9.5,
+                  }}
+                >
+                  {memberMonthPaid > 0 ? formatAmount(memberMonthPaid) : null}
+                </td>
               </tr>
             );
           })}
 
           {/* Grand Summary Row */}
           <tr style={{ background: "#f8f9fa", fontWeight: "bold" }}>
-            <td colSpan={6} style={{ textAlign: "right", paddingRight: 6 }}>
+            <td colSpan={5} style={{ textAlign: "right", paddingRight: 6 }}>
               Total ({monthLoanAccountsList.length} Loans):
+            </td>
+            <td style={{ textAlign: "right", fontSize: 9, fontWeight: "bold" }}>
+              {formatAmount(totalMonthLoanPrincipal)}
             </td>
             <td></td>
             {meetingDates.map((_, idx) => (
@@ -1770,7 +2046,19 @@ export function PrintableCollectionSheetModal({
                 >
                   {formatAmount(weeklyTotals[idx].demand)}
                 </td>
-                <td key={`tot-col-${idx}`} className="print-blank-box"></td>
+                <td
+                  key={`tot-col-${idx}`}
+                  className={weeklyTotals[idx].paid > 0 ? "" : "print-blank-box"}
+                  style={{
+                    textAlign: "right",
+                    fontSize: 8.5,
+                    color: "#047857",
+                    background: weeklyTotals[idx].paid > 0 ? "#f0fdf4" : "#ffffff",
+                    padding: "2px 4px",
+                  }}
+                >
+                  {weeklyTotals[idx].paid > 0 ? formatAmount(weeklyTotals[idx].paid) : ""}
+                </td>
               </>
             ))}
             <td
@@ -1782,8 +2070,18 @@ export function PrintableCollectionSheetModal({
             >
               {formatAmount(grandMonthDemand)}
             </td>
-            <td className="print-blank-box"></td>
-            <td className="print-blank-box"></td>
+            <td
+              className={grandMonthPaid > 0 ? "" : "print-blank-box"}
+              style={{
+                textAlign: "right",
+                fontSize: 9.5,
+                color: "#047857",
+                background: grandMonthPaid > 0 ? "#f0fdf4" : "#eff6ff",
+                padding: "2px 4px",
+              }}
+            >
+              {grandMonthPaid > 0 ? formatAmount(grandMonthPaid) : ""}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -1802,7 +2100,8 @@ export function PrintableCollectionSheetModal({
     }
 
     let grandMonthDemand = 0;
-    const weeklyTotals = meetingDates.map(() => ({ demand: 0 }));
+    let grandMonthPaid = 0;
+    const weeklyTotals = meetingDates.map(() => ({ demand: 0, paid: 0 }));
 
     return (
       <table className="print-table" style={{ fontSize: 9 }}>
@@ -1842,16 +2141,16 @@ export function PrintableCollectionSheetModal({
             ))}
 
             <th rowSpan={2} style={{ width: "6%", background: "#f0fdf4" }}>
-              Sav. Coll
+              Savings Collection
             </th>
             <th rowSpan={2} style={{ width: "6%", background: "#eff6ff" }}>
-              DPS Coll
+              DPS Collection
             </th>
             <th rowSpan={2} style={{ width: "7.5%", fontWeight: "bold" }}>
               Month Demand
             </th>
-            <th rowSpan={2} style={{ width: "7.5%", background: "#fffbeb" }}>
-              Month Coll
+            <th rowSpan={2} style={{ width: "7.5%", background: "#fffbeb", fontWeight: "bold" }}>
+              Month Collection
             </th>
           </tr>
           <tr>
@@ -1875,7 +2174,7 @@ export function PrintableCollectionSheetModal({
                     background: idx % 2 === 0 ? "#ffffff" : "#f8fafc",
                   }}
                 >
-                  Coll.
+                  Collection
                 </th>
               </>
             ))}
@@ -1894,6 +2193,7 @@ export function PrintableCollectionSheetModal({
             const regInst = loan ? toAmount(loan.installmentAmount) : 0;
 
             let memberMonthDemand = 0;
+            let memberMonthPaid = 0;
 
             return (
               <tr key={member.id || index}>
@@ -1950,15 +2250,24 @@ export function PrintableCollectionSheetModal({
                 {/* Week by Week Installments — strictly shows actual installments due in that week */}
                 {meetingDates.map((date, idx) => {
                   const inst = memLoanData?.weeklyInstallments?.get(idx);
-                  const instDemand = inst
-                    ? typeof inst.due === "number"
-                      ? inst.due
-                      : Math.max(0, toAmount(inst.amount) - toAmount(inst.paidAmount))
+                  const instAmount = inst
+                    ? typeof inst.amount === "number"
+                      ? inst.amount
+                      : toAmount(inst.items?.[0]?.amount)
                     : 0;
+                  const instPaid = inst
+                    ? typeof inst.paidAmount === "number"
+                      ? inst.paidAmount
+                      : toAmount(inst.items?.[0]?.paidAmount)
+                    : 0;
+                  const isPaid = inst?.isPaid || (instPaid >= instAmount && instAmount > 0);
+                  const instNo = inst?.items?.[0]?.installmentNo;
 
-                  if (instDemand > 0) {
-                    memberMonthDemand += instDemand;
-                    weeklyTotals[idx].demand += instDemand;
+                  if (instAmount > 0) {
+                    memberMonthDemand += instAmount;
+                    memberMonthPaid += instPaid;
+                    weeklyTotals[idx].demand += instAmount;
+                    weeklyTotals[idx].paid += instPaid;
                   }
 
                   return (
@@ -1968,18 +2277,66 @@ export function PrintableCollectionSheetModal({
                         style={{
                           textAlign: "right",
                           fontSize: 8.5,
-                          fontWeight: instDemand > 0 ? 600 : 400,
-                          color: instDemand > 0 ? "#1e293b" : "#94a3b8",
                           background: idx % 2 === 0 ? "#f8fafc" : "#f1f5f9",
+                          padding: "2px 4px",
                         }}
                       >
-                        {instDemand > 0 ? formatAmount(instDemand) : "—"}
+                        {instAmount > 0 ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: instNo ? "space-between" : "flex-end",
+                              alignItems: "center",
+                              gap: 2,
+                            }}
+                          >
+                            {instNo && (
+                              <span
+                                style={{
+                                  fontSize: 7.5,
+                                  fontWeight: 700,
+                                  color: isPaid ? "#047857" : "#334155",
+                                  background: isPaid ? "#dcfce7" : "#f1f5f9",
+                                  padding: "0 3px",
+                                  borderRadius: 2,
+                                  border: isPaid ? "1px solid #86efac" : "1px solid #cbd5e1",
+                                  lineHeight: 1.2,
+                                }}
+                                title={`Installment ${instNo}${isPaid ? " (Paid)" : ""}`}
+                              >
+                                {instNo}
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontWeight: 600,
+                                color: isPaid ? "#047857" : "#1e293b",
+                                fontSize: 8.5,
+                              }}
+                            >
+                              {formatAmount(instAmount)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span style={{ color: "#94a3b8" }}>—</span>
+                        )}
                       </td>
                       <td
                         key={`col-${idx}`}
-                        className="print-blank-box"
-                        style={{ background: "#ffffff" }}
-                      ></td>
+                        className={isPaid ? "" : "print-blank-box"}
+                        style={{
+                          background: isPaid ? "#f0fdf4" : "#ffffff",
+                          textAlign: "right",
+                          padding: "2px 4px",
+                          fontWeight: 600,
+                          fontSize: 8.5,
+                          color: "#047857",
+                        }}
+                      >
+                        {isPaid || instPaid > 0 ? (
+                          <span>{formatAmount(instPaid)}</span>
+                        ) : null}
+                      </td>
                     </>
                   );
                 })}
@@ -2006,6 +2363,7 @@ export function PrintableCollectionSheetModal({
                 >
                   {(() => {
                     grandMonthDemand += memberMonthDemand;
+                    grandMonthPaid += memberMonthPaid;
                     return memberMonthDemand > 0
                       ? formatAmount(memberMonthDemand)
                       : "—";
@@ -2014,9 +2372,18 @@ export function PrintableCollectionSheetModal({
 
                 {/* Total Month Coll */}
                 <td
-                  className="print-blank-box"
-                  style={{ background: "#fffdf9" }}
-                ></td>
+                  className={memberMonthPaid > 0 ? "" : "print-blank-box"}
+                  style={{
+                    background: memberMonthPaid > 0 ? "#f0fdf4" : "#fffdf9",
+                    textAlign: "right",
+                    padding: "2px 4px",
+                    fontWeight: "bold",
+                    color: "#047857",
+                    fontSize: 9.5,
+                  }}
+                >
+                  {memberMonthPaid > 0 ? formatAmount(memberMonthPaid) : null}
+                </td>
               </tr>
             );
           })}
@@ -2034,7 +2401,19 @@ export function PrintableCollectionSheetModal({
                 >
                   {formatAmount(weeklyTotals[idx].demand)}
                 </td>
-                <td key={`tot-col-${idx}`} className="print-blank-box"></td>
+                <td
+                  key={`tot-col-${idx}`}
+                  className={weeklyTotals[idx].paid > 0 ? "" : "print-blank-box"}
+                  style={{
+                    textAlign: "right",
+                    fontSize: 8.5,
+                    color: "#047857",
+                    background: weeklyTotals[idx].paid > 0 ? "#f0fdf4" : "#ffffff",
+                    padding: "2px 4px",
+                  }}
+                >
+                  {weeklyTotals[idx].paid > 0 ? formatAmount(weeklyTotals[idx].paid) : ""}
+                </td>
               </>
             ))}
             <td className="print-blank-box"></td>
@@ -2048,7 +2427,18 @@ export function PrintableCollectionSheetModal({
             >
               {formatAmount(grandMonthDemand)}
             </td>
-            <td className="print-blank-box"></td>
+            <td
+              className={grandMonthPaid > 0 ? "" : "print-blank-box"}
+              style={{
+                textAlign: "right",
+                fontSize: 9.5,
+                color: "#047857",
+                background: grandMonthPaid > 0 ? "#f0fdf4" : "#eff6ff",
+                padding: "2px 4px",
+              }}
+            >
+              {grandMonthPaid > 0 ? formatAmount(grandMonthPaid) : ""}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -2097,7 +2487,7 @@ export function PrintableCollectionSheetModal({
                 value={modalSomitiId}
                 onChange={(val) => setModalSomitiId(val)}
                 options={[
-                  { value: "ALL", label: "All Somities (সকল সমিতি)" },
+                  { value: "ALL", label: "All Somities" },
                   ...somities.map((s) => ({
                     value: String(s.id),
                     label: `${s.name}${s.meetingDay ? ` (${s.meetingDay.slice(0, 3)})` : ""}`,
@@ -2120,8 +2510,8 @@ export function PrintableCollectionSheetModal({
               buttonStyle="solid"
               size="small"
             >
-              <Radio.Button value="daily">📅 Daily (দৈনিক)</Radio.Button>
-              <Radio.Button value="monthly">🗓️ Monthly (১ মাস)</Radio.Button>
+              <Radio.Button value="daily">📅 Daily</Radio.Button>
+              <Radio.Button value="monthly">🗓️ Monthly</Radio.Button>
             </Radio.Group>
 
             {/* Daily Date Picker when in Daily Mode */}
@@ -2157,10 +2547,10 @@ export function PrintableCollectionSheetModal({
                 size="small"
               >
                 <Radio.Button value="monthly_all">
-                  All Monthly Sheets (সকল শীট)
+                  All Monthly Sheets
                 </Radio.Button>
                 <Radio.Button value="monthly_savings">
-                  1. Savings (সকল মেম্বার)
+                  1. Savings
                 </Radio.Button>
                 <Radio.Button value="monthly_dps">2. DPS</Radio.Button>
                 <Radio.Button value="monthly_loan">3. Loan</Radio.Button>
@@ -2397,9 +2787,9 @@ export function PrintableCollectionSheetModal({
               size="small"
               buttonStyle="solid"
             >
-              <Radio.Button value="ALL">All Loans (সব)</Radio.Button>
-              <Radio.Button value="WEEKLY">Weekly (সাপ্তাহিক)</Radio.Button>
-              <Radio.Button value="MONTHLY">Monthly (মাসিক)</Radio.Button>
+              <Radio.Button value="ALL">All Loans</Radio.Button>
+              <Radio.Button value="WEEKLY">Weekly</Radio.Button>
+              <Radio.Button value="MONTHLY">Monthly</Radio.Button>
             </Radio.Group>
           </div>
 

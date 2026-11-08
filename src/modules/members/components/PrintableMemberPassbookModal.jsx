@@ -73,7 +73,7 @@ export function PrintableMemberPassbookModal({
   // 2. Group transactions from the same meeting / collection into a single passbook ledger line
   const savingsLedgerEntries = [];
   for (const trx of sortedTransactions) {
-    const isDeposit = trx.type === "DEPOSIT";
+    const isDeposit = trx.type === "DEPOSIT" || trx.type === "INTEREST";
     const trxDate = trx.transactionDate || trx.createdAt;
     const trxDateFormatted = formatDate(trxDate);
     const receipt =

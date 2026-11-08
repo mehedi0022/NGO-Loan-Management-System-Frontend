@@ -37,6 +37,45 @@ export const savingsApi = baseApi.injectEndpoints({
         "Accounts",
       ],
     }),
+    getSavingsInterestSettings: builder.query({
+      query: () => "/savings/interest/settings",
+      providesTags: ["SavingsSettings"],
+    }),
+    updateSavingsInterestSettings: builder.mutation({
+      query: (body) => ({
+        url: "/savings/interest/settings",
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: ["SavingsSettings"],
+    }),
+    previewSavingsInterest: builder.query({
+      query: (params) => ({
+        url: "/savings/interest/preview",
+        params,
+      }),
+    }),
+    postSavingsInterest: builder.mutation({
+      query: (body) => ({
+        url: "/savings/interest/post",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: [
+        "Savings",
+        "Member",
+        "Dashboard",
+        "Accounts",
+        "SavingsSettings",
+      ],
+    }),
+    getInterestPostingHistory: builder.query({
+      query: (params) => ({
+        url: "/savings/interest/history",
+        params,
+      }),
+      providesTags: ["Savings"],
+    }),
   }),
 });
 
@@ -44,4 +83,9 @@ export const {
   useGetMemberSavingsQuery,
   useWithdrawSavingsMutation,
   useReverseSavingsTransactionMutation,
+  useGetSavingsInterestSettingsQuery,
+  useUpdateSavingsInterestSettingsMutation,
+  useLazyPreviewSavingsInterestQuery,
+  usePostSavingsInterestMutation,
+  useGetInterestPostingHistoryQuery,
 } = savingsApi;
