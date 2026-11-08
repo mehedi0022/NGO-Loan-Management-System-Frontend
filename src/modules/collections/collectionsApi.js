@@ -17,6 +17,8 @@ export const collectionsApi = baseApi.injectEndpoints({
                 ...(arg?.startDate && { startDate: arg.startDate }),
                 ...(arg?.endDate && { endDate: arg.endDate }),
                 ...(arg?.somitiId && { somitiId: arg.somitiId }),
+                ...(arg?.includeOverdue !== undefined && { includeOverdue: arg.includeOverdue }),
+                ...(arg?.overdueOnly !== undefined && { overdueOnly: arg.overdueOnly }),
               };
 
         return {

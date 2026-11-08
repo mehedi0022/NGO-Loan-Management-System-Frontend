@@ -6,10 +6,11 @@ import {
   DollarOutlined,
   WalletOutlined,
   LockOutlined,
+  UnlockOutlined,
   CheckCircleOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
-import { Alert, Button, Card, Col, DatePicker, Row, Select, Spin, Table, Tag, Typography } from "antd";
+import { Alert, Button, Card, Col, DatePicker, Row, Select, Space, Spin, Table, Tag, Typography } from "antd";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
@@ -17,6 +18,7 @@ import { can, permissions } from "../../auth/permissions.js";
 import { useGetAccountsQuery, useGetDailyCashSheetQuery } from "../accountsApi.js";
 import { useGetActiveBusinessDayQuery } from "../../dayClosing/dayClosingApi.js";
 import { DayClosingModal } from "../../dayClosing/components/DayClosingModal.jsx";
+import { EmergencyReopenModal } from "../../dayClosing/components/EmergencyReopenModal.jsx";
 
 const { Title, Text } = Typography;
 
@@ -39,6 +41,7 @@ export function DailyCashSheetView() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedAccountId, setSelectedAccountId] = useState("DEFAULT");
   const [closingModalOpen, setClosingModalOpen] = useState(false);
+  const [reopenModalOpen, setReopenModalOpen] = useState(false);
 
   const { data: activeDayData } = useGetActiveBusinessDayQuery();
   const activeDay = activeDayData?.data;
@@ -219,18 +222,30 @@ export function DailyCashSheetView() {
           </div>
         </div>
 
-        {can(user, permissions.dayClosingExecute) && (
-          <Button
-            type="primary"
-            danger
-            icon={<LockOutlined />}
-            size="large"
-            onClick={() => setClosingModalOpen(true)}
-            className="bg-amber-600 hover:bg-amber-500 border-none font-semibold px-6 shadow-md"
-          >
-            Execute Day Closing
-          </Button>
-        )}
+        <Space wrap>
+          {(can(user, permissions.dayClosingReopen) || user?.role === "SUPER_ADMIN") && (
+            <Button
+              icon={<UnlockOutlined />}
+              size="large"
+              onClick={() => setReopenModalOpen(true)}
+              className="bg-slate-800 text-amber-300 hover:text-amber-200 border-slate-700 font-semibold px-4 shadow-sm"
+            >
+              Reopen Last Day
+            </Button>
+          )}
+          {can(user, permissions.dayClosingExecute) && (
+            <Button
+              type="primary"
+              danger
+              icon={<LockOutlined />}
+              size="large"
+              onClick={() => setClosingModalOpen(true)}
+              className="bg-amber-600 hover:bg-amber-500 border-none font-semibold px-6 shadow-md"
+            >
+              Execute Day Closing
+            </Button>
+          )}
+        </Space>
       </div>
 
       {/* Header controls */}
@@ -406,6 +421,12 @@ export function DailyCashSheetView() {
           setClosingModalOpen(false);
           setSelectedDate(null);
         }}
+      />
+
+      {/* Emergency Day Reopen Modal */}
+      <EmergencyReopenModal
+        open={reopenModalOpen}
+        onClose={() => setReopenModalOpen(false)}
       />
     </div>
   );

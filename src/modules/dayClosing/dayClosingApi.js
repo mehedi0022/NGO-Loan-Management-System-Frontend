@@ -21,9 +21,34 @@ export const dayClosingApi = baseApi.injectEndpoints({
       invalidatesTags: [
         "DayClosing",
         "DayClosingPreview",
+        "DayClosingHistory",
         "Accounts",
         "AccountTransactions",
         "Dashboard",
+        "Collections",
+        "Loans",
+        "Savings",
+        "Dps",
+      ],
+    }),
+
+    reopenDay: builder.mutation({
+      query: (body) => ({
+        url: "/day-closing/reopen",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: [
+        "DayClosing",
+        "DayClosingPreview",
+        "DayClosingHistory",
+        "Accounts",
+        "AccountTransactions",
+        "Dashboard",
+        "Collections",
+        "Loans",
+        "Savings",
+        "Dps",
       ],
     }),
 
@@ -48,5 +73,6 @@ export const {
   useGetActiveBusinessDayQuery,
   useGetDayClosingPreviewQuery,
   useExecuteDayClosingMutation,
+  useReopenDayMutation,
   useGetDayClosingHistoryQuery,
 } = dayClosingApi;

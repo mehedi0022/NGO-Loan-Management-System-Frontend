@@ -52,6 +52,7 @@ export const permissions = Object.freeze({
 
   dayClosingRead: "day-closing:read",
   dayClosingExecute: "day-closing:execute",
+  dayClosingReopen: "day-closing:reopen",
 
   migrationExecute: "migration:execute",
 

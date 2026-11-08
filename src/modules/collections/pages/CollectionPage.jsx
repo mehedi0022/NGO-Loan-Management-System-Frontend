@@ -101,6 +101,8 @@ export function CollectionPage() {
 
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [allowAdvance, setAllowAdvance] = useState(false);
+  const [includeOverdue, setIncludeOverdue] = useState(false);
+  const [overdueOnly, setOverdueOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedSomitiId, setSelectedSomitiId] = useState("ALL");
 
@@ -127,7 +129,7 @@ export function CollectionPage() {
 
   useEffect(() => {
     setCardPage(1);
-  }, [dueDate, selectedSomitiId, search]);
+  }, [dueDate, selectedSomitiId, search, includeOverdue, overdueOnly]);
 
   const [batchOpen, setBatchOpen] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState(null);
@@ -151,6 +153,8 @@ export function CollectionPage() {
   } = useGetDueInstallmentsQuery({
     dueDate: dueDateValue,
     somitiId: selectedSomitiId === "ALL" ? undefined : Number(selectedSomitiId),
+    ...(includeOverdue && { includeOverdue: true }),
+    ...(overdueOnly && { overdueOnly: true }),
   });
 
   const { data: somitiesData, isLoading: somitiesLoading } =
@@ -726,8 +730,21 @@ export function CollectionPage() {
       title: "Due Date",
       dataIndex: "dueDate",
       key: "dueDate",
-      width: 130,
-      render: (value) => (value ? formatDate(value) : "—"),
+      width: 140,
+      render: (value) => {
+        if (!value) return "—";
+        const isPastDue = dayjs(value).startOf("day").isBefore(dayjs(dueDateValue).startOf("day"));
+        return (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span>{formatDate(value)}</span>
+            {isPastDue && (
+              <Tag color="error" className="text-[10px] px-1 py-0 m-0">
+                OVERDUE
+              </Tag>
+            )}
+          </div>
+        );
+      },
     },
 
     {
@@ -1210,7 +1227,7 @@ export function CollectionPage() {
           </div>
         </div>
 
-        <div className="mt-4 border-t border-gray-100 pt-4">
+        <div className="mt-4 border-t border-gray-100 pt-4 flex flex-wrap items-center justify-between gap-4">
           <Checkbox
             checked={allowAdvance}
             onChange={(event) => {
@@ -1220,6 +1237,36 @@ export function CollectionPage() {
           >
             Allow advance loan payments before the installment due date
           </Checkbox>
+
+          <div className="flex flex-wrap items-center gap-4">
+            <Checkbox
+              checked={includeOverdue}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setIncludeOverdue(checked);
+                if (checked) setOverdueOnly(false);
+                setSelectedRowKeys([]);
+              }}
+            >
+              <span className="font-medium text-orange-600 dark:text-orange-400">
+                Include Missed / Overdue Installments (পূর্বের বকেয়া কিস্তিসহ)
+              </span>
+            </Checkbox>
+
+            <Checkbox
+              checked={overdueOnly}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setOverdueOnly(checked);
+                if (checked) setIncludeOverdue(false);
+                setSelectedRowKeys([]);
+              }}
+            >
+              <span className="font-medium text-red-600 dark:text-red-400">
+                Overdue Only (কেবল বকেয়া কিস্তি)
+              </span>
+            </Checkbox>
+          </div>
         </div>
       </Card>
 
@@ -1447,8 +1494,11 @@ export function CollectionPage() {
                           <span className="text-gray-500 dark:text-gray-400">
                             Inst: <span className="font-semibold text-gray-700 dark:text-gray-200">#{item.installmentNo || "—"}</span>
                           </span>
-                          <span className="text-gray-500 dark:text-gray-400">
+                          <span className="text-gray-500 dark:text-gray-400 flex items-center gap-1">
                             Due: <span className="font-semibold text-gray-700 dark:text-gray-200">{item.dueDate ? formatDate(item.dueDate) : "—"}</span>
+                            {item.dueDate && dayjs(item.dueDate).startOf("day").isBefore(dayjs(dueDateValue).startOf("day")) && (
+                              <Tag color="error" className="text-[9px] px-1 py-0 m-0 leading-tight">OVERDUE</Tag>
+                            )}
                           </span>
                           <span className="text-gray-500 dark:text-gray-400">
                             Remaining: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(remaining)}</span>
