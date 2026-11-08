@@ -22,6 +22,7 @@ import {
   useDepositDpsInstallmentMutation,
   useGetDpsAccountByIdQuery,
 } from "../dpsApi.js";
+import { useGetActiveBusinessDayQuery } from "../../dayClosing/dayClosingApi.js";
 import { formatCurrency } from "../../loans/loanFormatters.js";
 
 const PAYMENT_METHODS = [
@@ -39,6 +40,9 @@ export function DepositDpsModal({
   member,
   onSuccess,
 }) {
+  const { data: activeDayData } = useGetActiveBusinessDayQuery();
+  const activeBusinessDate = activeDayData?.data?.businessDate;
+
   const [form] = Form.useForm();
   const [depositDps, { isLoading }] = useDepositDpsInstallmentMutation();
   const [userEditedAmount, setUserEditedAmount] = useState(false);
@@ -93,7 +97,7 @@ export function DepositDpsModal({
         form.setFieldsValue({
           amount: suggestedAmount || (isWeekly ? 250 : 1000),
           paymentMethod: "CASH",
-          transactionDate: dayjs(),
+          transactionDate: activeBusinessDate ? dayjs(activeBusinessDate) : dayjs(),
           reference: "",
           notes: "",
         });
@@ -108,6 +112,7 @@ export function DepositDpsModal({
     form,
     isWeekly,
     userEditedAmount,
+    activeBusinessDate,
   ]);
 
   const handleSubmit = async (values) => {

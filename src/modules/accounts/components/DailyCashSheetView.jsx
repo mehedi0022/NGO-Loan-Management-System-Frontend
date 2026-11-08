@@ -5,11 +5,18 @@ import {
   ArrowUpOutlined,
   DollarOutlined,
   WalletOutlined,
+  LockOutlined,
+  CheckCircleOutlined,
+  WarningOutlined,
 } from "@ant-design/icons";
-import { Button, Card, Col, DatePicker, Row, Select, Spin, Table, Tag, Typography } from "antd";
+import { Alert, Button, Card, Col, DatePicker, Row, Select, Spin, Table, Tag, Typography } from "antd";
 import dayjs from "dayjs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import { can, permissions } from "../../auth/permissions.js";
 import { useGetAccountsQuery, useGetDailyCashSheetQuery } from "../accountsApi.js";
+import { useGetActiveBusinessDayQuery } from "../../dayClosing/dayClosingApi.js";
+import { DayClosingModal } from "../../dayClosing/components/DayClosingModal.jsx";
 
 const { Title, Text } = Typography;
 
@@ -28,8 +35,22 @@ const moduleColorMap = {
 };
 
 export function DailyCashSheetView() {
-  const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
+  const user = useSelector((state) => state.auth.user);
+  const [selectedDate, setSelectedDate] = useState(null);
   const [selectedAccountId, setSelectedAccountId] = useState("DEFAULT");
+  const [closingModalOpen, setClosingModalOpen] = useState(false);
+
+  const { data: activeDayData } = useGetActiveBusinessDayQuery();
+  const activeDay = activeDayData?.data;
+
+  // Sync selectedDate with active business day initially or whenever active day changes
+  useEffect(() => {
+    if (activeDay?.businessDate && !selectedDate) {
+      setSelectedDate(activeDay.businessDate);
+    }
+  }, [activeDay?.businessDate, selectedDate]);
+
+  const effectiveDate = selectedDate || activeDay?.businessDate || dayjs().format("YYYY-MM-DD");
 
   const { data: accountsData } = useGetAccountsQuery();
   const accounts = Array.isArray(accountsData?.data)
@@ -40,7 +61,7 @@ export function DailyCashSheetView() {
 
   const { data: sheetData, isLoading } = useGetDailyCashSheetQuery(
     {
-      date: selectedDate,
+      date: effectiveDate,
       ...(selectedAccountId !== "DEFAULT" && { accountId: selectedAccountId }),
     },
     { refetchOnMountOrArgChange: true }
@@ -173,6 +194,45 @@ export function DailyCashSheetView() {
 
   return (
     <div className="daily-cash-sheet-wrapper space-y-6">
+      {/* Active Business Day Banner & Day Closing Action */}
+      <div className="p-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-xl shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4 print:hidden">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs font-semibold tracking-wider uppercase text-emerald-300">
+              Active Business Day
+            </span>
+            <Tag color="green" icon={<CheckCircleOutlined />}>
+              OPEN
+            </Tag>
+          </div>
+          <div className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-3">
+            <span>{activeDay?.businessDate || dayjs().format("YYYY-MM-DD")}</span>
+            {activeDay?.businessDate && activeDay.businessDate < dayjs().format("YYYY-MM-DD") && (
+              <Tag color="warning" icon={<WarningOutlined />} className="text-xs font-medium">
+                Deferred Day Closing (Pending)
+              </Tag>
+            )}
+          </div>
+          <div className="text-xs text-slate-300">
+            All system transactions and financial postings are recorded against this business day.
+          </div>
+        </div>
+
+        {can(user, permissions.dayClosingExecute) && (
+          <Button
+            type="primary"
+            danger
+            icon={<LockOutlined />}
+            size="large"
+            onClick={() => setClosingModalOpen(true)}
+            className="bg-amber-600 hover:bg-amber-500 border-none font-semibold px-6 shadow-md"
+          >
+            Execute Day Closing
+          </Button>
+        )}
+      </div>
+
       {/* Header controls */}
       <div className="flex flex-col sm:flex-row flex-wrap justify-between items-stretch sm:items-center gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm print:hidden">
         <div className="grid grid-cols-1 sm:flex sm:flex-row sm:items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
@@ -181,8 +241,8 @@ export function DailyCashSheetView() {
             <Text strong className="whitespace-nowrap text-xs sm:text-sm">Date:</Text>
             <DatePicker
               className="flex-1 sm:w-auto"
-              value={dayjs(selectedDate)}
-              onChange={(date) => setSelectedDate(date ? date.format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"))}
+              value={dayjs(effectiveDate)}
+              onChange={(date) => setSelectedDate(date ? date.format("YYYY-MM-DD") : activeDay?.businessDate || dayjs().format("YYYY-MM-DD"))}
               format="DD MMMM YYYY"
               allowClear={false}
             />
@@ -222,7 +282,7 @@ export function DailyCashSheetView() {
             Daily Cash Reconciliation & Summary Sheet
           </Text>
           <div className="mt-2 inline-block px-4 py-1 bg-gray-50 border rounded-full text-xs font-semibold text-gray-700">
-            Date: {dayjs(selectedDate).format("DD MMMM YYYY, dddd")} • Account: {sheet?.account?.accountName || "Main Cash"}
+            Date: {dayjs(effectiveDate).format("DD MMMM YYYY, dddd")} • Account: {sheet?.account?.accountName || "Main Cash"}
           </div>
         </div>
 
@@ -338,6 +398,15 @@ export function DailyCashSheetView() {
           </div>
         </div>
       </div>
+
+      {/* Day Closing Modal */}
+      <DayClosingModal
+        open={closingModalOpen}
+        onClose={() => {
+          setClosingModalOpen(false);
+          setSelectedDate(null);
+        }}
+      />
     </div>
   );
 }

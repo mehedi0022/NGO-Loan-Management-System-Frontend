@@ -16,6 +16,7 @@ import {
   Input,
   Layout,
   Space,
+  Tag,
   Tooltip,
   Typography,
   message,
@@ -26,6 +27,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
 import { useAppTheme } from "../../app/providers/ThemeContext.js";
+import { useGetActiveBusinessDayQuery } from "../../modules/dayClosing/dayClosingApi.js";
 import {
   useChangePasswordMutation,
   useLogoutMutation,
@@ -41,6 +43,9 @@ export function DashboardHeader({ collapsed, onToggle }) {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  const { data: activeDayData } = useGetActiveBusinessDayQuery();
+  const activeBusinessDate = activeDayData?.data?.businessDate;
 
   const user = useSelector((state) => state.auth.user);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
@@ -162,9 +167,27 @@ export function DashboardHeader({ collapsed, onToggle }) {
           aria-label="Toggle Search"
         />
 
-        <Typography.Text className="header-date">
-          {dayjs().format("DD MMM YYYY")}
-        </Typography.Text>
+        <Tooltip
+          title={
+            <span>
+              Active Business Day: {activeBusinessDate || "Loading..."}
+              <br />
+              System Calendar Date: {dayjs().format("YYYY-MM-DD")}
+            </span>
+          }
+        >
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 cursor-default">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <Typography.Text className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+              {activeBusinessDate
+                ? dayjs(activeBusinessDate).format("DD MMM YYYY")
+                : dayjs().format("DD MMM YYYY")}
+            </Typography.Text>
+            <Tag color="green" className="text-[10px] font-bold px-1 py-0 mr-0 border-none leading-tight">
+              OPEN
+            </Tag>
+          </div>
+        </Tooltip>
 
         <Tooltip title={isDark ? "Use light mode" : "Use dark mode"}>
           <Button

@@ -26,6 +26,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { formatCurrency } from "../../loans/loanFormatters.js";
 import { useGetAccountsQuery } from "../../accounts/accountsApi.js";
+import { useGetActiveBusinessDayQuery } from "../../dayClosing/dayClosingApi.js";
 import { useGetMemberSavingsQuery, useWithdrawSavingsMutation } from "../savingsApi.js";
 import { MemberSavingsSelector } from "./MemberSavingsSelector.jsx";
 
@@ -50,6 +51,9 @@ export function SavingsWithdrawalModal({
   onSuccess,
 }) {
   const [selectedMemberId, setSelectedMemberId] = useState(null);
+  const { data: activeDayData } = useGetActiveBusinessDayQuery();
+  const activeBusinessDate = activeDayData?.data?.businessDate;
+
   const { data: memberSavingsData } = useGetMemberSavingsQuery(selectedMemberId, {
     skip: !selectedMemberId || Boolean(memberProp),
   });
@@ -137,13 +141,13 @@ export function SavingsWithdrawalModal({
     form.setFieldsValue({
       savingsType: "GENERAL",
       amount: undefined,
-      transactionDate: dayjs(),
+      transactionDate: activeBusinessDate ? dayjs(activeBusinessDate) : dayjs(),
       paymentMethod: "CASH",
       accountId: defaultAcc?.id,
       reference: undefined,
       notes: undefined,
     });
-  }, [form, open, member?.id, accounts]);
+  }, [form, open, member?.id, accounts, activeBusinessDate]);
 
   const handlePaymentMethodChange = (method) => {
     if (method === "BANK_TRANSFER") {

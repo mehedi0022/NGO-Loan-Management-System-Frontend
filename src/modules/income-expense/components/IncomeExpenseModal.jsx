@@ -14,6 +14,7 @@ import {
 import dayjs from "dayjs";
 import { useEffect, useMemo } from "react";
 import { useGetAccountsQuery } from "../../accounts/accountsApi.js";
+import { useGetActiveBusinessDayQuery } from "../../dayClosing/dayClosingApi.js";
 import {
   useCreateIncomeExpenseMutation,
   useGetCategoriesQuery,
@@ -33,6 +34,9 @@ export function IncomeExpenseModal({
   onClose,
   initialType = "INCOME",
 }) {
+  const { data: activeDayData } = useGetActiveBusinessDayQuery();
+  const activeBusinessDate = activeDayData?.data?.businessDate;
+
   const [form] = Form.useForm();
   const selectedType = Form.useWatch("type", form) || initialType;
   const selectedPaymentMethod = Form.useWatch("paymentMethod", form) || "CASH";
@@ -113,12 +117,12 @@ export function IncomeExpenseModal({
 
     form.setFieldsValue({
       type: initialType,
-      date: dayjs(),
+      date: activeBusinessDate ? dayjs(activeBusinessDate) : dayjs(),
       paymentMethod: "CASH",
       accountId: defaultAcc?.id,
       somitiId: null,
     });
-  }, [open, initialType, form, accounts]);
+  }, [open, initialType, form, accounts, activeBusinessDate]);
 
   const handlePaymentMethodChange = (method) => {
     if (method === "BANK_TRANSFER") {

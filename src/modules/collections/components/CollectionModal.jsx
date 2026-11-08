@@ -14,6 +14,7 @@ import {
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import { formatCurrency } from "../../loans/loanFormatters.js";
+import { useGetActiveBusinessDayQuery } from "../../dayClosing/dayClosingApi.js";
 
 const paymentMethods = [
   { value: "CASH", label: "Cash" },
@@ -27,10 +28,14 @@ const toAmount = (value) => Number(value || 0);
 export function CollectionModal({
   open,
   installment,
+  initialValues,
   loading = false,
   onCancel,
   onSubmit,
 }) {
+  const { data: activeDayData } = useGetActiveBusinessDayQuery();
+  const activeBusinessDate = activeDayData?.data?.businessDate;
+
   const [form] = Form.useForm();
   const { token } = theme.useToken();
   const member = installment?.loan?.member || installment?.member;
@@ -92,23 +97,46 @@ export function CollectionModal({
 
     const initDpsAmounts = {};
     activeDpsList.forEach((d) => {
-      initDpsAmounts[d.id] = 0;
+      initDpsAmounts[d.id] =
+        initialValues?.dpsAmounts?.[d.id] ??
+        (isDpsOnly ? Number(d.installmentAmount || 0) : 0);
     });
 
+    const defaultDpsAmount =
+      initialValues?.dpsAmount ??
+      (isDpsOnly && activeDps ? activeDpsDue : 0);
+
+    const defaultGeneralSavings = initialValues?.generalSavingsAmount ?? 0;
+    const defaultSpecialSavings = initialValues?.specialSavingsAmount ?? 0;
+    const defaultLoan = isDpsOnly
+      ? 0
+      : (initialValues?.loanCollectionAmount ?? remaining);
+
     form.setFieldsValue({
-      loanCollectionAmount: remaining,
-      generalSavingsAmount: 0,
-      specialSavingsAmount: 0,
-      dpsAmount: 0,
+      loanCollectionAmount: defaultLoan,
+      generalSavingsAmount: defaultGeneralSavings,
+      specialSavingsAmount: defaultSpecialSavings,
+      dpsAmount: defaultDpsAmount,
       dpsAmounts: initDpsAmounts,
-      dpsAccountId: activeDps?.id || undefined,
-      collectionDate: dayjs(),
-      paymentMethod: "CASH",
+      dpsAccountId: initialValues?.dpsAccountId || activeDps?.id || undefined,
+      collectionDate: activeBusinessDate ? dayjs(activeBusinessDate) : dayjs(),
+      paymentMethod: initialValues?.paymentMethod || "CASH",
       allowAdvance: false,
       reference: undefined,
       notes: undefined,
     });
-  }, [form, installment, open, remaining, activeDpsList, activeDps]);
+  }, [
+    form,
+    installment,
+    initialValues,
+    open,
+    remaining,
+    activeDpsList,
+    activeDps,
+    activeDpsDue,
+    isDpsOnly,
+    activeBusinessDate,
+  ]);
 
   const submit = async (values) => {
     let dpsCollections = undefined;
@@ -135,13 +163,16 @@ export function CollectionModal({
       }
     }
 
+    const hasLoan = Boolean(installment?.loanId);
+    const loanAmount = hasLoan ? toAmount(values.loanCollectionAmount) : 0;
+
     await onSubmit({
       memberId: member?.id,
 
-      loanId: installment?.loanId || undefined,
-      installmentId: installment?.loanId ? installment.id : undefined,
+      loanId: hasLoan ? installment.loanId : undefined,
+      installmentId: hasLoan ? installment.id : undefined,
 
-      loanCollectionAmount: toAmount(values.loanCollectionAmount),
+      loanCollectionAmount: loanAmount,
       generalSavingsAmount: toAmount(values.generalSavingsAmount),
       specialSavingsAmount: toAmount(values.specialSavingsAmount),
       dpsAmount: finalDpsAmount,

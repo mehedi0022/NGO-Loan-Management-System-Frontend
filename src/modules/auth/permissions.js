@@ -50,6 +50,9 @@ export const permissions = Object.freeze({
   accountsTransfer: "accounts:transfer",
   accountsInjectCapital: "accounts:inject-capital",
 
+  dayClosingRead: "day-closing:read",
+  dayClosingExecute: "day-closing:execute",
+
   migrationExecute: "migration:execute",
 
   settingsRead: "settings:read",

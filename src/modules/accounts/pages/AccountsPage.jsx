@@ -7,6 +7,7 @@ import {
   UploadOutlined,
   WalletOutlined,
   CheckCircleOutlined,
+  LockOutlined,
 } from "@ant-design/icons";
 import {
   Button,
@@ -30,6 +31,7 @@ import { InjectCapitalModal } from "../components/InjectCapitalModal.jsx";
 import { LedgerTransactionsTable } from "../components/LedgerTransactionsTable.jsx";
 import { ProfitLossView } from "../components/ProfitLossView.jsx";
 import { TransferFundsModal } from "../components/TransferFundsModal.jsx";
+import { DayClosingHistoryTable } from "../../dayClosing/components/DayClosingHistoryTable.jsx";
 
 const { Title, Text } = Typography;
 
@@ -386,6 +388,19 @@ export function AccountsPage() {
             children: (
               <div className="mt-4">
                 <LedgerTransactionsTable />
+              </div>
+            ),
+          },
+          {
+            key: "day-closing-history",
+            label: (
+              <span>
+                <LockOutlined /> Day Closing History
+              </span>
+            ),
+            children: (
+              <div className="mt-4">
+                <DayClosingHistoryTable />
               </div>
             ),
           },

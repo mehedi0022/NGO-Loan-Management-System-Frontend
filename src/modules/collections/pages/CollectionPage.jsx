@@ -46,6 +46,7 @@ import { CollectionModal } from "../components/CollectionModal.jsx";
 import { QuickSavingsCollectionModal } from "../../savings/components/QuickSavingsCollectionModal.jsx";
 import { PrintableCollectionSheetModal } from "../components/PrintableCollectionSheetModal.jsx";
 import { CollectionHistoryTable } from "../components/CollectionHistoryTable.jsx";
+import { useGetActiveBusinessDayQuery } from "../../dayClosing/dayClosingApi.js";
 import {
   useCreateBatchCollectionsMutation,
   useCreateCollectionMutation,
@@ -83,8 +84,21 @@ const getMember = (installment) => installment?.loan?.member;
 export function CollectionPage() {
   const navigate = useNavigate();
 
+  const { data: activeDayData } = useGetActiveBusinessDayQuery();
+  const activeBusinessDate = activeDayData?.data?.businessDate;
+
   const [dueDate, setDueDate] = useState(dayjs());
   const [collectionDate, setCollectionDate] = useState(dayjs());
+
+  // Auto-sync collection date & due date with active business day
+  useEffect(() => {
+    if (activeBusinessDate) {
+      const bDay = dayjs(activeBusinessDate);
+      setCollectionDate(bDay);
+      setDueDate(bDay);
+    }
+  }, [activeBusinessDate]);
+
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [allowAdvance, setAllowAdvance] = useState(false);
   const [search, setSearch] = useState("");
@@ -594,14 +608,17 @@ export function CollectionPage() {
         }
       }
 
+      const hasLoan = Boolean(item.loanId);
+      const loanAmount = hasLoan ? toAmount(values.loanCollectionAmount) : 0;
+
       return {
         memberId: member.id,
 
-        loanId: item.loanId || undefined,
+        loanId: hasLoan ? item.loanId : undefined,
         installmentId:
-          item.loanId && typeof item.id === "number" ? item.id : undefined,
+          hasLoan && typeof item.id === "number" ? item.id : undefined,
 
-        loanCollectionAmount: toAmount(values.loanCollectionAmount),
+        loanCollectionAmount: loanAmount,
         generalSavingsAmount: canCollectSavingsAndDps
           ? toAmount(values.generalSavingsAmount)
           : 0,
@@ -1793,6 +1810,9 @@ export function CollectionPage() {
       <CollectionModal
         open={Boolean(selectedInstallment)}
         installment={selectedInstallment}
+        initialValues={
+          selectedInstallment ? getRowValues(selectedInstallment) : undefined
+        }
         loading={creatingCollection}
         onCancel={() => setSelectedInstallment(null)}
         onSubmit={handleSingleCollection}

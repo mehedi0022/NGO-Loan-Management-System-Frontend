@@ -23,6 +23,7 @@ import { useEffect } from "react";
 
 import { formatCurrency } from "../../loans/loanFormatters.js";
 import { useCreateCollectionMutation } from "../../collections/collectionsApi.js";
+import { useGetActiveBusinessDayQuery } from "../../dayClosing/dayClosingApi.js";
 import { MemberSavingsSelector } from "./MemberSavingsSelector.jsx";
 
 const paymentMethods = [
@@ -58,6 +59,8 @@ export function QuickSavingsCollectionModal({
   const totalSavings = generalSavingsAmount + specialSavingsAmount;
 
   const [createCollection, { isLoading }] = useCreateCollectionMutation();
+  const { data: activeDayData } = useGetActiveBusinessDayQuery();
+  const activeBusinessDate = activeDayData?.data?.businessDate;
 
   useEffect(() => {
     if (!open) return;
@@ -68,12 +71,12 @@ export function QuickSavingsCollectionModal({
       memberId: member?.id,
       generalSavingsAmount: undefined,
       specialSavingsAmount: undefined,
-      collectionDate: dayjs(),
+      collectionDate: activeBusinessDate ? dayjs(activeBusinessDate) : dayjs(),
       paymentMethod: "CASH",
       reference: undefined,
       notes: undefined,
     });
-  }, [form, open, member?.id]);
+  }, [form, open, member?.id, activeBusinessDate]);
 
   const handleClose = () => {
     if (isLoading) return;

@@ -22,10 +22,14 @@ import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { formatCurrency, formatDate } from "../../loans/loanFormatters.js";
 import { useCloseDpsAccountMutation } from "../dpsApi.js";
+import { useGetActiveBusinessDayQuery } from "../../dayClosing/dayClosingApi.js";
 
 const { Text, Title } = Typography;
 
 export function CloseDpsModal({ open, onClose, dps, initialMode, onSuccess }) {
+  const { data: activeDayData } = useGetActiveBusinessDayQuery();
+  const activeBusinessDate = activeDayData?.data?.businessDate;
+
   const [form] = Form.useForm();
   const [closeDps, { isLoading }] = useCloseDpsAccountMutation();
 
@@ -58,14 +62,14 @@ export function CloseDpsModal({ open, onClose, dps, initialMode, onSuccess }) {
         closeType: defaultType,
         payoutAmount: defaultAmount,
         paymentMethod: "CASH",
-        transactionDate: dayjs(),
+        transactionDate: activeBusinessDate ? dayjs(activeBusinessDate) : dayjs(),
         notes:
           defaultType === "MATURITY_PAYOUT"
             ? "Maturity tenure completed. Full maturity settlement paid to member."
             : "Premature DPS cancellation requested by member. Total deposited principal refunded.",
       });
     }
-  }, [open, dps, initialMode, isAlreadyMatured, form]);
+  }, [open, dps, initialMode, isAlreadyMatured, form, activeBusinessDate]);
 
   const handleCloseTypeChange = (e) => {
     const newType = e.target.value;
