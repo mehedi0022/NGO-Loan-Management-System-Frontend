@@ -91,12 +91,22 @@ export const dpsApi = baseApi.injectEndpoints({
         "Accounts",
       ],
     }),
+
+    getDpsWithdrawals: builder.query({
+      query: (params = {}) => ({
+        url: "/dps/withdrawals",
+        method: "GET",
+        params,
+      }),
+      providesTags: [{ type: "DPS", id: "LIST" }],
+    }),
   }),
 });
 
 export const {
   useGetDpsAccountsQuery,
   useGetDpsAccountByIdQuery,
+  useGetDpsWithdrawalsQuery,
   useLazyCalculateDpsMaturityQuery,
   useCreateDpsAccountMutation,
   useDepositDpsInstallmentMutation,

@@ -3,6 +3,7 @@ import {
   CalendarOutlined,
   DollarOutlined,
   PlusOutlined,
+  PrinterOutlined,
   SafetyCertificateOutlined,
   SearchOutlined,
   StopOutlined,
@@ -35,6 +36,7 @@ import { OpenDpsModal } from "../components/OpenDpsModal.jsx";
 import { DepositDpsModal } from "../components/DepositDpsModal.jsx";
 import { CloseDpsModal } from "../components/CloseDpsModal.jsx";
 import { DpsScheduleModal } from "../components/DpsScheduleModal.jsx";
+import { PrintableDpsWithdrawalSheetModal } from "../components/PrintableDpsWithdrawalSheetModal.jsx";
 
 export function DpsPage() {
   const [page, setPage] = useState(1);
@@ -48,6 +50,7 @@ export function DpsPage() {
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [closeModalOpen, setCloseModalOpen] = useState(false);
   const [closeModalMode, setCloseModalMode] = useState("MATURITY");
+  const [dpsWithdrawalSheetOpen, setDpsWithdrawalSheetOpen] = useState(false);
 
   const handleOpenCloseModal = (record, mode) => {
     setSelectedDps(record);
@@ -325,14 +328,23 @@ export function DpsPage() {
             Manage member recurring deposit accounts, monthly installments, and maturities.
           </Typography.Text>
         </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          size="large"
-          onClick={() => setOpenModal(true)}
-        >
-          Open New DPS
-        </Button>
+        <Space wrap>
+          <Button
+            icon={<PrinterOutlined />}
+            size="large"
+            onClick={() => setDpsWithdrawalSheetOpen(true)}
+          >
+            Print DPS Withdrawal Sheet
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            size="large"
+            onClick={() => setOpenModal(true)}
+          >
+            Open New DPS
+          </Button>
+        </Space>
       </div>
 
       {/* Overview Stat Cards */}
@@ -494,6 +506,14 @@ export function DpsPage() {
           onSuccess={refetch}
         />
       )}
+
+      {/* Printable DPS Withdrawal Sheet Modal */}
+      <PrintableDpsWithdrawalSheetModal
+        open={dpsWithdrawalSheetOpen}
+        onClose={() => setDpsWithdrawalSheetOpen(false)}
+        somities={somities}
+        defaultSomitiId={somitiFilter}
+      />
     </PageContainer>
   );
 }

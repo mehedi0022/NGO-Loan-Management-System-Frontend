@@ -76,6 +76,13 @@ export const savingsApi = baseApi.injectEndpoints({
       }),
       providesTags: ["Savings"],
     }),
+    getSavingsWithdrawals: builder.query({
+      query: (params = {}) => ({
+        url: "/savings/withdrawals",
+        params,
+      }),
+      providesTags: ["Savings"],
+    }),
   }),
 });
 
@@ -88,4 +95,5 @@ export const {
   useLazyPreviewSavingsInterestQuery,
   usePostSavingsInterestMutation,
   useGetInterestPostingHistoryQuery,
+  useGetSavingsWithdrawalsQuery,
 } = savingsApi;

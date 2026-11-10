@@ -40,6 +40,7 @@ import {
 } from "../../members/membersApi.js";
 import { useGetActiveSomitiesQuery } from "../../somities/somitiesApi.js";
 import { MemberSavingsSelector } from "../components/MemberSavingsSelector.jsx";
+import { PrintableSavingsWithdrawalSheetModal } from "../components/PrintableSavingsWithdrawalSheetModal.jsx";
 import { QuickSavingsCollectionModal } from "../components/QuickSavingsCollectionModal.jsx";
 import { SavingsInterestModal } from "../components/SavingsInterestModal.jsx";
 import { SavingsWithdrawalModal } from "../components/SavingsWithdrawalModal.jsx";
@@ -58,6 +59,7 @@ export function SavingsPage() {
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
   const [passbookOpen, setPassbookOpen] = useState(false);
   const [interestModalOpen, setInterestModalOpen] = useState(false);
+  const [withdrawalSheetOpen, setWithdrawalSheetOpen] = useState(false);
   const [modalMember, setModalMember] = useState(null);
 
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20 });
@@ -209,16 +211,26 @@ export function SavingsPage() {
             interest, and audit ledgers.
           </Text>
         </div>
-        <Button
-          type="primary"
-          icon={<PercentageOutlined />}
-          onClick={() => setInterestModalOpen(true)}
-          style={{ background: "#059669", borderColor: "#059669" }}
-          className="hover:!bg-emerald-700 font-semibold shadow-sm"
-          size="middle"
-        >
-          Savings Interest & Compounding
-        </Button>
+        <Space wrap>
+          <Button
+            icon={<PrinterOutlined />}
+            onClick={() => setWithdrawalSheetOpen(true)}
+            size="middle"
+            className="font-semibold"
+          >
+            Print Withdrawal Sheet
+          </Button>
+          <Button
+            type="primary"
+            icon={<PercentageOutlined />}
+            onClick={() => setInterestModalOpen(true)}
+            style={{ background: "#059669", borderColor: "#059669" }}
+            className="hover:!bg-emerald-700 font-semibold shadow-sm"
+            size="middle"
+          >
+            Savings Interest & Compounding
+          </Button>
+        </Space>
       </div>
 
       {/* 1. Directory View (when NO member is selected) */}
@@ -529,6 +541,14 @@ export function SavingsPage() {
       <SavingsInterestModal
         open={interestModalOpen}
         onClose={() => setInterestModalOpen(false)}
+      />
+
+      {/* Printable Savings Withdrawal Sheet Modal */}
+      <PrintableSavingsWithdrawalSheetModal
+        open={withdrawalSheetOpen}
+        onClose={() => setWithdrawalSheetOpen(false)}
+        somities={somitiesData?.data ?? []}
+        defaultSomitiId={somitiId}
       />
     </PageContainer>
   );
