@@ -14,7 +14,7 @@ RUN npm ci
 COPY . .
 
 # Build argument for API base URL (defaults to /api/v1)
-ARG VITE_API_BASE_URL=/api/v1
+ARG VITE_API_BASE_URL=https://purbasha-api.meetmehedi.dev
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
 # Build production bundle to dist/
