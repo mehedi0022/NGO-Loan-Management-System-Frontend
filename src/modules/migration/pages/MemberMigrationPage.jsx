@@ -10,12 +10,14 @@ import {
   FileExcelOutlined,
   HomeOutlined,
   InfoCircleOutlined,
+  LockOutlined,
   PlusCircleOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
   SwapOutlined,
   TableOutlined,
   TeamOutlined,
+  UnlockOutlined,
   UserAddOutlined,
   WalletOutlined,
 } from "@ant-design/icons";
@@ -31,10 +33,13 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popconfirm,
   Radio,
+  Result,
   Row,
   Select,
   Space,
+  Spin,
   Switch,
   Table,
   Tabs,
@@ -45,8 +50,10 @@ import {
 } from "antd";
 import dayjs from "dayjs";
 import { useMemo, useState } from "react";
+import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
+import { can, permissions } from "../../auth/permissions.js";
 import { PageContainer } from "../../../components/page-container/PageContainer.jsx";
 import { AddressFields } from "../../members/components/AddressFields.jsx";
 import {
@@ -61,8 +68,10 @@ import {
   transformGuarantor,
 } from "../../../utils/memberPayload.js";
 import {
+  useGetMigrationStatusQuery,
   useMigrateBatchMembersMutation,
   useMigrateSingleMemberMutation,
+  useToggleMigrationLockMutation,
 } from "../migrationApi.js";
 
 const { Title, Text, Paragraph } = Typography;
@@ -75,12 +84,41 @@ const CSV_SAMPLE_ROW =
 
 export function MemberMigrationPage() {
   const navigate = useNavigate();
+  const user = useSelector((state) => state.auth.user);
   const [activeTab, setActiveTab] = useState("single");
   const [singleForm] = Form.useForm();
   const [hasFatherAddress, setHasFatherAddress] = useState(false);
   const [hasGuarantor, setHasGuarantor] = useState(false);
   const [isCustomInstallment, setIsCustomInstallment] = useState(false);
   const [loanScheduleModalOpen, setLoanScheduleModalOpen] = useState(false);
+
+  const { data: statusData, isLoading: statusLoading } =
+    useGetMigrationStatusQuery();
+  const [toggleMigrationLock, { isLoading: togglingLock }] =
+    useToggleMigrationLockMutation();
+
+  const migrationStatus = statusData?.data || {};
+  const migrationLocked = Boolean(migrationStatus.migrationLocked);
+  const hasPostedInterest = Boolean(migrationStatus.hasPostedInterest);
+  const latestInterestEndDate = migrationStatus.latestInterestEndDate;
+  const canToggleLock =
+    can(user, permissions.migrationLock) || user?.role === "SUPER_ADMIN";
+
+  const handleToggleLock = async (locked) => {
+    try {
+      const res = await toggleMigrationLock(locked).unwrap();
+      message.success(
+        res?.message ||
+          (locked
+            ? "Member Migration is now LOCKED"
+            : "Member Migration is now UNLOCKED"),
+      );
+    } catch (err) {
+      message.error(
+        err?.data?.message || "Failed to change migration lock status",
+      );
+    }
+  };
 
   // Watchers for single form calculations
   const includeSavings = Form.useWatch("includeSavings", singleForm);
@@ -741,7 +779,7 @@ export function MemberMigrationPage() {
       {/* Header */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Title
               level={2}
               className="m-0! text-slate-900 dark:text-slate-50 font-bold"
@@ -751,6 +789,15 @@ export function MemberMigrationPage() {
             <Tag color="cyan" className="font-semibold text-xs">
               Opening Balance Engine
             </Tag>
+            {migrationLocked ? (
+              <Tag color="error" icon={<LockOutlined />} className="font-semibold text-xs">
+                LOCKED
+              </Tag>
+            ) : (
+              <Tag color="success" icon={<UnlockOutlined />} className="font-semibold text-xs">
+                UNLOCKED
+              </Tag>
+            )}
           </div>
           <Text type="secondary" className="text-sm">
             Onboard existing/old members with their historical savings balance,
@@ -759,7 +806,45 @@ export function MemberMigrationPage() {
           </Text>
         </div>
 
-        <Button onClick={() => navigate("/members")}>Back to Members</Button>
+        <Space wrap>
+          {canToggleLock && !statusLoading && (
+            migrationLocked ? (
+              <Popconfirm
+                title="Unlock Migration Mode?"
+                description="Allow adding legacy members again. Remember to lock migration immediately after onboarding is complete to prevent unauthorized backdated balances."
+                okText="Yes, Unlock"
+                cancelText="Cancel"
+                onConfirm={() => handleToggleLock(false)}
+              >
+                <Button
+                  type="primary"
+                  icon={<UnlockOutlined />}
+                  loading={togglingLock}
+                >
+                  Unlock Migration
+                </Button>
+              </Popconfirm>
+            ) : (
+              <Popconfirm
+                title="Lock Member Migration?"
+                description="Recommended once initial migration is complete. Prevents any admin from adding unverified opening balances or backdated loans after live operations begin."
+                okText="Yes, Lock Now"
+                okButtonProps={{ danger: true }}
+                cancelText="Cancel"
+                onConfirm={() => handleToggleLock(true)}
+              >
+                <Button
+                  danger
+                  icon={<LockOutlined />}
+                  loading={togglingLock}
+                >
+                  Lock Migration
+                </Button>
+              </Popconfirm>
+            )
+          )}
+          <Button onClick={() => navigate("/members")}>Back to Members</Button>
+        </Space>
       </div>
 
       {/* Safety Notice Banner */}
@@ -770,10 +855,59 @@ export function MemberMigrationPage() {
         message="Zero Cash Drawer Distortion Guarantee"
         description="Migrating members, opening savings balances, or ongoing loans through this module will NOT deduct money from your current cash drawer or create false collections in today's Daily Cash Sheet. All records are initialized in past ledger state."
         className="mb-5 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/20"
-        style={{ marginBottom: 20 }}
+        style={{ marginBottom: hasPostedInterest ? 12 : 20 }}
       />
 
-      {/* Tabs */}
+      {hasPostedInterest && !migrationLocked && (
+        <Alert
+          type="warning"
+          showIcon
+          icon={<ExclamationCircleOutlined />}
+          message={`Savings Interest Already Posted Up To ${dayjs(latestInterestEndDate).format("DD MMM YYYY")}`}
+          description="Important Accounting Notice: Because savings profit/interest has already been distributed through this date, any legacy member migrated now will only earn Daily Product Savings Interest starting AFTER this cutover date. Historical unpaid profit before this date will not be retroactively credited."
+          style={{ marginBottom: 20 }}
+          className="rounded-xl"
+        />
+      )}
+
+      {statusLoading ? (
+        <div className="flex justify-center items-center py-20">
+          <Spin size="large" tip="Checking migration lock status..." />
+        </div>
+      ) : migrationLocked ? (
+        <Card className="border border-rose-200 dark:border-rose-900 rounded-xl shadow-sm my-4">
+          <Result
+            status="warning"
+            icon={<LockOutlined style={{ color: "#e11d48" }} />}
+            title="Legacy Member Migration is Locked"
+            subTitle="Super Admin has locked member migration to protect cash drawer accounting, balance sheet integrity, and prevent unauthorized backdated opening balances during live operations."
+            extra={[
+              canToggleLock && (
+                <Popconfirm
+                  key="unlock"
+                  title="Temporarily Unlock Migration?"
+                  description="Only unlock if you need to onboard another pre-existing Somiti/branch. Lock it back immediately afterwards."
+                  okText="Unlock Migration"
+                  cancelText="Cancel"
+                  onConfirm={() => handleToggleLock(false)}
+                >
+                  <Button
+                    type="primary"
+                    icon={<UnlockOutlined />}
+                    loading={togglingLock}
+                  >
+                    Super Admin: Unlock Migration
+                  </Button>
+                </Popconfirm>
+              ),
+              <Button key="back" onClick={() => navigate("/members")}>
+                Go to Members List
+              </Button>,
+            ]}
+          />
+        </Card>
+      ) : (
+        /* Tabs */
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
@@ -2223,6 +2357,7 @@ export function MemberMigrationPage() {
           },
         ]}
       />
+      )}
     </PageContainer>
   );
 }

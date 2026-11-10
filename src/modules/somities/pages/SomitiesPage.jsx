@@ -82,7 +82,10 @@ export function SomitiesPage() {
   const [status, setStatus] = useState("ALL");
   const [fieldOfficerId, setFieldOfficerId] = useState("ALL");
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
-  const [sorting, setSorting] = useState({ sortBy: "createdAt", sortOrder: "desc" });
+  const [sorting, setSorting] = useState({
+    sortBy: "createdAt",
+    sortOrder: "desc",
+  });
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingSomiti, setEditingSomiti] = useState(null);
@@ -103,7 +106,8 @@ export function SomitiesPage() {
     search: debouncedSearch.trim() || undefined,
     status: status === "ALL" ? undefined : status,
     meetingDay: meetingDay === "ALL" ? undefined : meetingDay,
-    fieldOfficerId: fieldOfficerId === "ALL" ? undefined : Number(fieldOfficerId),
+    fieldOfficerId:
+      fieldOfficerId === "ALL" ? undefined : Number(fieldOfficerId),
     sortBy: sorting.sortBy,
     sortOrder: sorting.sortOrder,
   });
@@ -117,7 +121,13 @@ export function SomitiesPage() {
     const list = [
       { value: "ALL", label: "All Field Officers" },
       ...(usersData?.data ?? [])
-        .filter((u) => u.role === "FIELD_OFFICER" || u.role === "ADMIN" || u.role === "SUPER_ADMIN" || u.role === "MANAGER")
+        .filter(
+          (u) =>
+            u.role === "FIELD_OFFICER" ||
+            u.role === "ADMIN" ||
+            u.role === "SUPER_ADMIN" ||
+            u.role === "MANAGER",
+        )
         .map((u) => ({
           value: String(u.id),
           label: `${u.fullName} (${u.role.replace("_", " ")})`,
@@ -181,7 +191,9 @@ export function SomitiesPage() {
             <Typography.Text strong style={{ fontSize: 15 }}>
               {record.name}
             </Typography.Text>
-            <Tag color="geekblue">{record.somitiId || record.code || "No Code"}</Tag>
+            <Tag color="geekblue">
+              {record.somitiId || record.code || "No Code"}
+            </Tag>
           </Space>
           {record.area && (
             <Typography.Text type="secondary" style={{ fontSize: 13 }}>
@@ -223,9 +235,16 @@ export function SomitiesPage() {
         }
         return (
           <Space size={8}>
-            <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: "#52c41a" }} />
+            <Avatar
+              size="small"
+              icon={<UserOutlined />}
+              style={{ backgroundColor: "#52c41a" }}
+            />
             <div>
-              <Typography.Text strong style={{ display: "block", fontSize: 13 }}>
+              <Typography.Text
+                strong
+                style={{ display: "block", fontSize: 13 }}
+              >
                 {record.fieldOfficer.fullName}
               </Typography.Text>
               <Typography.Text type="secondary" style={{ fontSize: 11 }}>
@@ -259,9 +278,7 @@ export function SomitiesPage() {
       key: "status",
       align: "center",
       render: (status) => (
-        <Tag color={status === "ACTIVE" ? "success" : "default"}>
-          {status}
-        </Tag>
+        <Tag color={status === "ACTIVE" ? "success" : "default"}>{status}</Tag>
       ),
     },
     {
@@ -325,11 +342,16 @@ export function SomitiesPage() {
             Somiti Management
           </Typography.Title>
           <Typography.Text type="secondary">
-            Manage borrower groups, meeting days, and assign responsible Field Officers.
+            Manage borrower groups, meeting days, and assign responsible Field
+            Officers.
           </Typography.Text>
         </div>
         <Space wrap>
-          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => refetch()}
+            loading={isFetching}
+          >
             Refresh
           </Button>
           {canCreate && (
@@ -350,30 +372,59 @@ export function SomitiesPage() {
       {/* Summary KPI Cards */}
       <Row gutter={[8, 8]} style={{ marginBottom: 20 }}>
         <Col xs={8} sm={8}>
-          <Card bordered={false} styles={{ body: { padding: "10px 8px" } }} style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <Card
+            bordered={false}
+            styles={{ body: { padding: "10px 8px" } }}
+            style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+          >
             <Statistic
-              title={<span className="text-[10px] sm:text-xs">Total Somities</span>}
+              title={
+                <span className="text-[10px] sm:text-xs">Total Somities</span>
+              }
               value={meta?.total ?? somities.length}
-              prefix={<ApartmentOutlined className="text-blue-500" style={{ marginRight: 4 }} />}
+              prefix={
+                <ApartmentOutlined
+                  className="text-blue-500"
+                  style={{ marginRight: 4 }}
+                />
+              }
             />
           </Card>
         </Col>
         <Col xs={8} sm={8}>
-          <Card bordered={false} styles={{ body: { padding: "10px 8px" } }} style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <Card
+            bordered={false}
+            styles={{ body: { padding: "10px 8px" } }}
+            style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+          >
             <Statistic
-              title={<span className="text-[10px] sm:text-xs">Active Somities</span>}
+              title={
+                <span className="text-[10px] sm:text-xs">Active Somities</span>
+              }
               value={activeSomitiesCount}
               valueStyle={{ color: "#52c41a" }}
-              prefix={<CheckCircleOutlined style={{ color: "#52c41a", marginRight: 4 }} />}
+              prefix={
+                <CheckCircleOutlined
+                  style={{ color: "#52c41a", marginRight: 4 }}
+                />
+              }
             />
           </Card>
         </Col>
         <Col xs={8} sm={8}>
-          <Card bordered={false} styles={{ body: { padding: "10px 8px" } }} style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <Card
+            bordered={false}
+            styles={{ body: { padding: "10px 8px" } }}
+            style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+          >
             <Statistic
-              title={<span className="text-[10px] sm:text-xs">Enrolled Members</span>}
+              title={
+                <span className="text-[10px] sm:text-xs">Enrolled Members</span>
+              }
               value={totalMembersCount}
-              prefix={<TeamOutlined style={{ color: "#722ed1", marginRight: 4 }} />}
+              prefix={
+                <TeamOutlined style={{ color: "#722ed1", marginRight: 4 }} />
+              }
             />
           </Card>
         </Col>
@@ -394,7 +445,7 @@ export function SomitiesPage() {
               }}
             />
           </Col>
-          <Col xs={12} md={5}>
+          <Col xs={8} md={5}>
             <Select
               style={{ width: "100%" }}
               value={meetingDay}
@@ -405,7 +456,7 @@ export function SomitiesPage() {
               }}
             />
           </Col>
-          <Col xs={12} md={5}>
+          <Col xs={8} md={5}>
             <Select
               style={{ width: "100%" }}
               value={status}
@@ -416,7 +467,7 @@ export function SomitiesPage() {
               }}
             />
           </Col>
-          <Col xs={24} md={6}>
+          <Col xs={8} md={5}>
             <Select
               style={{ width: "100%" }}
               value={fieldOfficerId}
@@ -427,7 +478,9 @@ export function SomitiesPage() {
               }}
               showSearch
               filterOption={(input, option) =>
-                (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                (option?.label ?? "")
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
               }
             />
           </Col>
@@ -441,7 +494,11 @@ export function SomitiesPage() {
           showIcon
           message="Failed to load somities"
           description={error?.data?.message || "An error occurred."}
-          action={<Button size="small" onClick={refetch}>Retry</Button>}
+          action={
+            <Button size="small" onClick={refetch}>
+              Retry
+            </Button>
+          }
           style={{ marginBottom: 16 }}
         />
       )}
@@ -453,14 +510,15 @@ export function SomitiesPage() {
           columns={columns}
           dataSource={somities}
           loading={isLoading || isFetching}
-          scroll={{ x: 750 }}
+          scroll={{ x: "max-content" }}
           pagination={{
             current: meta?.page ?? pagination.current,
             pageSize: meta?.limit ?? pagination.pageSize,
             total: meta?.total ?? 0,
             showSizeChanger: true,
             pageSizeOptions: [10, 20, 50],
-            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} somities`,
+            showTotal: (total, range) =>
+              `${range[0]}-${range[1]} of ${total} somities`,
           }}
           onChange={(tablePagination, _filters, sorter) => {
             setPagination({

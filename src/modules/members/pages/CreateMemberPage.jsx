@@ -86,6 +86,7 @@ export function CreateMemberPage() {
         className="mb-4 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/20"
         type="info"
         showIcon
+        style={{ marginBottom: "20px" }}
         message="Onboarding an existing / legacy member?"
         description={
           <div className="flex flex-wrap items-center justify-between gap-2 mt-1">

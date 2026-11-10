@@ -23,6 +23,7 @@ export const permissions = Object.freeze({
   loansUpdateAny: "loans:update:any",
   loansApprove: "loans:approve:any",
   loansDisburse: "loans:disburse:any",
+  loansReverse: "loans:reverse",
 
   collectionsReadAny: "collections:read:any",
   collectionsCreate: "collections:create",
@@ -31,11 +32,13 @@ export const permissions = Object.freeze({
   savingsReadAny: "savings:read:any",
   savingsDeposit: "savings:deposit",
   savingsWithdraw: "savings:withdraw",
+  savingsReverse: "savings:reverse",
 
   dpsReadAny: "dps:read:any",
   dpsCreate: "dps:create",
   dpsDeposit: "dps:deposit",
   dpsClose: "dps:close",
+  dpsReverse: "dps:reverse",
 
   reportsReadAny: "reports:read:any",
 
@@ -55,6 +58,7 @@ export const permissions = Object.freeze({
   dayClosingReopen: "day-closing:reopen",
 
   migrationExecute: "migration:execute",
+  migrationLock: "migration:lock",
 
   settingsRead: "settings:read",
   settingsUpdate: "settings:update",
@@ -64,3 +68,7 @@ export const can = (user, permission) =>
   Boolean(permission) &&
   Array.isArray(user?.permissions) &&
   user.permissions.includes(permission);
+
+export const canAny = (user, permissionList) =>
+  Array.isArray(permissionList) &&
+  permissionList.some((perm) => can(user, perm));

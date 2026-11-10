@@ -22,7 +22,8 @@ export function DashboardPage() {
   const [trendDays, setTrendDays] = useState(7);
   const [closingModalOpen, setClosingModalOpen] = useState(false);
 
-  const { data: activeDayData, refetch: refetchActiveDay } = useGetActiveBusinessDayQuery();
+  const { data: activeDayData, refetch: refetchActiveDay } =
+    useGetActiveBusinessDayQuery();
   const activeDay = activeDayData?.data;
   const isDeferred =
     activeDay?.status === "OPEN" &&
@@ -64,11 +65,14 @@ export function DashboardPage() {
         <Alert
           type="warning"
           showIcon
+          style={{ marginBottom: "16px" }}
           className="mb-4 border-amber-300 bg-amber-50 dark:bg-amber-950/30"
           message={
             <div className="flex flex-wrap items-center justify-between gap-3">
               <span className="font-semibold text-amber-900 dark:text-amber-200">
-                Deferred Day Closing: Business Day {dayjs(activeDay.businessDate).format("DD MMMM YYYY")} is still OPEN!
+                Deferred Day Closing: Business Day{" "}
+                {dayjs(activeDay.businessDate).format("DD MMMM YYYY")} is still
+                OPEN!
               </span>
               {canCloseDay && (
                 <Button

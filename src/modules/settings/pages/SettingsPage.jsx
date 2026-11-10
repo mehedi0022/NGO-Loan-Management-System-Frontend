@@ -8,6 +8,7 @@ import {
   SaveOutlined,
   SettingOutlined,
   ShopOutlined,
+  UnlockOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import {
@@ -25,6 +26,7 @@ import {
   Row,
   Select,
   Space,
+  Switch,
   Tabs,
   Tag,
   Typography,
@@ -35,6 +37,7 @@ import { useSelector } from "react-redux";
 
 import { PageContainer } from "../../../components/page-container/PageContainer.jsx";
 import { can, permissions } from "../../auth/permissions.js";
+import { useToggleMigrationLockMutation } from "../../migration/migrationApi.js";
 import {
   useChangePasswordMutation,
   useGetSettingsQuery,
@@ -44,6 +47,9 @@ import {
 export function SettingsPage() {
   const currentUser = useSelector((state) => state.auth.user);
   const canUpdate = can(currentUser, permissions.settingsUpdate);
+  const canToggleMigrationLock =
+    can(currentUser, permissions.migrationLock) ||
+    currentUser?.role === "SUPER_ADMIN";
 
   const [activeTab, setActiveTab] = useState("organization");
 
@@ -59,8 +65,26 @@ export function SettingsPage() {
     useUpdateSettingsMutation();
   const [changePassword, { isLoading: isChangingPassword }] =
     useChangePasswordMutation();
+  const [toggleMigrationLock, { isLoading: isTogglingMigration }] =
+    useToggleMigrationLockMutation();
 
   const settings = settingsResponse?.data;
+
+  const handleMigrationLockChange = async (checked) => {
+    try {
+      const res = await toggleMigrationLock(checked).unwrap();
+      message.success(
+        res?.message ||
+          (checked
+            ? "Member Migration has been LOCKED"
+            : "Member Migration has been UNLOCKED"),
+      );
+    } catch (err) {
+      message.error(
+        err?.data?.message || "Failed to update migration lock status",
+      );
+    }
+  };
 
   // Populate Org & Policy Forms when settings load
   useEffect(() => {
@@ -423,6 +447,39 @@ export function SettingsPage() {
                     </div>
                   )}
                 </Form>
+
+                {canToggleMigrationLock && (
+                  <>
+                    <Divider />
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40">
+                      <div>
+                        <div className="flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">
+                          {settings?.migrationLocked ? (
+                            <LockOutlined className="text-rose-600" />
+                          ) : (
+                            <UnlockOutlined className="text-emerald-600" />
+                          )}
+                          <span>Legacy Member Migration Security Lock</span>
+                          {settings?.migrationLocked ? (
+                            <Tag color="error">LOCKED</Tag>
+                          ) : (
+                            <Tag color="success">UNLOCKED</Tag>
+                          )}
+                        </div>
+                        <Typography.Text type="secondary" className="text-xs block mt-1">
+                          Locking Member Migration prevents anyone (including Admins) from creating backdated opening savings balances or historical loans without cash drawer entries once live operations are underway.
+                        </Typography.Text>
+                      </div>
+                      <Switch
+                        checked={Boolean(settings?.migrationLocked)}
+                        loading={isTogglingMigration}
+                        onChange={handleMigrationLockChange}
+                        checkedChildren="Locked"
+                        unCheckedChildren="Unlocked"
+                      />
+                    </div>
+                  </>
+                )}
               </Card>
             ),
           },

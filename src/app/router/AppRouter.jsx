@@ -49,25 +49,130 @@ export function AppRouter() {
               </PermissionRoute>
             }
           />
-          <Route path="/members/new" element={<CreateMemberPage />} />
-          <Route path="/members/migration" element={<MemberMigrationPage />} />
-          <Route path="/members/:id" element={<MemberProfilePage />} />
-          <Route path="/members/:id/edit" element={<EditMemberPage />} />
-          <Route path="members" element={<MembersPage />} />
-          <Route path="loans/new" element={<CreateLoanPage />} />
-          <Route path="loans/approval" element={<LoanApprovalPage />} />
-          <Route path="loans/disbursement" element={<LoanDisbursementPage />} />
-          <Route path="loans/overdue" element={<LoanDisbursementPage />} />
-          <Route path="loans/:id/edit" element={<EditLoanPage />} />
-          <Route path="loans/:id" element={<LoanDetailsPage />} />
-          <Route path="loans" element={<LoansPage />} />
-          <Route path="collections" element={<CollectionPage />} />
-          <Route path="savings" element={<SavingsPage />} />
-          <Route path="dps" element={<DpsPage />} />
+          <Route
+            path="/members/new"
+            element={
+              <PermissionRoute permission={permissions.membersCreate}>
+                <CreateMemberPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/members/migration"
+            element={
+              <PermissionRoute permission={permissions.migrationExecute}>
+                <MemberMigrationPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/members/:id"
+            element={
+              <PermissionRoute permission={permissions.membersReadAny}>
+                <MemberProfilePage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/members/:id/edit"
+            element={
+              <PermissionRoute permission={permissions.membersUpdateAny}>
+                <EditMemberPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="members"
+            element={
+              <PermissionRoute permission={permissions.membersReadAny}>
+                <MembersPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="loans/new"
+            element={
+              <PermissionRoute permission={permissions.loansCreate}>
+                <CreateLoanPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="loans/approval"
+            element={
+              <PermissionRoute permission={permissions.loansApprove}>
+                <LoanApprovalPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="loans/disbursement"
+            element={
+              <PermissionRoute permission={permissions.loansDisburse}>
+                <LoanDisbursementPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="loans/overdue"
+            element={
+              <PermissionRoute permission={permissions.loansDisburse}>
+                <LoanDisbursementPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="loans/:id/edit"
+            element={
+              <PermissionRoute permission={permissions.loansUpdateAny}>
+                <EditLoanPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="loans/:id"
+            element={
+              <PermissionRoute permission={permissions.loansReadAny}>
+                <LoanDetailsPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="loans"
+            element={
+              <PermissionRoute permission={permissions.loansReadAny}>
+                <LoansPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="collections"
+            element={
+              <PermissionRoute permission={permissions.collectionsReadAny}>
+                <CollectionPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="savings"
+            element={
+              <PermissionRoute permission={permissions.savingsReadAny}>
+                <SavingsPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="dps"
+            element={
+              <PermissionRoute permission={permissions.dpsReadAny}>
+                <DpsPage />
+              </PermissionRoute>
+            }
+          />
           <Route
             path="accounts"
             element={
-              <PermissionRoute permission={permissions.accountsReadAny}>
+              <PermissionRoute permission={permissions.accountsTransfer}>
                 <AccountsPage />
               </PermissionRoute>
             }

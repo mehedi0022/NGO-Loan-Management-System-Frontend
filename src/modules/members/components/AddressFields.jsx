@@ -59,8 +59,8 @@ export function AddressFields({ name }) {
   };
 
   return (
-    <Row gutter={[20, 0]}>
-      <Col xs={24} md={12} lg={6}>
+    <Row gutter={[{ xs: 10, sm: 16, md: 20 }, 0]}>
+      <Col xs={12} md={12} lg={6}>
         <Form.Item
           label="Division"
           name={[...basePath, "divisionId"]}
@@ -85,7 +85,7 @@ export function AddressFields({ name }) {
         </Form.Item>
       </Col>
 
-      <Col xs={24} md={12} lg={6}>
+      <Col xs={12} md={12} lg={6}>
         <Form.Item
           label="District"
           name={[...basePath, "districtId"]}
@@ -111,7 +111,7 @@ export function AddressFields({ name }) {
         </Form.Item>
       </Col>
 
-      <Col xs={24} md={12} lg={6}>
+      <Col xs={12} md={12} lg={6}>
         <Form.Item
           label="Upazila"
           name={[...basePath, "upazilaId"]}
@@ -137,7 +137,7 @@ export function AddressFields({ name }) {
         </Form.Item>
       </Col>
 
-      <Col xs={24} md={12} lg={6}>
+      <Col xs={12} md={12} lg={6}>
         <Form.Item
           label="Union"
           name={[...basePath, "unionId"]}
@@ -162,7 +162,7 @@ export function AddressFields({ name }) {
         </Form.Item>
       </Col>
 
-      <Col xs={24} md={12} lg={6}>
+      <Col xs={12} md={12} lg={6}>
         <Form.Item
           label="Village"
           name={[...basePath, "village"]}
@@ -177,7 +177,7 @@ export function AddressFields({ name }) {
         </Form.Item>
       </Col>
 
-      <Col xs={24} md={12} lg={6}>
+      <Col xs={12} md={12} lg={6}>
         <Form.Item
           label="Post Office"
           name={[...basePath, "postOffice"]}
@@ -192,7 +192,7 @@ export function AddressFields({ name }) {
         </Form.Item>
       </Col>
 
-      <Col xs={24} md={12} lg={6}>
+      <Col xs={12} md={12} lg={6}>
         <Form.Item
           label="House / Holding"
           name={[...basePath, "houseOrHolding"]}
@@ -201,7 +201,7 @@ export function AddressFields({ name }) {
         </Form.Item>
       </Col>
 
-      <Col xs={24} md={12} lg={6}>
+      <Col xs={12} md={12} lg={6}>
         <Form.Item label="Road" name={[...basePath, "road"]}>
           <Input placeholder="Road name / number" />
         </Form.Item>

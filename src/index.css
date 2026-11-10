@@ -657,6 +657,29 @@ select {
   padding: 4px 0 18px;
 }
 
+@media (max-width: 575px) {
+  .member-form-card .ant-card-head {
+    padding: 0 12px;
+    min-height: 42px;
+  }
+
+  .member-form-card .ant-card-body {
+    padding: 14px 12px 4px;
+  }
+
+  .member-form .ant-form-item {
+    margin-bottom: 12px;
+  }
+
+  .member-form .ant-form-item-label {
+    padding-bottom: 4px;
+  }
+
+  .member-form .ant-form-item-label > label {
+    font-size: 11px;
+  }
+}
+
 .profile-image-card {
   max-width: 920px;
 }

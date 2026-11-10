@@ -2,13 +2,12 @@ import {
   CalculatorOutlined,
   CheckCircleOutlined,
   HistoryOutlined,
+  InfoCircleOutlined,
   LockOutlined,
   PercentageOutlined,
   QuestionCircleOutlined,
-  ReloadOutlined,
   SaveOutlined,
   SettingOutlined,
-  ThunderboltOutlined,
 } from "@ant-design/icons";
 import {
   Alert,
@@ -22,7 +21,6 @@ import {
   InputNumber,
   Modal,
   Popconfirm,
-  Radio,
   Row,
   Select,
   Space,
@@ -31,6 +29,7 @@ import {
   Table,
   Tabs,
   Tag,
+  Tooltip,
   Typography,
   message,
 } from "antd";
@@ -51,10 +50,10 @@ const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const INTERVAL_LABELS = {
-  MONTHLY: "Monthly (প্রতি মাসে)",
-  QUARTERLY: "Quarterly (৩ মাস অন্তর - ত্রৈমাসিক)",
-  HALF_YEARLY: "Half-Yearly (৬ মাস অন্তর - অর্ধবার্ষিক)",
-  YEARLY: "Yearly (১ বছর অন্তর - বার্ষিক)",
+  MONTHLY: "Monthly (Every Month)",
+  QUARTERLY: "Quarterly (Every 3 Months)",
+  HALF_YEARLY: "Half-Yearly (Every 6 Months)",
+  YEARLY: "Yearly (Every 12 Months)",
 };
 
 export function SavingsInterestModal({ open, onClose }) {
@@ -77,9 +76,12 @@ export function SavingsInterestModal({ open, onClose }) {
   const somitiesList = somitiesData?.data ?? [];
 
   // Organization policy values (read-only from Settings)
-  const generalRate = Number(settingsData?.data?.generalSavingsInterestRate) || 6;
-  const specialRate = Number(settingsData?.data?.specialSavingsInterestRate) || 7;
-  const intervalType = settingsData?.data?.savingsCompoundingInterval || "QUARTERLY";
+  const generalRate =
+    Number(settingsData?.data?.generalSavingsInterestRate) || 6;
+  const specialRate =
+    Number(settingsData?.data?.specialSavingsInterestRate) || 7;
+  const intervalType =
+    settingsData?.data?.savingsCompoundingInterval || "QUARTERLY";
 
   // Form states for calculation
   const [dateRange, setDateRange] = useState([
@@ -93,7 +95,9 @@ export function SavingsInterestModal({ open, onClose }) {
   const lastPosting = settingsData?.data?.lastPosting;
   const nextEligibleStartDate = settingsData?.data?.nextEligibleStartDate;
   const earliestOrganizationDate = settingsData?.data?.earliestOrganizationDate;
-  const lastPostedEndDayjs = lastPosting?.periodEndDate ? dayjs(lastPosting.periodEndDate) : null;
+  const lastPostedEndDayjs = lastPosting?.periodEndDate
+    ? dayjs(lastPosting.periodEndDate)
+    : null;
 
   // Helper to compute recommended period end date based on policy compounding frequency
   const computeEndDate = (startDayjs, interval) => {
@@ -119,7 +123,8 @@ export function SavingsInterestModal({ open, onClose }) {
   // Auto-set starting date continuous from last posting (or earliest org date)
   useEffect(() => {
     if (settingsData?.data) {
-      const interval = settingsData.data.savingsCompoundingInterval || "QUARTERLY";
+      const interval =
+        settingsData.data.savingsCompoundingInterval || "QUARTERLY";
 
       if (settingsData.data.nextEligibleStartDate) {
         const nextStart = dayjs(settingsData.data.nextEligibleStartDate);
@@ -140,7 +145,10 @@ export function SavingsInterestModal({ open, onClose }) {
     if (current.isAfter(dayjs().endOf("day"))) return true;
     // 2. Cannot overlap with previously posted periods
     if (lastPostedEndDayjs) {
-      if (current.isBefore(lastPostedEndDayjs, "day") || current.isSame(lastPostedEndDayjs, "day")) {
+      if (
+        current.isBefore(lastPostedEndDayjs, "day") ||
+        current.isSame(lastPostedEndDayjs, "day")
+      ) {
         return true;
       }
     } else if (earliestOrganizationDate) {
@@ -179,7 +187,9 @@ export function SavingsInterestModal({ open, onClose }) {
   // Handle preview click
   const handleCalculatePreview = () => {
     if (!dateRange || !dateRange[0] || !dateRange[1]) {
-      message.error("Please select a valid start and end date for interest calculation");
+      message.error(
+        "Please select a valid start and end date for interest calculation",
+      );
       return;
     }
     triggerPreview({
@@ -216,7 +226,9 @@ export function SavingsInterestModal({ open, onClose }) {
       // Switch to history tab to view posting receipt
       setActiveTab("history");
     } catch (err) {
-      message.error(err?.data?.message || "Failed to post interest to accounts");
+      message.error(
+        err?.data?.message || "Failed to post interest to accounts",
+      );
     }
   };
 
@@ -239,9 +251,12 @@ export function SavingsInterestModal({ open, onClose }) {
   useEffect(() => {
     if (defaultSettings) {
       settingsForm.setFieldsValue({
-        generalSavingsInterestRate: Number(defaultSettings.generalSavingsInterestRate) || 6,
-        specialSavingsInterestRate: Number(defaultSettings.specialSavingsInterestRate) || 7,
-        savingsCompoundingInterval: defaultSettings.savingsCompoundingInterval || "QUARTERLY",
+        generalSavingsInterestRate:
+          Number(defaultSettings.generalSavingsInterestRate) || 6,
+        specialSavingsInterestRate:
+          Number(defaultSettings.specialSavingsInterestRate) || 7,
+        savingsCompoundingInterval:
+          defaultSettings.savingsCompoundingInterval || "QUARTERLY",
       });
     }
   }, [defaultSettings, settingsForm]);
@@ -265,11 +280,29 @@ export function SavingsInterestModal({ open, onClose }) {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <PercentageOutlined style={{ fontSize: 20, color: "#059669" }} />
           <div>
-            <Title level={4} style={{ margin: 0 }}>
-              Savings Interest & Compound Distribution
-            </Title>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Title level={4} style={{ margin: 0 }}>
+                Savings Interest & Compound Distribution
+              </Title>
+              <Tooltip
+                title={
+                  <div style={{ fontSize: 12 }}>
+                    <strong>Daily Product Method:</strong> Daily interest is calculated on each
+                    member&apos;s end-of-day closing balance across all deposits and withdrawals.
+                    Once credited at the end of a period, the earned interest becomes part of the
+                    principal for subsequent periods, ensuring accurate Compound Interest.
+                  </div>
+                }
+                placement="bottomLeft"
+                styles={{ root: { maxWidth: 380 } }}
+              >
+                <InfoCircleOutlined
+                  style={{ color: "#64748b", fontSize: 15, cursor: "pointer" }}
+                />
+              </Tooltip>
+            </div>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              Daily Product Method (দৈনিক প্রোডাক্ট পদ্ধতি) • Automated Compound Crediting
+              Daily Product Method • Automated Compound Crediting
             </Text>
           </div>
         </div>
@@ -299,11 +332,15 @@ export function SavingsInterestModal({ open, onClose }) {
                     style={{ marginBottom: 16 }}
                     message={
                       <div style={{ fontSize: 13 }}>
-                        <strong>Previous Interest Posting:</strong> Accrued up to{" "}
+                        <strong>Previous Interest Posting:</strong> Accrued up
+                        to{" "}
                         <strong style={{ color: "#0f172a" }}>
                           {formatDate(lastPosting.periodEndDate)}
                         </strong>{" "}
-                        <Tag color="cyan" style={{ fontFamily: "monospace", marginLeft: 4 }}>
+                        <Tag
+                          color="cyan"
+                          style={{ fontFamily: "monospace", marginLeft: 4 }}
+                        >
                           {lastPosting.postingCode}
                         </Tag>
                         <span style={{ marginLeft: 8 }}>
@@ -322,31 +359,26 @@ export function SavingsInterestModal({ open, onClose }) {
                     style={{ marginBottom: 16 }}
                     message={
                       <span style={{ fontSize: 13 }}>
-                        <strong>Initial Compounding Cycle:</strong> No prior interest postings found. This calculation will establish the first compound interest cycle for active member savings accounts.
+                        <strong>Initial Compounding Cycle:</strong> No prior
+                        interest postings found. This calculation will establish
+                        the first compound interest cycle for active member
+                        savings accounts.
                       </span>
                     }
                   />
                 )}
 
-                {/* Method explanation banner */}
-                <Alert
-                  type="info"
-                  showIcon
-                  style={{ marginBottom: 16 }}
-                  message={
-                    <span>
-                      <strong>Daily Product Method (পদ্ধতি ১): </strong>
-                      সদস্যরা প্রতি সপ্তাহে যে সঞ্চয় জমা বা উত্তোলন করেন, প্রতিদিনের সমাপনী ব্যালেন্সের ওপর দৈনিক সুদ হিসাব করা হয়। 
-                      নির্ধারিত মেয়াদের সুদ অ্যাকাউন্টে জমা হওয়ার পর পরবর্তী পিরিয়ডে তা নতুন মূলধনে রূপ নিয়ে <strong>চক্রবৃদ্ধি সুদ (Compound Interest)</strong> নিশ্চিত করে।
-                    </span>
-                  }
-                />
-
                 {/* Calculation Control Card */}
                 <Card
                   size="small"
                   title={
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
                       <span>1. Interest Policy & Calculation Period</span>
                       <Button
                         type="link"
@@ -364,7 +396,10 @@ export function SavingsInterestModal({ open, onClose }) {
                   <Row gutter={[16, 14]} align="middle">
                     {/* Read-only Policy Indicators */}
                     <Col xs={24} sm={8} md={5}>
-                      <Text type="secondary" style={{ fontSize: 11, display: "block" }}>
+                      <Text
+                        type="secondary"
+                        style={{ fontSize: 11, display: "block" }}
+                      >
                         Compounding Policy:
                       </Text>
                       <Tag
@@ -385,7 +420,10 @@ export function SavingsInterestModal({ open, onClose }) {
                     </Col>
 
                     <Col xs={12} sm={8} md={4}>
-                      <Text type="secondary" style={{ fontSize: 11, display: "block" }}>
+                      <Text
+                        type="secondary"
+                        style={{ fontSize: 11, display: "block" }}
+                      >
                         General Rate (p.a.):
                       </Text>
                       <Tag
@@ -406,7 +444,10 @@ export function SavingsInterestModal({ open, onClose }) {
                     </Col>
 
                     <Col xs={12} sm={8} md={4}>
-                      <Text type="secondary" style={{ fontSize: 11, display: "block" }}>
+                      <Text
+                        type="secondary"
+                        style={{ fontSize: 11, display: "block" }}
+                      >
                         Special Rate (p.a.):
                       </Text>
                       <Tag
@@ -427,11 +468,18 @@ export function SavingsInterestModal({ open, onClose }) {
                     </Col>
 
                     <Col xs={24} sm={12} md={5}>
-                      <Text strong style={{ fontSize: 12, display: "block", marginBottom: 4 }}>
+                      <Text
+                        strong
+                        style={{
+                          fontSize: 12,
+                          display: "block",
+                          marginBottom: 4,
+                        }}
+                      >
                         Filter by Somiti:
                       </Text>
                       <Select
-                        placeholder="All Somities (সকল সমিতি)"
+                        placeholder="All Somities"
                         allowClear
                         value={selectedSomitiId}
                         onChange={setSelectedSomitiId}
@@ -466,7 +514,10 @@ export function SavingsInterestModal({ open, onClose }) {
                       <Divider style={{ margin: "6px 0 12px 0" }} />
                       <Row gutter={[16, 8]} align="middle">
                         <Col xs={24} md={10}>
-                          <Text strong style={{ display: "block", marginBottom: 4 }}>
+                          <Text
+                            strong
+                            style={{ display: "block", marginBottom: 4 }}
+                          >
                             Date Range (Period):
                           </Text>
                           <RangePicker
@@ -476,27 +527,45 @@ export function SavingsInterestModal({ open, onClose }) {
                             style={{ width: "100%" }}
                             allowClear={false}
                             disabledDate={disabledDate}
-                            disabled={[true, false]}
+                            disabled={[Boolean(lastPosting), false]}
                           />
                         </Col>
                         <Col xs={24} md={14}>
-                          <div style={{ fontSize: 11, color: "#64748b", marginTop: 18 }}>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "#64748b",
+                              marginTop: 18,
+                            }}
+                          >
                             {lastPosting ? (
                               <span>
                                 🔒 <strong>Start Date</strong> is locked to{" "}
                                 <strong style={{ color: "#0f172a" }}>
                                   {formatDate(nextEligibleStartDate)}
                                 </strong>{" "}
-                                (Next eligible date after previous posting). End date is set according to{" "}
-                                <strong>{INTERVAL_LABELS[intervalType] || intervalType}</strong> policy.
+                                (Next eligible date after previous posting). End
+                                date is set according to{" "}
+                                <strong>
+                                  {INTERVAL_LABELS[intervalType] ||
+                                    intervalType}
+                                </strong>{" "}
+                                policy.
                               </span>
                             ) : (
                               <span>
-                                🔒 <strong>Start Date</strong> is locked to earliest member account opening (
+                                📅 <strong>Initial Cycle:</strong> Start Date
+                                defaults to earliest account opening (
                                 <strong style={{ color: "#0f172a" }}>
                                   {formatDate(earliestOrganizationDate)}
                                 </strong>
-                                ). End date is set according to <strong>{INTERVAL_LABELS[intervalType] || intervalType}</strong> policy.
+                                ), or choose your migration cutover start date.
+                                Recommended cycle:{" "}
+                                <strong>
+                                  {INTERVAL_LABELS[intervalType] ||
+                                    intervalType}
+                                </strong>
+                                .
                               </span>
                             )}
                           </div>
@@ -510,8 +579,15 @@ export function SavingsInterestModal({ open, onClose }) {
                 {previewLoading && (
                   <div style={{ textAlign: "center", padding: "40px 0" }}>
                     <Spin size="large" />
-                    <div style={{ marginTop: 12, color: "#059669", fontWeight: 500 }}>
-                      Computing daily product balance timeline for all accounts...
+                    <div
+                      style={{
+                        marginTop: 12,
+                        color: "#059669",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Computing daily product balance timeline for all
+                      accounts...
                     </div>
                   </div>
                 )}
@@ -524,7 +600,11 @@ export function SavingsInterestModal({ open, onClose }) {
                         type="error"
                         showIcon
                         style={{ marginBottom: 16 }}
-                        message={<strong>Period Blocked (Duplicate / Overlapping Posting)</strong>}
+                        message={
+                          <strong>
+                            Period Blocked (Duplicate / Overlapping Posting)
+                          </strong>
+                        }
                         description={calculationResult.validationError}
                       />
                     )}
@@ -543,12 +623,22 @@ export function SavingsInterestModal({ open, onClose }) {
                     {/* Summary Metric Cards */}
                     <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
                       <Col xs={12} sm={6}>
-                        <Card size="small" style={{ background: "#f0fdf4", borderColor: "#bbf7d0" }}>
+                        <Card
+                          size="small"
+                          style={{
+                            background: "#f0fdf4",
+                            borderColor: "#bbf7d0",
+                          }}
+                        >
                           <Statistic
                             title="Eligible Members"
                             value={calculationResult.totalEligibleMembers}
                             suffix="Accounts"
-                            valueStyle={{ color: "#166534", fontWeight: 700, fontSize: 20 }}
+                            valueStyle={{
+                              color: "#166534",
+                              fontWeight: 700,
+                              fontSize: 20,
+                            }}
                           />
                         </Card>
                       </Col>
@@ -560,7 +650,11 @@ export function SavingsInterestModal({ open, onClose }) {
                             value={calculationResult.totalGeneralInterest}
                             precision={2}
                             prefix="৳"
-                            valueStyle={{ color: "#0369a1", fontWeight: 700, fontSize: 20 }}
+                            valueStyle={{
+                              color: "#0369a1",
+                              fontWeight: 700,
+                              fontSize: 20,
+                            }}
                           />
                         </Card>
                       </Col>
@@ -572,19 +666,33 @@ export function SavingsInterestModal({ open, onClose }) {
                             value={calculationResult.totalSpecialInterest}
                             precision={2}
                             prefix="৳"
-                            valueStyle={{ color: "#d97706", fontWeight: 700, fontSize: 20 }}
+                            valueStyle={{
+                              color: "#d97706",
+                              fontWeight: 700,
+                              fontSize: 20,
+                            }}
                           />
                         </Card>
                       </Col>
 
                       <Col xs={12} sm={6}>
-                        <Card size="small" style={{ background: "#ecfdf5", borderColor: "#a7f3d0" }}>
+                        <Card
+                          size="small"
+                          style={{
+                            background: "#ecfdf5",
+                            borderColor: "#a7f3d0",
+                          }}
+                        >
                           <Statistic
                             title="Total Interest Payable"
                             value={calculationResult.grandTotalInterest}
                             precision={2}
                             prefix="৳"
-                            valueStyle={{ color: "#059669", fontWeight: 800, fontSize: 22 }}
+                            valueStyle={{
+                              color: "#059669",
+                              fontWeight: 800,
+                              fontSize: 22,
+                            }}
                           />
                         </Card>
                       </Col>
@@ -622,21 +730,38 @@ export function SavingsInterestModal({ open, onClose }) {
                           description={
                             <div style={{ maxWidth: 320 }}>
                               Are you sure you want to credit{" "}
-                              <strong>৳{formatAmount(calculationResult.grandTotalInterest)}</strong>{" "}
+                              <strong>
+                                ৳
+                                {formatAmount(
+                                  calculationResult.grandTotalInterest,
+                                )}
+                              </strong>{" "}
                               compound interest across{" "}
-                              <strong>{calculationResult.totalEligibleMembers}</strong> member accounts?
+                              <strong>
+                                {calculationResult.totalEligibleMembers}
+                              </strong>{" "}
+                              member accounts?
                               <br />
                               <Text type="secondary" style={{ fontSize: 11 }}>
-                                This will safely update balances, record INTEREST passbook transactions, and post to ledger.
+                                This will safely update balances, record
+                                INTEREST passbook transactions, and post to
+                                ledger.
                               </Text>
                             </div>
                           }
-                          icon={<QuestionCircleOutlined style={{ color: "#059669" }} />}
+                          icon={
+                            <QuestionCircleOutlined
+                              style={{ color: "#059669" }}
+                            />
+                          }
                           onConfirm={handleConfirmPost}
                           okText="Yes, Post Interest"
                           cancelText="Cancel"
                           okButtonProps={{
-                            style: { background: "#059669", borderColor: "#059669" },
+                            style: {
+                              background: "#059669",
+                              borderColor: "#059669",
+                            },
                             loading: postLoading,
                           }}
                         >
@@ -696,15 +821,38 @@ export function SavingsInterestModal({ open, onClose }) {
                           width: 140,
                           render: (openDate, rec) => (
                             <div>
-                              <div style={{ fontSize: 11, fontWeight: 600, color: "#334155" }}>
+                              <div
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  color: "#334155",
+                                }}
+                              >
                                 {openDate ? formatDate(openDate) : "—"}
                               </div>
                               {rec.activeDays < rec.totalPeriodDays ? (
-                                <Tag color="orange" style={{ fontSize: 10, lineHeight: "16px", padding: "0 4px", marginTop: 2 }}>
-                                  Active: {rec.activeDays}/{rec.totalPeriodDays}d
+                                <Tag
+                                  color="orange"
+                                  style={{
+                                    fontSize: 10,
+                                    lineHeight: "16px",
+                                    padding: "0 4px",
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  Active: {rec.activeDays}/{rec.totalPeriodDays}
+                                  d
                                 </Tag>
                               ) : (
-                                <Tag color="green" style={{ fontSize: 10, lineHeight: "16px", padding: "0 4px", marginTop: 2 }}>
+                                <Tag
+                                  color="green"
+                                  style={{
+                                    fontSize: 10,
+                                    lineHeight: "16px",
+                                    padding: "0 4px",
+                                    marginTop: 2,
+                                  }}
+                                >
                                   Full {rec.activeDays}d
                                 </Tag>
                               )}
@@ -722,7 +870,12 @@ export function SavingsInterestModal({ open, onClose }) {
                           dataIndex: "generalInterest",
                           align: "right",
                           render: (val) => (
-                            <span style={{ color: val > 0 ? "#0369a1" : "#94a3b8", fontWeight: 600 }}>
+                            <span
+                              style={{
+                                color: val > 0 ? "#0369a1" : "#94a3b8",
+                                fontWeight: 600,
+                              }}
+                            >
                               ৳{formatAmount(val)}
                             </span>
                           ),
@@ -738,7 +891,12 @@ export function SavingsInterestModal({ open, onClose }) {
                           dataIndex: "specialInterest",
                           align: "right",
                           render: (val) => (
-                            <span style={{ color: val > 0 ? "#d97706" : "#94a3b8", fontWeight: 600 }}>
+                            <span
+                              style={{
+                                color: val > 0 ? "#d97706" : "#94a3b8",
+                                fontWeight: 600,
+                              }}
+                            >
                               ৳{formatAmount(val)}
                             </span>
                           ),
@@ -748,7 +906,10 @@ export function SavingsInterestModal({ open, onClose }) {
                           dataIndex: "totalInterest",
                           align: "right",
                           render: (val) => (
-                            <Tag color="green" style={{ fontWeight: 700, fontSize: 12 }}>
+                            <Tag
+                              color="green"
+                              style={{ fontWeight: 700, fontSize: 12 }}
+                            >
                               +৳{formatAmount(val)}
                             </Tag>
                           ),
@@ -863,32 +1024,53 @@ export function SavingsInterestModal({ open, onClose }) {
                       label="General Savings Annual Interest Rate (%)"
                       name="generalSavingsInterestRate"
                       rules={[{ required: true, message: "Please input rate" }]}
-                      extra="সাধারণ সঞ্চয়ের বার্ষিক সুদের হার (যেমন: 6.0%)"
+                      extra="Annual interest rate for General Savings (e.g., 6.0%)"
                     >
-                      <InputNumber min={0} max={100} step={0.1} style={{ width: "100%" }} addonAfter="%" />
+                      <InputNumber
+                        min={0}
+                        max={100}
+                        step={0.1}
+                        style={{ width: "100%" }}
+                        addonAfter="%"
+                      />
                     </Form.Item>
 
                     <Form.Item
                       label="Special Savings Annual Interest Rate (%)"
                       name="specialSavingsInterestRate"
                       rules={[{ required: true, message: "Please input rate" }]}
-                      extra="বিশেষ সঞ্চয়ের বার্ষিক সুদের হার (যেমন: 7.0%)"
+                      extra="Annual interest rate for Special Savings (e.g., 7.0%)"
                     >
-                      <InputNumber min={0} max={100} step={0.1} style={{ width: "100%" }} addonAfter="%" />
+                      <InputNumber
+                        min={0}
+                        max={100}
+                        step={0.1}
+                        style={{ width: "100%" }}
+                        addonAfter="%"
+                      />
                     </Form.Item>
 
                     <Form.Item
                       label="Default Compounding Frequency"
                       name="savingsCompoundingInterval"
                       rules={[{ required: true }]}
-                      extra="কতদিন পর পর সুদ মূলধনের সাথে যোগ হয়ে চক্রবৃদ্ধি হবে"
+                      extra="How frequently accrued interest is compounded into the principal balance"
                     >
                       <Select
                         options={[
-                          { value: "MONTHLY", label: "Monthly (প্রতি মাসে)" },
-                          { value: "QUARTERLY", label: "Quarterly (৩ মাস পর পর - ত্রৈমাসিক)" },
-                          { value: "HALF_YEARLY", label: "Half-Yearly (৬ মাস পর পর - অর্ধবার্ষিক)" },
-                          { value: "YEARLY", label: "Yearly (১ বছর পর পর - বার্ষিক)" },
+                          { value: "MONTHLY", label: "Monthly (Every Month)" },
+                          {
+                            value: "QUARTERLY",
+                            label: "Quarterly (Every 3 Months)",
+                          },
+                          {
+                            value: "HALF_YEARLY",
+                            label: "Half-Yearly (Every 6 Months)",
+                          },
+                          {
+                            value: "YEARLY",
+                            label: "Yearly (Every 12 Months)",
+                          },
                         ]}
                       />
                     </Form.Item>
@@ -899,7 +1081,11 @@ export function SavingsInterestModal({ open, onClose }) {
                       icon={<SaveOutlined />}
                       loading={settingsUpdating}
                       block
-                      style={{ background: "#059669", borderColor: "#059669", marginTop: 10 }}
+                      style={{
+                        background: "#059669",
+                        borderColor: "#059669",
+                        marginTop: 10,
+                      }}
                     >
                       Save Organization Settings
                     </Button>

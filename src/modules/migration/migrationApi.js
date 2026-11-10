@@ -6,6 +6,20 @@ export const migrationApi = baseApi.injectEndpoints({
       query: () => "/migration/template",
     }),
 
+    getMigrationStatus: builder.query({
+      query: () => "/migration/status",
+      providesTags: ["MigrationStatus", "Settings"],
+    }),
+
+    toggleMigrationLock: builder.mutation({
+      query: (locked) => ({
+        url: "/migration/lock",
+        method: "PATCH",
+        body: { locked },
+      }),
+      invalidatesTags: ["MigrationStatus", "Settings"],
+    }),
+
     migrateSingleMember: builder.mutation({
       query: (payload) => ({
         url: "/migration/single",
@@ -28,6 +42,8 @@ export const migrationApi = baseApi.injectEndpoints({
 
 export const {
   useGetMigrationTemplateQuery,
+  useGetMigrationStatusQuery,
+  useToggleMigrationLockMutation,
   useMigrateSingleMemberMutation,
   useMigrateBatchMembersMutation,
 } = migrationApi;

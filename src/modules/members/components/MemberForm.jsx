@@ -198,8 +198,8 @@ export function MemberForm({
 
         <Col xs={24} lg={18}>
           <Card title="Member Information" className="member-form-card">
-            <Row gutter={[20, 0]}>
-              <Col xs={24} md={12} lg={8}>
+            <Row gutter={[{ xs: 10, sm: 16, md: 20 }, 0]}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item
                   label="Full Name"
                   name="fullName"
@@ -214,7 +214,7 @@ export function MemberForm({
                 </Form.Item>
               </Col>
 
-              <Col xs={24} md={12} lg={8}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item
                   label="Father Name"
                   name="fatherName"
@@ -229,7 +229,7 @@ export function MemberForm({
                 </Form.Item>
               </Col>
 
-              <Col xs={24} md={12} lg={8}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item
                   label="Mother Name"
                   name="motherName"
@@ -244,13 +244,13 @@ export function MemberForm({
                 </Form.Item>
               </Col>
 
-              <Col xs={24} md={12} lg={8}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item label="Guardian Name" name="guardianName">
                   <Input placeholder="Enter guardian's name" />
                 </Form.Item>
               </Col>
 
-              <Col xs={24} md={12} lg={8}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item
                   label="Mobile Number"
                   name="mobileNumber"
@@ -269,7 +269,7 @@ export function MemberForm({
                 </Form.Item>
               </Col>
 
-              <Col xs={24} md={12} lg={8}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item
                   label="NID Number"
                   name="nidNumber"
@@ -288,7 +288,7 @@ export function MemberForm({
                 </Form.Item>
               </Col>
 
-              <Col xs={24} md={12} lg={8}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item
                   label="Email"
                   name="email"
@@ -303,7 +303,7 @@ export function MemberForm({
                 </Form.Item>
               </Col>
 
-              <Col xs={24} md={12} lg={8}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item label="Occupation" name="occupation">
                   <Select
                     showSearch
@@ -315,7 +315,7 @@ export function MemberForm({
                 </Form.Item>
               </Col>
 
-              <Col xs={24} md={12} lg={8}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item label="Somiti" name="somitiId">
                   <Select
                     showSearch
@@ -332,7 +332,7 @@ export function MemberForm({
                 </Form.Item>
               </Col>
 
-              <Col xs={24} md={12} lg={8}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item
                   label="Join Date"
                   name="joinDate"
@@ -352,7 +352,7 @@ export function MemberForm({
                 </Form.Item>
               </Col>
 
-              <Col xs={24} md={12} lg={8}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item
                   label="Admission Fee"
                   name="admissionFee"
@@ -451,8 +451,8 @@ export function MemberForm({
           <>
             <Typography.Title level={5}>Guarantor Information</Typography.Title>
 
-            <Row gutter={[20, 0]}>
-              <Col xs={24} md={12} lg={8}>
+            <Row gutter={[{ xs: 10, sm: 16, md: 20 }, 0]}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item
                   label="Full Name"
                   name={["guarantor", "fullName"]}
@@ -467,7 +467,7 @@ export function MemberForm({
                 </Form.Item>
               </Col>
 
-              <Col xs={24} md={12} lg={8}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item
                   label="Father Name"
                   name={["guarantor", "fatherName"]}
@@ -476,7 +476,7 @@ export function MemberForm({
                 </Form.Item>
               </Col>
 
-              <Col xs={24} md={12} lg={8}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item
                   label="Mother Name"
                   name={["guarantor", "motherName"]}
@@ -485,7 +485,7 @@ export function MemberForm({
                 </Form.Item>
               </Col>
 
-              <Col xs={24} md={12} lg={8}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item
                   label="Mobile Number"
                   name={["guarantor", "mobileNumber"]}
@@ -504,7 +504,7 @@ export function MemberForm({
                 </Form.Item>
               </Col>
 
-              <Col xs={24} md={12} lg={8}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item
                   label="NID Number"
                   name={["guarantor", "nidNumber"]}
@@ -523,7 +523,7 @@ export function MemberForm({
                 </Form.Item>
               </Col>
 
-              <Col xs={24} md={12} lg={8}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item
                   label="Relationship"
                   name={["guarantor", "relationship"]}
@@ -544,7 +544,7 @@ export function MemberForm({
                 </Form.Item>
               </Col>
 
-              <Col xs={24} md={12} lg={8}>
+              <Col xs={12} md={12} lg={8}>
                 <Form.Item
                   label="Occupation"
                   name={["guarantor", "occupation"]}

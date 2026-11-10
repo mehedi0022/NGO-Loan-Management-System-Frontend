@@ -178,12 +178,23 @@ export function DashboardHeader({ collapsed, onToggle }) {
         >
           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 cursor-default">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <Typography.Text className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+            <Typography.Text
+              style={{ fontSize: "12px" }}
+              className="text-[10px] md:text-xs font-semibold text-slate-700 dark:text-slate-200"
+            >
               {activeBusinessDate
                 ? dayjs(activeBusinessDate).format("DD MMM YYYY")
                 : dayjs().format("DD MMM YYYY")}
             </Typography.Text>
-            <Tag color="green" className="text-[10px] font-bold px-1 py-0 mr-0 border-none leading-tight">
+            <Tag
+              color="green"
+              style={{
+                fontSize: "10px",
+                borderRadius: "9999px",
+                padding: "0 6px",
+              }}
+              className="text-[10px] font-bold px-1 py-0 mr-0 border-none rounded-2xl leading-tight"
+            >
               OPEN
             </Tag>
           </div>
